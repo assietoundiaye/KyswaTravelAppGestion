@@ -1,0 +1,106 @@
+Crée le fichier .cursorrules à la racine du projet (même niveau que server/ et client/) avec le contenu suivant :
+
+# Projet Kyswa Travel - Règles Cursor AI
+
+## 📋 Contexte du projet
+- **Nom** : Kyswa Travel – Plateforme de gestion agence Omra & Hajj
+- **Pays** : Sénégal
+- **Type** : Application de gestion interne (pas de portail client public)
+- **Architecture** : MERN Stack Monorepo
+
+## 🏗️ Stack technique
+### Backend (server/)
+- Node.js + Express.js
+- MongoDB + Mongoose
+- JWT pour authentification
+- Dotenv pour variables d'environnement
+
+### Frontend (client/)
+- Vite + React 18
+- Tailwind CSS
+- Axios pour API calls
+- React Router Dom
+
+### Outils
+- Concurrently pour lancer backend + frontend simultanément
+- Nodemon pour hot reload backend
+- Vite HMR pour hot reload frontend
+
+## 👥 Rôles utilisateurs
+1. **ADMIN** : Accès complet, gestion utilisateurs, paramètres
+2. **GESTIONNAIRE** : Gestion omras/hajj, clients, réservations
+3. **COMMERCIAL** : Création clients, réservations, suivi ventes
+4. **COMPTABLE** : Gestion paiements, facturation, rapports financiers
+
+**IMPORTANT** : Les clients N'ONT PAS de compte utilisateur. Seuls les employés de l'agence ont un login.
+
+## 💰 Gestion des paiements
+- **Pas de passerelle de paiement en ligne**
+- Paiements enregistrés manuellement (espèces, chèque, virement)
+- Gestion des acomptes et échéanciers
+- Génération de reçus PDF
+
+## 🎨 Conventions de code
+### Style général
+- **Langue** : Code en anglais, commentaires en français si nécessaire
+- **Format** : Utiliser Prettier (2 espaces, single quotes)
+- **Async** : TOUJOURS utiliser async/await (jamais .then())
+- **Erreurs** : Toujours utiliser try/catch avec messages clairs
+
+### Backend
+- Routes organisées par entité (users, clients, omras, hajjs, reservations, payments)
+- Controllers séparés des routes
+- Middlewares pour authentification et autorisation
+- Validation avec express-validator ou Joi
+- Modèles Mongoose avec schémas stricts
+
+### Frontend
+- Composants fonctionnels avec hooks
+- Un composant par fichier
+- Props destructurées
+- CSS via Tailwind (pas de CSS modules)
+- Gestion état avec Context API ou Zustand si nécessaire
+
+### Nommage
+- **Fichiers** : camelCase pour JS, PascalCase pour composants React
+- **Variables** : camelCase
+- **Constantes** : UPPER_SNAKE_CASE
+- **Composants** : PascalCase
+- **Routes API** : kebab-case (/api/omra-packages)
+
+## 🔄 Workflow de développement
+1. **TOUJOURS** proposer un PLAN détaillé avant de coder une grosse feature
+2. Demander confirmation avant de modifier plusieurs fichiers
+3. Expliquer les choix techniques si non évidents
+4. Tester les endpoints avec des exemples concrets
+5. Vérifier la sécurité (pas de données sensibles exposées)
+
+## 📦 Structure des réponses
+Quand tu codes une nouvelle feature :
+1. Résumé de ce qui sera fait
+2. Fichiers qui seront créés/modifiés
+3. Code commenté si logique complexe
+4. Instructions de test
+5. Prochaines étapes suggérées
+
+## 🚫 À éviter
+- Pas de librairies lourdes sans demander (ex: Redux si Context suffit)
+- Pas de sur-ingénierie (KISS principle)
+- Pas de code dupliqué (DRY principle)
+- Pas de console.log dans le code final
+- Pas de données en dur (utiliser .env)
+
+## ✅ Priorités
+1. **Sécurité** : Validation, sanitization, auth/authz
+2. **UX** : Interface claire, messages d'erreur explicites
+3. **Performance** : Pagination, lazy loading si nécessaire
+4. **Maintenabilité** : Code lisible, bien structuré
+
+## 🌍 Contexte métier
+- Omra : Pèlerinage musulman à La Mecque (toute l'année)
+- Hajj : Grand pèlerinage (dates spécifiques, quotas limités)
+- Package inclut : Billets, hôtels, visa, transport, guide
+- Clients paient souvent en plusieurs fois
+- Documents requis : Passeport, vaccins, photos, formulaires
+
+Adapte tes suggestions au contexte d'une agence sénégalaise avec besoins spécifiques métier Omra/Hajj.

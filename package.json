@@ -1,0 +1,27 @@
+{
+  "name": "kyswa-travel",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix serverKyswa\" \"npm run dev --prefix clientKyswa\"",
+    "start": "npm run start --prefix serverKyswa",
+    "build": "npm run build --prefix clientKyswa",
+    "server": "npm run dev --prefix serverKyswa",
+    "client": "npm run dev --prefix clientKyswa"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assietoundiaye/KyswaTravelGestion.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/assietoundiaye/KyswaTravelGestion/issues"
+  },
+  "homepage": "https://github.com/assietoundiaye/KyswaTravelGestion#readme",
+  "dependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
