@@ -84,12 +84,15 @@ const reservationSchema = new mongoose.Schema(
 );
 
 // Méthodes d'instance
+// models/Reservation.js
+
 reservationSchema.methods.calculerResteAPayer = async function () {
-  // Récupère tous les paiements associés
   await this.populate('paiements');
   
   const sommePaiements = this.paiements.reduce((total, paiement) => {
-    return total + (paiement.montant || 0);
+    // Convertir Decimal128 en nombre pour le calcul
+    const montantNum = paiement.montant ? parseFloat(paiement.montant.toString()) : 0;
+    return total + montantNum;
   }, 0);
   
   return this.montantTotalDu - sommePaiements;

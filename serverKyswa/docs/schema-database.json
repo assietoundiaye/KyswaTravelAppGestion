@@ -1,0 +1,108 @@
+{
+  "database": "kyswa-travel (modèles serverKyswa)",
+  "generatedAt": "2026-02-03T00:00:00Z",
+  "models": [
+    {
+      "name": "Client",
+      "collection": "clients",
+      "timestamps": true,
+      "fields": {
+        "numeroPasseport": { "type": "String", "required": true, "unique": true, "trim": true, "message": "Le numéro de passeport est requis" },
+        "numeroCNI": { "type": "String", "trim": true },
+        "nom": { "type": "String", "required": true, "trim": true, "message": "Le nom est requis" },
+        "prenom": { "type": "String", "required": true, "trim": true, "message": "Le prénom est requis" },
+        "dateNaissance": { "type": "Date" },
+        "lieuNaissance": { "type": "String" },
+        "telephone": { "type": "String", "validation": "regex Sénégal (ex: +221..., 77/78/70...)", "message": "Le numéro de téléphone doit être valide (format Sénégal)" },
+        "email": { "type": "String", "lowercase": true, "trim": true, "validation": "email", "message": "L'email doit être valide" },
+        "adresse": { "type": "String" },
+        "dateCreation": { "type": "Date", "default": "Date.now" },
+        "creeParUtilisateurId": { "type": "ObjectId", "ref": "Utilisateur" }
+      }
+    },
+    {
+      "name": "Utilisateur",
+      "collection": "utilisateurs",
+      "timestamps": true,
+      "fields": {
+        "nom": { "type": "String", "required": true, "trim": true, "message": "Le nom est requis" },
+        "prenom": { "type": "String", "required": true, "trim": true, "message": "Le prénom est requis" },
+        "email": { "type": "String", "required": true, "unique": true, "lowercase": true, "trim": true, "validation": "email", "message": "L'email doit être valide" },
+        "telephone": { "type": "String" },
+        "password": { "type": "String", "required": true, "message": "Le mot de passe est requis" },
+        "role": { "type": "String", "enum": ["ADMIN", "GESTIONNAIRE", "COMMERCIAL", "COMPTABLE"], "required": true, "message": "Le rôle est requis" },
+        "etat": { "type": "String", "enum": ["ACTIF", "INACTIF"], "default": "ACTIF" },
+        "dateCreation": { "type": "Date", "default": "Date.now" },
+        "dateDerniereConnexion": { "type": "Date" }
+      },
+      "methods": [
+        "seConnecter() : met à jour dateDerniereConnexion et sauvegarde",
+        "seDeconnecter() : logique de déconnexion (placeholder)",
+        "modifierProfil(donnees) : met à jour champs modifiables et sauvegarde",
+        "detailsModif(donnees) : retourne objet décrivant modifications"
+      ]
+    },
+    {
+      "name": "Reservation",
+      "collection": "reservations",
+      "timestamps": true,
+      "fields": {
+        "idReservation": { "type": "Number", "required": true, "unique": true, "message": "L'ID de réservation est requis" },
+        "nombrePlaces": { "type": "Number", "required": true, "min": 1, "message": "Le nombre de places est requis" },
+        "formule": { "type": "String", "enum": ["LOGEMENT_SEUL","LOGEMENT_PETIT_DEJEUNER","DEMI_PENSION","PENSION_COMPLETE","ALL_INCLUSIVE","ALL_INCLUSIVE_PREMIUM"] },
+        "niveauConfort": { "type": "String", "enum": ["ECO","CONFORT","VIP"] },
+        "dateDepart": { "type": "Date", "required": true, "message": "La date de départ est requise" },
+        "dateRetour": { "type": "Date", "required": true, "message": "La date de retour est requise" },
+        "montantTotalDu": { "type": "Number", "required": true, "message": "Le montant total est requis" },
+        "statut": { "type": "String", "enum": ["EN_ATTENTE","CONFIRMEE","PAYEE","ANNULEE"], "default": "EN_ATTENTE" },
+        "statutCreation": { "type": "Date", "default": "Date.now" },
+        "creeParUtilisateurId": { "type": "ObjectId", "ref": "Utilisateur" },
+        "packageKId": { "type": "ObjectId", "ref": "PackageK", "required": true },
+        "clients": { "type": "Array", "itemsRef": "Client" },
+        "paiements": { "type": "Array", "itemsRef": "Paiement" }
+      },
+      "methods": [
+        "calculerResteAPayer() : Decimal (montantTotalDu - somme des paiements)",
+        "mettreAJourStatutPaiement() : met à jour statut en fonction des paiements",
+        "verifierDispo(qte) : bool (vérifie disponibilité selon nombrePlaces/quota)"
+      ]
+    },
+    {
+      "name": "Paiement",
+      "collection": "paiements",
+      "timestamps": true,
+      "fields": {
+        "idPaiement": { "type": "Number", "required": true, "unique": true, "message": "L'ID de paiement est requis" },
+        "montant": { "type": "Decimal128", "required": true, "message": "Le montant est requis" },
+        "dateReglement": { "type": "Date", "required": true, "message": "La date de règlement est requise" },
+        "mode": { "type": "String", "enum": ["CARTE_BANCAIRE","VIREMENT","ORANGE_MONEY","WAVE","MONEY","ESPECES","AUTRE"], "required": true },
+        "reference": { "type": "String", "trim": true },
+        "creeParUtilisateurId": { "type": "ObjectId", "ref": "Utilisateur" },
+        "dateCreation": { "type": "Date", "default": "Date.now" }
+      },
+      "methods": ["genererFacture() : retourne un objet facture (placeholder)"]
+    },
+    {
+      "name": "PackageK",
+      "collection": "packageks",
+      "timestamps": true,
+      "fields": {
+        "idPackageK": { "type": "Number", "required": true, "unique": true, "message": "L'ID du package est requis" },
+        "nomReference": { "type": "String", "required": true, "trim": true, "message": "Le nom de référence est requis" },
+        "type": { "type": "String", "enum": ["OUMRA","HAJJ","ZIAR_FES","TOURISME"] },
+        "statut": { "type": "String", "enum": ["OUVERT","COMPLET","ANNULE","TERMINE"], "default": "OUVERT" },
+        "dateDepart": { "type": "Date", "required": true, "message": "La date de départ est requise" },
+        "dateRetour": { "type": "Date", "required": true, "message": "La date de retour est requise" },
+        "prixEco": { "type": "Decimal128" },
+        "prixCont": { "type": "Decimal128" },
+        "prixVip": { "type": "Decimal128" },
+        "hotel": { "type": "Array", "itemsType": "String" },
+        "quotaMax": { "type": "Number", "required": true, "message": "Le quota maximum est requis" },
+        "placesReservees": { "type": "Number", "default": 0 },
+        "dateCreation": { "type": "Date", "default": "Date.now" },
+        "creeParUtilisateurId": { "type": "ObjectId", "ref": "Utilisateur" }
+      },
+      "methods": ["verifierDispo(qte) : bool","calculerPlacesRestantes() : number"]
+    }
+  ]
+}
