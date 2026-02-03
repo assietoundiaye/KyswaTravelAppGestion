@@ -38,7 +38,7 @@ const Home = () => {
       
       let errorMessage = '❌ Erreur connexion backend';
       if (error.code === 'ECONNREFUSED') {
-        errorMessage = '❌ Backend non accessible (vérifie qu\'il tourne sur http://localhost:5000)';
+        errorMessage = '❌ Backend non accessible (vérifie qu\'il tourne sur http://localhost:3000)';
       } else if (error.response) {
         errorMessage = `❌ Erreur ${error.response.status}: ${error.response.statusText}`;
       } else if (error.message) {
