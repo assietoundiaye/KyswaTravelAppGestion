@@ -6,24 +6,19 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 // Vérification des variables d'environnement
 if (!process.env.MONGO_URI) {
   console.warn('⚠️  MONGO_URI non défini dans .env - la connexion MongoDB sera ignorée');
 }
 
-// Middlewares
-// Configuration Helmet moins restrictive pour le développement
-app.use(helmet({
-  contentSecurityPolicy: false, // Désactivé en dev pour éviter les blocages
-  crossOriginEmbedderPolicy: false
-}));
-
 // CORS configuré pour accepter toutes les origines en développement
 app.use(cors({
-  origin: true, // Accepte toutes les origines
-  credentials: true
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
@@ -39,7 +34,7 @@ app.use((req, res, next) => {
 app.get('/api/test', (req, res) => {
   try {
     console.log('✅ Route /api/test appelée avec succès');
-    res.json({ 
+    res.json({
       message: 'Backend Kyswa Travel OK',
       timestamp: new Date().toISOString(),
       mongoStatus: mongoose.connection.readyState === 1 ? 'connecté' : 'non connecté'
@@ -68,13 +63,12 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ Rejection non gérée:', reason);
 });
 
-// Connexion MongoDB (ne fait plus planter le serveur en cas d'erreur)
+// Connexion MongoDB
 const connectDB = async () => {
   if (!process.env.MONGO_URI) {
     console.log('ℹ️  MongoDB non configuré - le serveur fonctionne sans DB');
     return;
   }
-
   try {
     console.log('🔄 Tentative de connexion à MongoDB Atlas...');
     await mongoose.connect(process.env.MONGO_URI, {
