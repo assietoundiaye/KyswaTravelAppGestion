@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "seed": "DOTENV_CONFIG_PATH=../.env node scripts/seed-test.js"
+    "seed": "DOTENV_CONFIG_PATH=../.env node scripts/seed-test.js",
+    "test": "DOTENV_CONFIG_PATH=../.env node scripts/test-models.js"
   },
   "keywords": [],
   "author": "",

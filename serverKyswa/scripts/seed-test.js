@@ -14,7 +14,8 @@ const Client = require('../models/Client');
 const PackageK = require('../models/PackageK');
 const Reservation = require('../models/Reservation');
 const Paiement = require('../models/Paiement');
-require('dotenv').config({ path: './.env' });
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 async function run() {
   const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/kyswa-test';
 
