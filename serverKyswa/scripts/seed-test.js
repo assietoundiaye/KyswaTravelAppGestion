@@ -23,7 +23,7 @@ async function run() {
     await mongoose.connect(mongoUri);
     console.log('Connecté à', mongoUri);
 
-    // 1. Créer un utilisateur COMMERCIAL
+    // 1. Créer un utilisateur avec le role  COMMERCIAL
     const utilisateur = new Utilisateur({
       nom: 'Dupont',
       prenom: 'Jean',
@@ -35,7 +35,7 @@ async function run() {
     await utilisateur.save();
     console.log('Utilisateur COMMERCIAL créé:', utilisateur._id.toString());
 
-    // 2. Créer un client
+    // 2. Créer un client lié à cet utilisateur
     const client = new Client({
       numeroPasseport: `P-${Date.now()}`,
       numeroCNI: `CNI-${Date.now()}`,
@@ -51,7 +51,7 @@ async function run() {
     await client.save();
     console.log('Client créé:', client._id.toString());
 
-    // 3. Créer un PackageK HAJJ
+    // 3. Créer un PackageK HAJJ 
     const packageK = new PackageK({
       idPackageK: Date.now(),
       nomReference: 'HAJJ 2026 - Test',
