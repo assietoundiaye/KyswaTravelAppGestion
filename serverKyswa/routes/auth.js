@@ -30,6 +30,14 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Cet email est déjà utilisé' });
     }
 
+    // Vérifier si téléphone existe déjà (si fourni)
+    if (telephone) {
+      const utilisateurTelephone = await Utilisateur.findOne({ telephone });
+      if (utilisateurTelephone) {
+        return res.status(400).json({ message: 'Ce numéro de téléphone est déjà utilisé' });
+      }
+    }
+
     // Créer nouvel utilisateur
     const utilisateur = new Utilisateur({
       nom,
