@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const utilisateurSchema = new mongoose.Schema(
   {
@@ -31,6 +32,7 @@ const utilisateurSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'Le mot de passe est requis'],
+      select: false,// Le mot de passe ne sera pas inclus par défaut dans les recherches 
     },
     role: {
       type: String,
@@ -98,4 +100,21 @@ utilisateurSchema.methods.detailsModif = function (donnees) {
   return modifications;
 };
 
+// Méthode pour comparer le password lors du login
+utilisateurSchema.methods.comparePassword = async function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+// Hook pour hasher le password avant save si modifié
+utilisateurSchema.pre('save', async function() {
+    // Si le mot de passe n'est pas modifié, on s'arrête là
+    if (!this.isModified('password')) return;
+
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
+    } catch (error) {
+        throw error; // Mongoose attrapera l'erreur tout seul
+    }
+});
 module.exports = mongoose.model('Utilisateur', utilisateurSchema);

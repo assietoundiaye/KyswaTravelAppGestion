@@ -7,7 +7,8 @@ const morgan = require('morgan');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
+app.use(cors());
+app.use(express.json());
 // Vérification des variables d'environnement
 if (!process.env.MONGO_URI) {
   console.warn('⚠️  MONGO_URI non défini dans .env - la connexion MongoDB sera ignorée');
@@ -29,6 +30,14 @@ app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`);
   next();
 });
+
+// Routes d'authentification
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
+
+// Routes de test protégées
+const testRoutes = require('./routes/test');
+app.use('/api/test', testRoutes);
 
 // Route de test
 app.get('/api/test', (req, res) => {
