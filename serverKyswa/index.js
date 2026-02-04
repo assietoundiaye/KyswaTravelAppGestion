@@ -35,6 +35,10 @@ app.use((req, res, next) => {
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
+// Routes de gestion des utilisateurs (ADMIN seulement)
+const usersRoutes = require('./routes/users');
+app.use('/api/users', usersRoutes);
+
 // Routes de test protégées
 const testRoutes = require('./routes/test');
 app.use('/api/test', testRoutes);
