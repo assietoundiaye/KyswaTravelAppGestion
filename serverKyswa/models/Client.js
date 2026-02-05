@@ -10,6 +10,8 @@ const clientSchema = new mongoose.Schema(
     },
     numeroCNI: {
       type: String,
+      unique: true,
+      sparse: true,
       trim: true,
     },
     nom: {

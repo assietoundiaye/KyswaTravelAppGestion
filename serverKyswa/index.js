@@ -39,6 +39,14 @@ app.use('/api/auth', authRoutes);
 const usersRoutes = require('./routes/users');
 app.use('/api/users', usersRoutes);
 
+// Routes de profil (utilisateur connecté)
+const profileRoutes = require('./routes/profile');
+app.use('/api/profile', profileRoutes);
+
+// Routes clients (consultation par tous les rôles internes)
+const clientsRoutes = require('./routes/clients');
+app.use('/api/clients', clientsRoutes);
+
 // Routes de gestion des packages (GESTIONNAIRE ou ADMIN)
 const packagesRoutes = require('./routes/packages');
 app.use('/api/packages', packagesRoutes);
@@ -46,6 +54,10 @@ app.use('/api/packages', packagesRoutes);
 // Routes de gestion des suppléments (GESTIONNAIRE ou ADMIN)
 const supplementsRoutes = require('./routes/supplements');
 app.use('/api/supplements', supplementsRoutes);
+
+// Routes de gestion des billets (COMMERCIAL, GESTIONNAIRE, COMPTABLE)
+const billetsRoutes = require('./routes/billets');
+app.use('/api/billets', billetsRoutes);
 
 // Routes de test protégées
 const testRoutes = require('./routes/test');

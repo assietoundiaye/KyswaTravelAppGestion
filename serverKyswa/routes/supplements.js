@@ -4,9 +4,9 @@ const Supplement = require('../models/Supplement');
 const LigneSupplement = require('../models/LigneSupplement');
 const { protect, requireRole } = require('../middleware/auth');
 
-// Protéger toutes les routes avec protect et requireRole('GESTIONNAIRE', 'ADMIN')
+// Protéger toutes les routes avec protect et requireRole('GESTIONNAIRE')
 router.use(protect);
-router.use(requireRole('GESTIONNAIRE', 'ADMIN'));
+router.use(requireRole('GESTIONNAIRE'));
 
 /**
  * GET /api/supplements

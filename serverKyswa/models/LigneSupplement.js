@@ -12,10 +12,25 @@ const ligneSupplementSchema = new mongoose.Schema(
       required: [true, 'La quantité est requise'],
       min: [1, 'La quantité doit être au moins 1'],
     },
+    reservationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Reservation',
+      required: [true, 'La réservation est requise'],
+    },
+    clientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Client',
+      required: [true, 'Le client est requis'],
+    },
+    supplementId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Supplement',
+      required: [true, 'Le supplément est requis'],
+    },
     prixUnitaire: {
-      type: mongoose.Decimal128,
+      type: Number,
       required: [true, 'Le prix unitaire est requis'],
-      get: (value) => (value ? value.toString() : null),
+      min: [0, 'Le prix unitaire doit être positif'],
     },
     dateCreation: {
       type: Date,
