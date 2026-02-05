@@ -3,11 +3,13 @@ const router = express.Router();
 const Reservation = require('../models/Reservation');
 const PackageK = require('../models/PackageK');
 const Client = require('../models/Client');
+const LigneSupplement = require('../models/LigneSupplement');
+const Supplement = require('../models/Supplement');
 const { protect, requireRole } = require('../middleware/auth');
 
-// Protection: COMMERCIAL et ADMIN
+// Protection: COMMERCIAL, GESTIONNAIRE et COMPTABLE
 router.use(protect);
-router.use(requireRole('COMMERCIAL', 'ADMIN'));
+router.use(requireRole('COMMERCIAL', 'GESTIONNAIRE', 'COMPTABLE'));
 
 /**
  * POST /api/reservations
@@ -206,4 +208,113 @@ router.delete('/:id/clients/:clientId', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/reservations/:id/supplements
+ * Ajouter un supplément pour un client dans la réservation
+ */
+router.post('/:id/supplements', async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const { clientId, supplementId, quantite } = req.body;
+
+    if (!clientId || !supplementId || !quantite) {
+      return res.status(400).json({ message: 'Champs requis manquants (clientId, supplementId, quantite)' });
+    }
+
+    const reservation = await Reservation.findById(reservationId);
+    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
+
+    // Vérifier que le client appartient à la réservation
+    if (!reservation.clients.map((c) => c.toString()).includes(clientId)) {
+      return res.status(400).json({ message: 'Le client n\'appartient pas à cette réservation' });
+    }
+
+    // Vérifier supplément
+    const supplement = await Supplement.findById(supplementId);
+    if (!supplement) return res.status(404).json({ message: 'Supplément non trouvé' });
+
+    // Calcul prixUnitaire (convert Decimal128 string to Number if needed)
+    const prixUnitaire = supplement.prix ? parseFloat(supplement.prix.toString()) : 0;
+
+    // Créer la ligne
+    const ligne = new LigneSupplement({
+      idLigneSupplement: Date.now(),
+      reservationId: reservation._id,
+      clientId,
+      supplementId,
+      quantite,
+      prixUnitaire,
+      creeParUtilisateurId: req.user.id,
+    });
+
+    await ligne.save();
+
+    // Mettre à jour montantTotalDu
+    reservation.montantTotalDu = (reservation.montantTotalDu || 0) + prixUnitaire * quantite;
+    await reservation.save();
+
+    const lignePop = await LigneSupplement.findById(ligne._id).populate('supplementId');
+    const reservationPop = await Reservation.findById(reservation._id).populate('clients').populate('packageKId');
+
+    return res.status(201).json({ message: 'Ligne de supplément créée', ligne: lignePop, reservation: reservationPop });
+  } catch (err) {
+    console.error('Erreur ajout ligne supplément:', err);
+    return res.status(500).json({ message: 'Erreur lors de l\'ajout du supplément' });
+  }
+});
+
+/**
+ * GET /api/reservations/:id/supplements
+ * Lister les lignes de suppléments pour une réservation (optionnel clientId)
+ */
+router.get('/:id/supplements', async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const { clientId } = req.query;
+
+    const filter = { reservationId };
+    if (clientId) filter.clientId = clientId;
+
+    const lignes = await LigneSupplement.find(filter).populate('supplementId').populate('clientId', 'nom prenom');
+
+    return res.status(200).json({ count: lignes.length, lignes });
+  } catch (err) {
+    console.error('Erreur récupération lignes supplément:', err);
+    return res.status(500).json({ message: 'Erreur lors de la récupération des suppléments' });
+  }
+});
+
+/**
+ * DELETE /api/reservations/:id/supplements/:ligneId
+ * Supprimer une ligne de supplément et mettre à jour le montant
+ */
+router.delete('/:id/supplements/:ligneId', async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const ligneId = req.params.ligneId;
+
+    const ligne = await LigneSupplement.findById(ligneId);
+    if (!ligne) return res.status(404).json({ message: 'Ligne de supplément non trouvée' });
+    if (ligne.reservationId.toString() !== reservationId) return res.status(400).json({ message: 'La ligne n\'appartient pas à cette réservation' });
+
+    const reservation = await Reservation.findById(reservationId);
+    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
+
+    // Décrémenter montant
+    const montantRetrait = (ligne.prixUnitaire || 0) * (ligne.quantite || 0);
+    reservation.montantTotalDu = Math.max(0, (reservation.montantTotalDu || 0) - montantRetrait);
+    await reservation.save();
+
+    await LigneSupplement.findByIdAndDelete(ligneId);
+
+    const reservationPop = await Reservation.findById(reservation._id).populate('clients').populate('packageKId');
+    return res.status(200).json({ message: 'Ligne supprimée', reservation: reservationPop });
+  } catch (err) {
+    console.error('Erreur suppression ligne supplément:', err);
+    return res.status(500).json({ message: 'Erreur lors de la suppression du supplément' });
+  }
+});
+
 module.exports = router;
+
+

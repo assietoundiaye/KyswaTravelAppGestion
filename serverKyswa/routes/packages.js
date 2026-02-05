@@ -3,9 +3,8 @@ const router = express.Router();
 const PackageK = require('../models/PackageK');
 const { protect, requireRole } = require('../middleware/auth');
 
-// Protéger toutes les routes avec protect et requireRole('GESTIONNAIRE', 'ADMIN')
+// Protéger toutes les routes avec protect (lecture accessible à tous les rôles internes)
 router.use(protect);
-router.use(requireRole('GESTIONNAIRE', 'ADMIN'));
 
 /**
  * GET /api/packages
@@ -32,7 +31,7 @@ router.get('/', async (req, res) => {
  * POST /api/packages
  * Créer un nouveau package
  */
-router.post('/', async (req, res) => {
+router.post('/', requireRole('GESTIONNAIRE'), async (req, res) => {
   try {
     const { nomReference, type, statut, dateDepart, dateRetour, prixEco, prixCont, prixVip, hotel, quotaMax } = req.body;
 
@@ -121,7 +120,7 @@ router.get('/:id', async (req, res) => {
  * PATCH /api/packages/:id
  * Modifier un package (sauf id)
  */
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', requireRole('GESTIONNAIRE'), async (req, res) => {
   try {
     const { nomReference, type, statut, dateDepart, dateRetour, prixEco, prixCont, prixVip, hotel, quotaMax } = req.body;
 
@@ -189,7 +188,7 @@ router.patch('/:id', async (req, res) => {
  * DELETE /api/packages/:id
  * Supprimer un package (vérifie que placesReservees === 0)
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole('GESTIONNAIRE'), async (req, res) => {
   try {
     const packageK = await PackageK.findById(req.params.id);
 
@@ -222,7 +221,7 @@ router.delete('/:id', async (req, res) => {
  * POST /api/packages/:id/supplements
  * Associer un ou plusieurs suppléments à un package
  */
-router.post('/:id/supplements', async (req, res) => {
+router.post('/:id/supplements', requireRole('GESTIONNAIRE'), async (req, res) => {
   try {
     const { supplementIds } = req.body;
 
@@ -284,7 +283,7 @@ router.get('/:id/supplements', async (req, res) => {
  * DELETE /api/packages/:id/supplements/:supplementId
  * Retirer un supplément d'un package
  */
-router.delete('/:id/supplements/:supplementId', async (req, res) => {
+router.delete('/:id/supplements/:supplementId', requireRole('GESTIONNAIRE'), async (req, res) => {
   try {
     const packageK = await PackageK.findById(req.params.id);
 
