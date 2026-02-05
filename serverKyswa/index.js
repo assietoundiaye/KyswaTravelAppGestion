@@ -109,3 +109,7 @@ app.listen(PORT, () => {
   console.log(`📡 Route de test: http://localhost:${PORT}/api/test`);
   connectDB();
 });
+
+// Routes de gestion des réservations (COMMERCIAL ou ADMIN)
+const reservationsRoutes = require('./routes/reservations');
+app.use('/api/reservations', reservationsRoutes);
