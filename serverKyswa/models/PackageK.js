@@ -11,6 +11,7 @@ const packageKSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Le nom de référence est requis'],
       trim: true,
+      unique: true,
     },
     type: {
       type: String,
@@ -64,6 +65,12 @@ const packageKSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Utilisateur',
     },
+    supplements: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Supplement',
+      },
+    ],
   },
   { timestamps: true }
 );

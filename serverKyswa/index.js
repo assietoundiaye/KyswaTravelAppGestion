@@ -39,6 +39,14 @@ app.use('/api/auth', authRoutes);
 const usersRoutes = require('./routes/users');
 app.use('/api/users', usersRoutes);
 
+// Routes de gestion des packages (GESTIONNAIRE ou ADMIN)
+const packagesRoutes = require('./routes/packages');
+app.use('/api/packages', packagesRoutes);
+
+// Routes de gestion des suppléments (GESTIONNAIRE ou ADMIN)
+const supplementsRoutes = require('./routes/supplements');
+app.use('/api/supplements', supplementsRoutes);
+
 // Routes de test protégées
 const testRoutes = require('./routes/test');
 app.use('/api/test', testRoutes);
