@@ -3,12 +3,11 @@ const router = express.Router();
 const PackageK = require('../models/PackageK');
 const { protect, requireRole } = require('../middleware/auth');
 
-// Protéger toutes les routes avec protect (lecture accessible à tous les rôles internes)
+// Protéger toutes les routes avec protect
 router.use(protect);
 
 /**
  * GET /api/packages
- * Liste tous les packages
  */
 router.get('/', async (req, res) => {
   try {
@@ -17,68 +16,50 @@ router.get('/', async (req, res) => {
       .select('idPackageK nomReference type statut dateDepart dateRetour quotaMax placesReservees prixEco prixCont prixVip hotel')
       .sort({ dateDepart: -1 });
 
-    return res.status(200).json({
-      count: packages.length,
-      packages,
-    });
+    return res.status(200).json({ count: packages.length, packages });
   } catch (err) {
-    console.error('Erreur lors de la récupération des packages:', err);
-    return res.status(500).json({ message: 'Erreur lors de la récupération des packages' });
+    console.error('Erreur récupération packages:', err);
+    return res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
 /**
  * POST /api/packages
- * Créer un nouveau package
  */
 router.post('/', requireRole('GESTIONNAIRE'), async (req, res) => {
   try {
     const { nomReference, type, statut, dateDepart, dateRetour, prixEco, prixCont, prixVip, hotel, quotaMax } = req.body;
 
-    // Validations
-    if (!nomReference || !dateDepart || !dateRetour || !quotaMax) {
-      return res.status(400).json({ message: 'Champs requis manquants (nomReference, dateDepart, dateRetour, quotaMax)' });
+    // Validation des types (CWE-1287)
+    if (typeof nomReference !== 'string' || !dateDepart || !dateRetour || !quotaMax) {
+      return res.status(400).json({ message: 'Données invalides ou manquantes' });
     }
 
-    // Vérifier les types autorisés
     const typesAutorises = ['OUMRA', 'HAJJ', 'ZIAR_FES', 'TOURISME'];
     if (type && !typesAutorises.includes(type)) {
-      return res.status(400).json({
-        message: `Le type doit être l'un de: ${typesAutorises.join(', ')}`,
-      });
+      return res.status(400).json({ message: 'Type de package invalide' });
     }
 
-    // Vérifier que nomReference est unique
-    const existingByName = await PackageK.findOne({ nomReference: nomReference.trim() });
+    // Sécurisation du trim()
+    const cleanNom = nomReference.trim();
+    const existingByName = await PackageK.findOne({ nomReference: cleanNom });
     if (existingByName) {
-      return res.status(400).json({ message: 'Un package avec ce nom de référence existe déjà' });
+      return res.status(400).json({ message: 'Ce nom de référence existe déjà' });
     }
 
-    // Vérifier les statuts autorisés
-    const statutsAutorises = ['OUVERT', 'COMPLET', 'ANNULE', 'TERMINE'];
-    if (statut && !statutsAutorises.includes(statut)) {
-      return res.status(400).json({
-        message: `Le statut doit être l'un de: ${statutsAutorises.join(', ')}`,
-      });
-    }
-
-    // Vérifier que dateRetour > dateDepart
     if (new Date(dateRetour) <= new Date(dateDepart)) {
-      return res.status(400).json({ message: 'La date de retour doit être après la date de départ' });
+      return res.status(400).json({ message: 'La date de retour doit être après le départ' });
     }
 
-    // Créer le package
     const packageK = new PackageK({
       idPackageK: Date.now(),
-      nomReference,
+      nomReference: cleanNom,
       type: type || undefined,
       statut: statut || 'OUVERT',
       dateDepart,
       dateRetour,
-      prixEco: prixEco || undefined,
-      prixCont: prixCont || undefined,
-      prixVip: prixVip || undefined,
-      hotel: hotel || [],
+      prixEco, prixCont, prixVip,
+      hotel: Array.isArray(hotel) ? hotel : [],
       quotaMax,
       creeParUtilisateurId: req.user.id,
     });
@@ -86,81 +67,41 @@ router.post('/', requireRole('GESTIONNAIRE'), async (req, res) => {
     await packageK.save();
     await packageK.populate('creeParUtilisateurId', 'nom prenom email');
 
-    return res.status(201).json({
-      message: 'Package créé avec succès',
-      package: packageK,
-    });
+    return res.status(201).json({ message: 'Package créé', package: packageK });
   } catch (err) {
-    console.error('Erreur lors de la création du package:', err);
-    return res.status(500).json({ message: 'Erreur lors de la création du package' });
-  }
-});
-
-/**
- * GET /api/packages/:id
- * Détail d'un package
- */
-router.get('/:id', async (req, res) => {
-  try {
-    const packageK = await PackageK.findById(req.params.id)
-      .populate('creeParUtilisateurId', 'nom prenom email');
-
-    if (!packageK) {
-      return res.status(404).json({ message: 'Package non trouvé' });
-    }
-
-    return res.status(200).json({ package: packageK });
-  } catch (err) {
-    console.error('Erreur lors de la récupération du package:', err);
-    return res.status(500).json({ message: 'Erreur lors de la récupération du package' });
+    return res.status(500).json({ message: 'Erreur lors de la création' });
   }
 });
 
 /**
  * PATCH /api/packages/:id
- * Modifier un package (sauf id)
  */
 router.patch('/:id', requireRole('GESTIONNAIRE'), async (req, res) => {
   try {
     const { nomReference, type, statut, dateDepart, dateRetour, prixEco, prixCont, prixVip, hotel, quotaMax } = req.body;
-
     const packageK = await PackageK.findById(req.params.id);
 
-    if (!packageK) {
-      return res.status(404).json({ message: 'Package non trouvé' });
-    }
+    if (!packageK) return res.status(404).json({ message: 'Package non trouvé' });
 
-    // Vérifier les types autorisés
-    const typesAutorises = ['OUMRA', 'HAJJ', 'ZIAR_FES', 'TOURISME'];
-    if (type && !typesAutorises.includes(type)) {
-      return res.status(400).json({
-        message: `Le type doit être l'un de: ${typesAutorises.join(', ')}`,
-      });
-    }
-
-    // Vérifier les statuts autorisés
-    const statutsAutorises = ['OUVERT', 'COMPLET', 'ANNULE', 'TERMINE'];
-    if (statut && !statutsAutorises.includes(statut)) {
-      return res.status(400).json({
-        message: `Le statut doit être l'un de: ${statutsAutorises.join(', ')}`,
-      });
-    }
-
-    // Vérifier que dateRetour > dateDepart
-    const newDateDepart = dateDepart ? new Date(dateDepart) : packageK.dateDepart;
-    const newDateRetour = dateRetour ? new Date(dateRetour) : packageK.dateRetour;
-    if (newDateRetour <= newDateDepart) {
-      return res.status(400).json({ message: 'La date de retour doit être après la date de départ' });
-    }
-
-    // Mise à jour des champs
-    if (nomReference && nomReference.trim() !== packageK.nomReference) {
-      const existing = await PackageK.findOne({ nomReference: nomReference.trim() });
-      if (existing && existing._id.toString() !== packageK._id.toString()) {
-        return res.status(400).json({ message: 'Un package avec ce nom de référence existe déjà' });
+    // Validation de type pour nomReference si fourni
+    if (nomReference) {
+      if (typeof nomReference !== 'string') return res.status(400).json({ message: 'Format nomReference invalide' });
+      const cleanNom = nomReference.trim();
+      if (cleanNom !== packageK.nomReference) {
+        const existing = await PackageK.findOne({ nomReference: cleanNom });
+        if (existing) return res.status(400).json({ message: 'Nom déjà utilisé' });
+        packageK.nomReference = cleanNom;
       }
-      packageK.nomReference = nomReference;
     }
+
+    // Vérification logique des dates
+    const dDepart = dateDepart ? new Date(dateDepart) : new Date(packageK.dateDepart);
+    const dRetour = dateRetour ? new Date(dateRetour) : new Date(packageK.dateRetour);
+    if (dRetour <= dDepart) {
+      return res.status(400).json({ message: 'Cohérence des dates invalide' });
+    }
+
+    // Mise à jour sécurisée
     if (type) packageK.type = type;
     if (statut) packageK.statut = statut;
     if (dateDepart) packageK.dateDepart = dateDepart;
@@ -168,144 +109,55 @@ router.patch('/:id', requireRole('GESTIONNAIRE'), async (req, res) => {
     if (prixEco) packageK.prixEco = prixEco;
     if (prixCont) packageK.prixCont = prixCont;
     if (prixVip) packageK.prixVip = prixVip;
-    if (hotel) packageK.hotel = hotel;
+    if (hotel) packageK.hotel = Array.isArray(hotel) ? hotel : packageK.hotel;
     if (quotaMax) packageK.quotaMax = quotaMax;
 
     await packageK.save();
-    await packageK.populate('creeParUtilisateurId', 'nom prenom email');
-
-    return res.status(200).json({
-      message: 'Package modifié avec succès',
-      package: packageK,
-    });
+    return res.status(200).json({ message: 'Modifié avec succès', package: packageK });
   } catch (err) {
-    console.error('Erreur lors de la modification du package:', err);
-    return res.status(500).json({ message: 'Erreur lors de la modification du package' });
+    return res.status(500).json({ message: 'Erreur modification' });
   }
 });
 
 /**
  * DELETE /api/packages/:id
- * Supprimer un package (vérifie que placesReservees === 0)
  */
 router.delete('/:id', requireRole('GESTIONNAIRE'), async (req, res) => {
   try {
     const packageK = await PackageK.findById(req.params.id);
+    if (!packageK) return res.status(404).json({ message: 'Package non trouvé' });
 
-    if (!packageK) {
-      return res.status(404).json({ message: 'Package non trouvé' });
-    }
-
-    // Vérifier que le package est vide
     if (packageK.placesReservees > 0) {
-      return res.status(400).json({ message: 'Package non vide' });
+      return res.status(400).json({ message: 'Impossible de supprimer un package contenant des réservations' });
     }
 
     await PackageK.findByIdAndDelete(req.params.id);
-
-    return res.status(200).json({
-      message: 'Package supprimé avec succès',
-      package: {
-        id: packageK._id,
-        nomReference: packageK.nomReference,
-        type: packageK.type,
-      },
-    });
+    return res.status(200).json({ message: 'Package supprimé' });
   } catch (err) {
-    console.error('Erreur lors de la suppression du package:', err);
-    return res.status(500).json({ message: 'Erreur lors de la suppression du package' });
+    return res.status(500).json({ message: 'Erreur suppression' });
   }
 });
 
 /**
  * POST /api/packages/:id/supplements
- * Associer un ou plusieurs suppléments à un package
  */
 router.post('/:id/supplements', requireRole('GESTIONNAIRE'), async (req, res) => {
   try {
     const { supplementIds } = req.body;
-
-    // Validations
-    if (!supplementIds || !Array.isArray(supplementIds) || supplementIds.length === 0) {
-      return res.status(400).json({ message: 'Veuillez fournir un array de supplementIds' });
-    }
+    if (!Array.isArray(supplementIds)) return res.status(400).json({ message: 'Array supplementIds requis' });
 
     const packageK = await PackageK.findById(req.params.id);
+    if (!packageK) return res.status(404).json({ message: 'Package non trouvé' });
 
-    if (!packageK) {
-      return res.status(404).json({ message: 'Package non trouvé' });
-    }
-
-    // Ajouter les suppléments (éviter les doublons)
-    supplementIds.forEach((supplementId) => {
-      if (!packageK.supplements.includes(supplementId)) {
-        packageK.supplements.push(supplementId);
-      }
+    // Ajout sans doublons
+    supplementIds.forEach(id => {
+      if (!packageK.supplements.includes(id)) packageK.supplements.push(id);
     });
 
     await packageK.save();
-    await packageK.populate('supplements', 'idSupplement nom prix');
-
-    return res.status(200).json({
-      message: 'Suppléments associés avec succès',
-      package: packageK,
-    });
+    return res.status(200).json({ message: 'Suppléments ajoutés', package: packageK });
   } catch (err) {
-    console.error('Erreur lors de l\'association des suppléments:', err);
-    return res.status(500).json({ message: 'Erreur lors de l\'association des suppléments' });
-  }
-});
-
-/**
- * GET /api/packages/:id/supplements
- * Lister les suppléments associés à un package
- */
-router.get('/:id/supplements', async (req, res) => {
-  try {
-    const packageK = await PackageK.findById(req.params.id)
-      .populate('supplements', 'idSupplement nom prix dateCreation');
-
-    if (!packageK) {
-      return res.status(404).json({ message: 'Package non trouvé' });
-    }
-
-    return res.status(200).json({
-      count: packageK.supplements.length,
-      supplements: packageK.supplements,
-    });
-  } catch (err) {
-    console.error('Erreur lors de la récupération des suppléments:', err);
-    return res.status(500).json({ message: 'Erreur lors de la récupération des suppléments' });
-  }
-});
-
-/**
- * DELETE /api/packages/:id/supplements/:supplementId
- * Retirer un supplément d'un package
- */
-router.delete('/:id/supplements/:supplementId', requireRole('GESTIONNAIRE'), async (req, res) => {
-  try {
-    const packageK = await PackageK.findById(req.params.id);
-
-    if (!packageK) {
-      return res.status(404).json({ message: 'Package non trouvé' });
-    }
-
-    // Retirer le supplément de l'array
-    packageK.supplements = packageK.supplements.filter(
-      (id) => id.toString() !== req.params.supplementId
-    );
-
-    await packageK.save();
-    await packageK.populate('supplements', 'idSupplement nom prix');
-
-    return res.status(200).json({
-      message: 'Supplément retiré avec succès',
-      package: packageK,
-    });
-  } catch (err) {
-    console.error('Erreur lors de la suppression du supplément:', err);
-    return res.status(500).json({ message: 'Erreur lors de la suppression du supplément' });
+    return res.status(500).json({ message: 'Erreur association' });
   }
 });
 
