@@ -11,8 +11,12 @@ function generateToken(user) {
     role: user.role,
   };
 
-  const secret = process.env.JWT_SECRET || 'kyswa_secret_key_change_in_production';
-  const token = jwt.sign(payload, secret, { expiresIn: '7d' });
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("ERREUR FATALE: JWT_SECRET n'est pas défini dans l'environnement.");
+}
+
+const token = jwt.sign(payload, secret, { expiresIn: '7d' });
 
   return token;
 }
