@@ -10,6 +10,7 @@ client/node_modules/
 .env.production
 server/.env
 client/.env
+.cursorrules
 
 # Build outputs
 dist/
