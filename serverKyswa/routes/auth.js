@@ -2,7 +2,16 @@ const express = require('express');
 const router = express.Router();
 const Utilisateur = require('../models/Utilisateur');
 const { generateToken } = require('../utils/jwt');
+const rateLimit = require('express-rate-limit');
 
+// Définir la limite : 5 tentatives max toutes les 15 minutes par IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, 
+  message: { message: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
+  standardHeaders: true, // Retourne les infos de limite dans les headers Ratelimit-*
+  legacyHeaders: false,
+});
 /**
  * POST /api/auth/register
  * Crée un nouvel utilisateur
@@ -97,10 +106,12 @@ router.post('/login', async (req, res) => {
     }
 
     // Vérifier le password
-    const passwordValide = await utilisateur.comparePassword(password);
-    if (!passwordValide) {
-      return res.status(401).json({ message: 'Identifiants incorrects' });
-    }
+    router.post('/login', loginLimiter, async (req, res) => {
+        const passwordValide = await utilisateur.comparePassword(password);
+        if (!passwordValide) {
+            return res.status(401).json({ message: 'Identifiants incorrects' });
+            }
+    });
 
     // Mettre à jour la date de dernière connexion
     utilisateur.dateDerniereConnexion = new Date();
