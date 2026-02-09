@@ -2,9 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Utilisateur = require('../models/Utilisateur');
 const { protect, requireRole } = require('../middleware/auth');
-const bcrypt = require('bcryptjs');
 
-// Protéger toutes les routes avec protect et requireRole('ADMIN')
+// Protéger toutes les routes : authentification et rôle ADMIN requis
 router.use(protect);
 router.use(requireRole('ADMIN'));
 
@@ -23,39 +22,37 @@ router.get('/', async (req, res) => {
       utilisateurs,
     });
   } catch (err) {
-    console.error('Erreur lors de la récupération des utilisateurs:', err);
+    console.error('Erreur récupération utilisateurs:', err);
     return res.status(500).json({ message: 'Erreur lors de la récupération des utilisateurs' });
   }
 });
 
 /**
  * POST /api/users
- * Créer un nouvel utilisateur
+ * Créer un nouvel utilisateur avec validation de type (CWE-1287)
  */
 router.post('/', async (req, res) => {
   try {
     const { nom, prenom, email, telephone, password, role } = req.body;
 
-    // Validations
-    if (!nom || !prenom || !email || !password || !role) {
-      return res.status(400).json({ message: 'Champs requis manquants (nom, prenom, email, password, role)' });
+    // Validation des champs requis et des types pour éviter les crashs (CWE-1287)
+    if (typeof email !== 'string' || typeof password !== 'string' || !nom || !prenom || !role) {
+      return res.status(400).json({ message: 'Données invalides ou manquantes' });
     }
 
-    // Vérifier les rôles autorisés
     const rolesAutorises = ['ADMIN', 'GESTIONNAIRE', 'COMMERCIAL', 'COMPTABLE'];
     if (!rolesAutorises.includes(role)) {
-      return res.status(400).json({
-        message: `Le rôle doit être l'un de: ${rolesAutorises.join(', ')}`,
-      });
+      return res.status(400).json({ message: 'Rôle non autorisé' });
     }
 
-    // Vérifier si email existe déjà
-    const utilisateurEmail = await Utilisateur.findOne({ email: email.toLowerCase() });
+    // Normalisation sécurisée
+    const normalizedEmail = email.toLowerCase();
+
+    const utilisateurEmail = await Utilisateur.findOne({ email: normalizedEmail });
     if (utilisateurEmail) {
       return res.status(400).json({ message: 'Cet email est déjà utilisé' });
     }
 
-    // Vérifier si téléphone existe déjà (si fourni)
     if (telephone) {
       const utilisateurTelephone = await Utilisateur.findOne({ telephone });
       if (utilisateurTelephone) {
@@ -63,11 +60,10 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Créer nouvel utilisateur
     const utilisateur = new Utilisateur({
       nom,
       prenom,
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       telephone,
       password,
       role,
@@ -75,7 +71,6 @@ router.post('/', async (req, res) => {
 
     await utilisateur.save();
 
-    // Retourner sans password
     const utilisateurResponse = utilisateur.toObject();
     delete utilisateurResponse.password;
 
@@ -84,19 +79,17 @@ router.post('/', async (req, res) => {
       utilisateur: utilisateurResponse,
     });
   } catch (err) {
-    console.error('Erreur lors de la création:', err);
-    return res.status(500).json({ message: 'Erreur lors de la création de l\'utilisateur' });
+    console.error('Erreur création:', err);
+    return res.status(500).json({ message: 'Erreur lors de la création' });
   }
 });
 
 /**
  * GET /api/users/:id
- * Détail d'un utilisateur
  */
 router.get('/:id', async (req, res) => {
   try {
-    const utilisateur = await Utilisateur.findById(req.params.id)
-      .select('-password');
+    const utilisateur = await Utilisateur.findById(req.params.id).select('-password');
 
     if (!utilisateur) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
@@ -104,140 +97,97 @@ router.get('/:id', async (req, res) => {
 
     return res.status(200).json({ utilisateur });
   } catch (err) {
-    console.error('Erreur lors de la récupération:', err);
-    return res.status(500).json({ message: 'Erreur lors de la récupération de l\'utilisateur' });
+    return res.status(500).json({ message: 'Erreur récupération utilisateur' });
   }
 });
 
 /**
  * PATCH /api/users/:id
- * Modifier un utilisateur (nom, prenom, email, telephone, role)
  */
 router.patch('/:id', async (req, res) => {
   try {
     const { nom, prenom, email, telephone, role } = req.body;
-
     const utilisateur = await Utilisateur.findById(req.params.id);
+
     if (!utilisateur) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
-    // Vérifier les rôles si modifié
     if (role) {
       const rolesAutorises = ['ADMIN', 'GESTIONNAIRE', 'COMMERCIAL', 'COMPTABLE'];
       if (!rolesAutorises.includes(role)) {
-        return res.status(400).json({
-          message: `Le rôle doit être l'un de: ${rolesAutorises.join(', ')}`,
-        });
+        return res.status(400).json({ message: 'Rôle invalide' });
       }
       utilisateur.role = role;
     }
 
-    // Vérifier email unique si modifié
-    if (email && email.toLowerCase() !== utilisateur.email) {
-      const utilisateurEmail = await Utilisateur.findOne({ email: email.toLowerCase() });
-      if (utilisateurEmail) {
-        return res.status(400).json({ message: 'Cet email est déjà utilisé' });
+    // Validation de type avant modification d'email (CWE-1287)
+    if (email && typeof email === 'string') {
+      const normalizedEmail = email.toLowerCase();
+      if (normalizedEmail !== utilisateur.email) {
+        const emailPris = await Utilisateur.findOne({ email: normalizedEmail });
+        if (emailPris) return res.status(400).json({ message: 'Email déjà utilisé' });
+        utilisateur.email = normalizedEmail;
       }
-      utilisateur.email = email.toLowerCase();
     }
 
-    // Vérifier téléphone unique si modifié
     if (telephone && telephone !== utilisateur.telephone) {
-      const utilisateurTelephone = await Utilisateur.findOne({ telephone });
-      if (utilisateurTelephone) {
-        return res.status(400).json({ message: 'Ce numéro de téléphone est déjà utilisé' });
-      }
+      const telPris = await Utilisateur.findOne({ telephone });
+      if (telPris) return res.status(400).json({ message: 'Téléphone déjà utilisé' });
       utilisateur.telephone = telephone;
     }
 
-    // Mise à jour des autres champs
     if (nom) utilisateur.nom = nom;
     if (prenom) utilisateur.prenom = prenom;
 
     await utilisateur.save();
 
-    // Retourner sans password
-    const utilisateurResponse = utilisateur.toObject();
-    delete utilisateurResponse.password;
+    const resObj = utilisateur.toObject();
+    delete resObj.password;
 
-    return res.status(200).json({
-      message: 'Utilisateur modifié avec succès',
-      utilisateur: utilisateurResponse,
-    });
+    return res.status(200).json({ message: 'Modifié avec succès', utilisateur: resObj });
   } catch (err) {
-    console.error('Erreur lors de la modification:', err);
-    return res.status(500).json({ message: 'Erreur lors de la modification de l\'utilisateur' });
+    return res.status(500).json({ message: 'Erreur modification' });
   }
 });
 
 /**
  * DELETE /api/users/:id
- * Supprimer un utilisateur
  */
 router.delete('/:id', async (req, res) => {
   try {
-    // Empêcher la suppression du dernier admin
-    if (req.user.id === req.params.id) {
-      return res.status(400).json({ message: 'Vous ne pouvez pas supprimer votre propre compte' });
+    // Sécurité : comparaison robuste des IDs (ToString)
+    if (req.user.id.toString() === req.params.id.toString()) {
+      return res.status(400).json({ message: 'Suppression de votre propre compte impossible' });
     }
 
     const utilisateur = await Utilisateur.findByIdAndDelete(req.params.id);
+    if (!utilisateur) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    if (!utilisateur) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    }
-
-    return res.status(200).json({
-      message: 'Utilisateur supprimé avec succès',
-      utilisateur: {
-        id: utilisateur._id,
-        nom: utilisateur.nom,
-        prenom: utilisateur.prenom,
-        email: utilisateur.email,
-      },
-    });
+    return res.status(200).json({ message: 'Supprimé avec succès' });
   } catch (err) {
-    console.error('Erreur lors de la suppression:', err);
-    return res.status(500).json({ message: 'Erreur lors de la suppression de l\'utilisateur' });
+    return res.status(500).json({ message: 'Erreur suppression' });
   }
 });
 
 /**
  * PATCH /api/users/:id/toggle-status
- * Bascule etat ACTIF ↔ INACTIF
  */
 router.patch('/:id/toggle-status', async (req, res) => {
   try {
-    // Empêcher la modification du statut du propre compte
-    if (req.user.id.toString() === req.params.id) {
-      return res.status(403).json({ message: 'Vous ne pouvez pas modifier votre propre statut vous pouver seulement visualiser protre profil' });
+    if (req.user.id.toString() === req.params.id.toString()) {
+      return res.status(403).json({ message: 'Modification de votre propre statut impossible' });
     }
 
     const utilisateur = await Utilisateur.findById(req.params.id);
+    if (!utilisateur) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-    if (!utilisateur) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    }
-
-    // Basculer l'état
     utilisateur.etat = utilisateur.etat === 'ACTIF' ? 'INACTIF' : 'ACTIF';
     await utilisateur.save();
 
-    return res.status(200).json({
-      message: 'Utilisateur mis à jour',
-      user: {
-        id: utilisateur._id,
-        nom: utilisateur.nom,
-        prenom: utilisateur.prenom,
-        email: utilisateur.email,
-        role: utilisateur.role,
-        etat: utilisateur.etat,
-      },
-    });
+    return res.status(200).json({ message: 'Statut mis à jour', etat: utilisateur.etat });
   } catch (err) {
-    console.error('Erreur lors de la modification du statut:', err);
-    return res.status(500).json({ message: 'Erreur lors de la modification du statut' });
+    return res.status(500).json({ message: 'Erreur statut' });
   }
 });
 
