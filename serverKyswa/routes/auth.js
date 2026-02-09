@@ -4,14 +4,15 @@ const Utilisateur = require('../models/Utilisateur');
 const { generateToken } = require('../utils/jwt');
 const rateLimit = require('express-rate-limit');
 
-// Définir la limite : 5 tentatives max toutes les 15 minutes par IP
+// Protection contre le Brute-force (CWE-770)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, 
   message: { message: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
-  standardHeaders: true, // Retourne les infos de limite dans les headers Ratelimit-*
+  standardHeaders: true,
   legacyHeaders: false,
 });
+
 /**
  * POST /api/auth/register
  * Crée un nouvel utilisateur
@@ -20,26 +21,23 @@ router.post('/register', async (req, res) => {
   try {
     const { nom, prenom, email, telephone, password, role } = req.body;
 
-    // Validations
-    if (!nom || !prenom || !email || !password || !role) {
-      return res.status(400).json({ message: 'Champs requis manquants' });
+    // Validation des types (CWE-1287) pour éviter les crashs avec .toLowerCase()
+    if (typeof email !== 'string' || typeof password !== 'string' || !nom || !prenom || !role) {
+      return res.status(400).json({ message: 'Champs requis manquants ou format invalide' });
     }
 
-    // Vérifier les rôles autorisés
     const rolesAutorises = ['ADMIN', 'GESTIONNAIRE', 'COMMERCIAL', 'COMPTABLE'];
     if (!rolesAutorises.includes(role)) {
-      return res.status(400).json({
-        message: `Le rôle doit être l'un de: ${rolesAutorises.join(', ')}`,
-      });
+      return res.status(400).json({ message: 'Rôle non autorisé' });
     }
 
-    // Vérifier si email existe déjà
-    const utilisateurExistant = await Utilisateur.findOne({ email: email.toLowerCase() });
+    const normalizedEmail = email.toLowerCase();
+
+    const utilisateurExistant = await Utilisateur.findOne({ email: normalizedEmail });
     if (utilisateurExistant) {
       return res.status(400).json({ message: 'Cet email est déjà utilisé' });
     }
 
-    // Vérifier si téléphone existe déjà (si fourni)
     if (telephone) {
       const utilisateurTelephone = await Utilisateur.findOne({ telephone });
       if (utilisateurTelephone) {
@@ -47,11 +45,10 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    // Créer nouvel utilisateur
     const utilisateur = new Utilisateur({
       nom,
       prenom,
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       telephone,
       password,
       role,
@@ -59,10 +56,8 @@ router.post('/register', async (req, res) => {
 
     await utilisateur.save();
 
-    // Générer le token
     const token = generateToken(utilisateur);
 
-    // Répondre
     return res.status(201).json({
       message: 'Utilisateur créé avec succès',
       token,
@@ -83,21 +78,22 @@ router.post('/register', async (req, res) => {
 /**
  * POST /api/auth/login
  * Authentifie un utilisateur par email ou téléphone
+ * Application du loginLimiter pour contrer le Brute-force
  */
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, telephone, password } = req.body;
 
-    // Validations
     if ((!email && !telephone) || !password) {
-      return res.status(400).json({ message: 'Email ou téléphone et mot de passe requis' });
+      return res.status(400).json({ message: 'Identifiants et mot de passe requis' });
     }
 
-    // Trouver utilisateur par email ou téléphone (+ charger le password)
     let utilisateur;
-    if (email) {
+    
+    // Protection Type Validation (CWE-1287)
+    if (email && typeof email === 'string') {
       utilisateur = await Utilisateur.findOne({ email: email.toLowerCase() }).select('+password');
-    } else {
+    } else if (telephone) {
       utilisateur = await Utilisateur.findOne({ telephone }).select('+password');
     }
 
@@ -105,22 +101,17 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Identifiants incorrects' });
     }
 
-    // Vérifier le password
-    router.post('/login', loginLimiter, async (req, res) => {
-        const passwordValide = await utilisateur.comparePassword(password);
-        if (!passwordValide) {
-            return res.status(401).json({ message: 'Identifiants incorrects' });
-            }
-    });
+    // Vérification du mot de passe
+    const passwordValide = await utilisateur.comparePassword(password);
+    if (!passwordValide) {
+      return res.status(401).json({ message: 'Identifiants incorrects' });
+    }
 
-    // Mettre à jour la date de dernière connexion
     utilisateur.dateDerniereConnexion = new Date();
     await utilisateur.save();
 
-    // Générer le token
     const token = generateToken(utilisateur);
 
-    // Répondre
     return res.status(200).json({
       message: 'Connexion réussie',
       token,
