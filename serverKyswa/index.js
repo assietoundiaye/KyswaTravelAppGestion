@@ -63,6 +63,10 @@ app.use('/api/billets', billetsRoutes);
 const testRoutes = require('./routes/test');
 app.use('/api/test', testRoutes);
 
+// Middleware global de gestion des erreurs (doit être après les routes)
+const errorHandler = require('./middleware/errorHandler');
+app.use(errorHandler);
+
 // Route de test
 app.get('/api/test', (req, res) => {
   try {

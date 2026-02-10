@@ -120,4 +120,14 @@ utilisateurSchema.pre('save', async function() {
         throw error; // Mongoose attrapera l'erreur tout seul
     }
 });
+// Ne pas exposer le password et __v dans les réponses JSON
+utilisateurSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.password;
+    delete ret.__v;
+    return ret;
+  }
+});
 module.exports = mongoose.model('Utilisateur', utilisateurSchema);

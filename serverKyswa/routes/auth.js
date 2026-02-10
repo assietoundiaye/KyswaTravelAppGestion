@@ -3,6 +3,7 @@ const router = express.Router();
 const Utilisateur = require('../models/Utilisateur');
 const { generateToken } = require('../utils/jwt');
 const rateLimit = require('express-rate-limit');
+const { body, validationResult } = require('express-validator');
 
 // Protection contre le Brute-force (CWE-770)
 const loginLimiter = rateLimit({
@@ -17,8 +18,19 @@ const loginLimiter = rateLimit({
  * POST /api/auth/register
  * Crée un nouvel utilisateur
  */
-router.post('/register', async (req, res) => {
+router.post('/register',
+  [
+    body('nom').isString().notEmpty().withMessage('Le nom est requis'),
+    body('prenom').isString().notEmpty().withMessage('Le prénom est requis'),
+    body('email').isEmail().withMessage('Email invalide'),
+    body('password').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
+    body('role').isIn(['ADMIN','GESTIONNAIRE','COMMERCIAL','COMPTABLE']).withMessage('Rôle invalide'),
+  ],
+  async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ message: errors.array().map(e=>e.msg).join('; ') });
+
     const { nom, prenom, email, telephone, password, role } = req.body;
 
     // Validation des types (CWE-1287) pour éviter les crashs avec .toLowerCase()
@@ -80,8 +92,17 @@ router.post('/register', async (req, res) => {
  * Authentifie un utilisateur par email ou téléphone
  * Application du loginLimiter pour contrer le Brute-force
  */
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', loginLimiter,
+  [
+    body('password').isString().notEmpty().withMessage('Mot de passe requis'),
+    body('email').optional().isEmail().withMessage('Email invalide'),
+    body('telephone').optional().isString(),
+  ],
+  async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ message: errors.array().map(e=>e.msg).join('; ') });
+
     const { email, telephone, password } = req.body;
 
     if ((!email && !telephone) || !password) {
