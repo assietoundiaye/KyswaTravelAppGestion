@@ -24,7 +24,6 @@ Kyswa-Travel/
 │   ├── middleware/        # Auth, Validation, Errors
 │   ├── models/            # Schémas Mongoose (User, Client, Reservation)
 │   ├── routes/            # Points d'entrée API
-│   └── index.js           # Point d'entrée serveur
-├── .cursorrules           # Instructions IA pour Cursor
+│   └── index.js           # Point d'entrée serveur        
 ├── .gitignore             # Fichiers ignorés par Git
 └── package.json           # Scripts globaux (Concurrently)
