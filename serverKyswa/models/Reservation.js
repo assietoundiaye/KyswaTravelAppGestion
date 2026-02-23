@@ -79,6 +79,7 @@ const reservationSchema = new mongoose.Schema(
         ref: 'Paiement',
       },
     ],
+    
   },
   { timestamps: true }
 );
@@ -114,6 +115,22 @@ reservationSchema.methods.verifierDispo = function (quantite) {
   // Vérifie si la quantité demandée est disponible
   // Cette logique dépendra de votre implémentation du package
   return quantite <= this.nombrePlaces;
+};
+
+reservationSchema.virtual('resteAPayer').get(function () {
+  // Si tu as un array paiements populé ou non
+  const totalPaye = this.paiements
+    ? this.paiements.reduce((sum, paiement) => sum + paiement.montant, 0)
+    : 0;
+
+  return this.montantTotalDu - totalPaye;
+});
+reservationSchema.methods.mettreAJourStatutPaiement = async function () {
+  // Calcul du reste (on utilise le virtual)
+  if (this.resteAPayer <= 0) {
+    this.statut = 'PAYEE';
+  }
+  await this.save();
 };
 
 module.exports = mongoose.model('Reservation', reservationSchema);

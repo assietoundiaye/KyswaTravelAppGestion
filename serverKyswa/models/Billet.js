@@ -65,6 +65,19 @@ const billetSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+billetSchema.virtual('resteAPayer').get(function () {
+  const totalPaye = this.paiements
+    ? this.paiements.reduce((sum, paiement) => sum + paiement.montant, 0)
+    : 0;
+
+  return this.prix - totalPaye;
+});
+billetSchema.methods.mettreAJourStatutPaiement = async function () {
+  if (this.resteAPayer <= 0) {
+    this.statut = 'PAYE';
+  }
+  await this.save();
+};
 /**
  * Méthode optionnelle : générer une facture (placeholder)
  */
@@ -82,4 +95,7 @@ billetSchema.methods.genererFacture = function () {
   };
 };
 
+
+billetSchema.set('toJSON', { virtuals: true });
+billetSchema.set('toObject', { virtuals: true });
 module.exports = mongoose.model('Billet', billetSchema);
