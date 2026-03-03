@@ -80,10 +80,10 @@ return facture;
 
 paiementSchema.pre('save', function(next) {
   if (!this.reservationId && !this.billetId) {
-    next(new Error('Le paiement doit être lié à une réservation OU à un billet'));
+    return next(new Error('Le paiement doit être lié à une réservation OU à un billet'));
   }
   if (this.reservationId && this.billetId) {
-    next(new Error('Le paiement ne peut être lié qu’à UNE seule entité (réservation ou billet)'));
+    return next(new Error('Le paiement ne peut être lié qu\'à UNE seule entité'));
   }
   next();
 });

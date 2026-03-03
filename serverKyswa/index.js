@@ -129,3 +129,7 @@ app.listen(PORT, () => {
 // Routes de gestion des réservations (COMMERCIAL ou ADMIN)
 const reservationsRoutes = require('./routes/reservations');
 app.use('/api/reservations', reservationsRoutes);
+
+// Routes de factures (génération PDF)
+const facturesRoutes = require('./routes/factures');
+app.use('/api/factures', facturesRoutes);

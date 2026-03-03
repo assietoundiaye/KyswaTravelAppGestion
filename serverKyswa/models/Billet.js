@@ -61,41 +61,35 @@ const billetSchema = new mongoose.Schema(
         ref: 'Paiement',
       },
     ],
+    prix: {
+      type: Number,
+      required: [true, 'Le prix du billet est obligatoire'],
+      min: [0, 'Le prix doit être positif'],
+    },
   },
   { timestamps: true }
 );
 
+billetSchema.set('toJSON', { virtuals: true });
+billetSchema.set('toObject', { virtuals: true });
+
+// Virtual : resteAPayer
 billetSchema.virtual('resteAPayer').get(function () {
   const totalPaye = this.paiements
-    ? this.paiements.reduce((sum, paiement) => sum + paiement.montant, 0)
+    ? this.paiements.reduce((sum, paiement) => {
+        const montant = paiement.montant ? parseFloat(paiement.montant.toString()) : 0;
+        return sum + montant;
+      }, 0)
     : 0;
 
   return this.prix - totalPaye;
 });
+
+// Méthode : mettre à jour le statut de paiement basé sur resteAPayer
 billetSchema.methods.mettreAJourStatutPaiement = async function () {
   if (this.resteAPayer <= 0) {
     this.statut = 'PAYE';
   }
   await this.save();
 };
-/**
- * Méthode optionnelle : générer une facture (placeholder)
- */
-billetSchema.methods.genererFacture = function () {
-  return {
-    idBillet: this.idBillet,
-    numeroBillet: this.numeroBillet,
-    compagnie: this.compagnie,
-    classe: this.classe,
-    dateDepart: this.dateDepart,
-    dateArrivee: this.dateArrivee,
-    statut: this.statut,
-    clientId: this.clientId,
-    generatedAt: new Date(),
-  };
-};
-
-
-billetSchema.set('toJSON', { virtuals: true });
-billetSchema.set('toObject', { virtuals: true });
 module.exports = mongoose.model('Billet', billetSchema);
