@@ -84,9 +84,11 @@ const reservationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Méthodes d'instance
-// models/Reservation.js
+// Inclure les virtuals dans toJSON et toObject
+reservationSchema.set('toJSON', { virtuals: true });
+reservationSchema.set('toObject', { virtuals: true });
 
+// Méthodes d'instance
 reservationSchema.methods.calculerResteAPayer = async function () {
   await this.populate('paiements');
   
@@ -99,38 +101,33 @@ reservationSchema.methods.calculerResteAPayer = async function () {
   return this.montantTotalDu - sommePaiements;
 };
 
-reservationSchema.methods.mettreAJourStatutPaiement = async function () {
-  const resteAPayer = await this.calculerResteAPayer();
-  
-  if (resteAPayer <= 0) {
-    this.statut = 'PAYEE';
-  } else if (resteAPayer < this.montantTotalDu) {
-    this.statut = 'CONFIRMEE';
-  }
-  
-  return this.save();
-};
-
-reservationSchema.methods.verifierDispo = function (quantite) {
-  // Vérifie si la quantité demandée est disponible
-  // Cette logique dépendra de votre implémentation du package
-  return quantite <= this.nombrePlaces;
-};
-
+// Virtual : resteAPayer
 reservationSchema.virtual('resteAPayer').get(function () {
   // Si tu as un array paiements populé ou non
   const totalPaye = this.paiements
-    ? this.paiements.reduce((sum, paiement) => sum + paiement.montant, 0)
+    ? this.paiements.reduce((sum, paiement) => {
+        const montant = paiement.montant ? parseFloat(paiement.montant.toString()) : 0;
+        return sum + montant;
+      }, 0)
     : 0;
 
   return this.montantTotalDu - totalPaye;
 });
+
+// Méthode : mettre à jour le statut de paiement basé sur resteAPayer
 reservationSchema.methods.mettreAJourStatutPaiement = async function () {
-  // Calcul du reste (on utilise le virtual)
   if (this.resteAPayer <= 0) {
     this.statut = 'PAYEE';
   }
   await this.save();
 };
 
+// Méthode : vérifier la disponibilité
+reservationSchema.methods.verifierDispo = function (quantite) {
+  // Vérifie si la quantité demandée est disponible
+  // Cette logique dépendra de votre implémentation du package
+  return quantite <= this.nombrePlaces;
+};
+
 module.exports = mongoose.model('Reservation', reservationSchema);
+

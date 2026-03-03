@@ -1,4 +1,5 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const Reservation = require('../models/Reservation');
 const PackageK = require('../models/PackageK');
@@ -15,70 +16,119 @@ router.use(requireRole('COMMERCIAL', 'GESTIONNAIRE', 'COMPTABLE'));
  * POST /api/reservations
  * Créer une réservation
  */
-router.post('/', async (req, res) => {
-  try {
-    const { packageKId, nombrePlaces, formule, niveauConfort, dateDepart, dateRetour, clients, montantTotalDu } = req.body;
+router.post(
+  '/',
+  [
+    body('packageKId')
+      .trim()
+      .notEmpty().withMessage('packageKId est requis')
+      .isMongoId().withMessage('packageKId doit être un ID Mongo valide')
+      .custom(async (value) => {
+        const packageK = await PackageK.findById(value);
+        if (!packageK) {
+          throw new Error('Package non trouvé');
+        }
+        if (packageK.statut !== 'OUVERT') {
+          throw new Error('Le package n\'est pas ouvert à la réservation');
+        }
+      }),
+    body('nombrePlaces')
+      .notEmpty().withMessage('nombrePlaces est requis')
+      .isInt({ min: 1 }).withMessage('nombrePlaces doit être un entier >= 1'),
+    body('formule')
+      .optional()
+      .trim(),
+    body('niveauConfort')
+      .optional()
+      .trim(),
+    body('dateDepart')
+      .notEmpty().withMessage('dateDepart est requis')
+      .isISO8601().withMessage('dateDepart doit être une date valide (ISO 8601)'),
+    body('dateRetour')
+      .notEmpty().withMessage('dateRetour est requis')
+      .isISO8601().withMessage('dateRetour doit être une date valide (ISO 8601)')
+      .custom((value, { req }) => {
+        const dateDepart = new Date(req.body.dateDepart);
+        const dateRetour = new Date(value);
+        if (dateRetour <= dateDepart) {
+          throw new Error('dateRetour doit être après dateDepart');
+        }
+        return true;
+      }),
+    body('clients')
+      .notEmpty().withMessage('clients est requis')
+      .isArray({ min: 1 }).withMessage('clients doit être un array non-vide')
+      .custom(async (value) => {
+        // Vérifier qu'il y a au moins 1 élément
+        if (!Array.isArray(value) || value.length === 0) {
+          throw new Error('clients doit contenir au moins 1 client');
+        }
+        // Vérifier que tous les éléments sont des IDs Mongo valides
+        for (const clientId of value) {
+          if (!clientId.match(/^[0-9a-fA-F]{24}$/)) {
+            throw new Error('Chaque client doit être un ID Mongo valide');
+          }
+        }
+        // Vérifier que tous les clients existent
+        const foundClients = await Client.find({ _id: { $in: value } });
+        if (foundClients.length !== value.length) {
+          throw new Error('Au moins un client est introuvable');
+        }
+      }),
+    body('montantTotalDu')
+      .notEmpty().withMessage('montantTotalDu est requis')
+      .isFloat({ min: 0 }).withMessage('montantTotalDu doit être un nombre positif'),
+  ],
+  async (req, res) => {
+    try {
+      // Vérifier erreurs de validation
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
 
-    // Validations de base
-    if (!packageKId || !nombrePlaces || !dateDepart || !dateRetour || !clients || !Array.isArray(clients) || clients.length === 0 || !montantTotalDu) {
-      return res.status(400).json({ message: 'Champs requis manquants (packageKId, nombrePlaces, dateDepart, dateRetour, clients, montantTotalDu)' });
+      const { packageKId, nombrePlaces, formule, niveauConfort, dateDepart, dateRetour, clients, montantTotalDu } = req.body;
+
+      // Vérifier le package
+      const packageK = await PackageK.findById(packageKId);
+
+      // Vérifier quota
+      if (packageK.placesReservees + nombrePlaces > packageK.quotaMax) {
+        return res.status(400).json({ message: 'Quota insuffisant pour cette réservation' });
+      }
+
+      // Créer la réservation
+      const reservation = new Reservation({
+        idReservation: Date.now(),
+        nombrePlaces,
+        formule,
+        niveauConfort,
+        dateDepart,
+        dateRetour,
+        montantTotalDu,
+        statut: 'EN_ATTENTE',
+        statutCreation: new Date(),
+        creeParUtilisateurId: req.user.id,
+        packageKId: packageK._id,
+        clients: clients,
+      });
+
+      await reservation.save();
+
+      // Incrémenter placesReservees du package
+      packageK.placesReservees = (packageK.placesReservees || 0) + nombrePlaces;
+      await packageK.save();
+
+      const reservationPop = await Reservation.findById(reservation._id).populate('clients').populate('packageKId');
+
+      return res.status(201).json({ message: 'Réservation créée', reservation: reservationPop });
+    } catch (err) {
+      console.error('Erreur création réservation:', err);
+      return res.status(500).json({ message: 'Erreur lors de la création de la réservation' });
     }
-
-    if (nombrePlaces < 1) {
-      return res.status(400).json({ message: 'Le nombre de places doit être au moins 1' });
-    }
-
-    // Vérifier package
-    const packageK = await PackageK.findById(packageKId);
-    if (!packageK) {
-      return res.status(404).json({ message: 'Package non trouvé' });
-    }
-
-    if (packageK.statut !== 'OUVERT') {
-      return res.status(400).json({ message: 'Le package n\'est pas ouvert à la réservation' });
-    }
-
-    // Vérifier quota
-    if (packageK.placesReservees + nombrePlaces > packageK.quotaMax) {
-      return res.status(400).json({ message: 'Quota insuffisant pour cette réservation' });
-    }
-
-    // Vérifier que tous les clients existent
-    const foundClients = await Client.find({ _id: { $in: clients } });
-    if (foundClients.length !== clients.length) {
-      return res.status(400).json({ message: 'Au moins un client est introuvable' });
-    }
-
-    // Créer la réservation
-    const reservation = new Reservation({
-      idReservation: Date.now(),
-      nombrePlaces,
-      formule,
-      niveauConfort,
-      dateDepart,
-      dateRetour,
-      montantTotalDu,
-      statut: 'EN_ATTENTE',
-      statutCreation: new Date(),
-      creeParUtilisateurId: req.user.id,
-      packageKId: packageK._id,
-      clients: clients,
-    });
-
-    await reservation.save();
-
-    // Incrémenter placesReservees du package
-    packageK.placesReservees = (packageK.placesReservees || 0) + nombrePlaces;
-    await packageK.save();
-
-    const reservationPop = await Reservation.findById(reservation._id).populate('clients').populate('packageKId');
-
-    return res.status(201).json({ message: 'Réservation créée', reservation: reservationPop });
-  } catch (err) {
-    console.error('Erreur création réservation:', err);
-    return res.status(500).json({ message: 'Erreur lors de la création de la réservation' });
   }
-});
+);
+
 
 /**
  * GET /api/reservations
@@ -123,51 +173,69 @@ router.get('/:id', async (req, res) => {
  * POST /api/reservations/:id/clients
  * Ajouter des clients à une réservation
  */
-router.post('/:id/clients', async (req, res) => {
-  try {
-    const { clientIds } = req.body;
-    if (!clientIds || !Array.isArray(clientIds) || clientIds.length === 0) {
-      return res.status(400).json({ message: 'Veuillez fournir un array de clientIds' });
+router.post(
+  '/:id/clients',
+  [
+    body('clientIds')
+      .notEmpty().withMessage('clientIds est requis')
+      .isArray({ min: 1 }).withMessage('clientIds doit être un array non-vide')
+      .custom(async (value) => {
+        // Vérifier que tous les éléments sont des IDs Mongo valides
+        for (const clientId of value) {
+          if (!clientId.match(/^[0-9a-fA-F]{24}$/)) {
+            throw new Error('Chaque clientId doit être un ID Mongo valide');
+          }
+        }
+        // Vérifier que tous les clients existent
+        const foundClients = await Client.find({ _id: { $in: value } });
+        if (foundClients.length !== value.length) {
+          throw new Error('Au moins un client est introuvable');
+        }
+      }),
+  ],
+  async (req, res) => {
+    try {
+      // Vérifier erreurs de validation
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { clientIds } = req.body;
+
+      const reservation = await Reservation.findById(req.params.id);
+      if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
+
+      const packageK = await PackageK.findById(reservation.packageKId);
+      if (!packageK) return res.status(404).json({ message: 'Package lié non trouvé' });
+
+      // Filtrer ceux déjà présents
+      const newClientIds = clientIds.filter((id) => !reservation.clients.map((c) => c.toString()).includes(id));
+      if (newClientIds.length === 0) {
+        return res.status(400).json({ message: 'Tous les clients sont déjà présents' });
+      }
+
+      // Vérifier quota
+      if (packageK.placesReservees + newClientIds.length > packageK.quotaMax) {
+        return res.status(400).json({ message: 'Quota insuffisant pour ajouter ces clients' });
+      }
+
+      // Ajouter
+      reservation.clients = reservation.clients.concat(newClientIds);
+      reservation.nombrePlaces = (reservation.nombrePlaces || 0) + newClientIds.length;
+      await reservation.save();
+
+      packageK.placesReservees = (packageK.placesReservees || 0) + newClientIds.length;
+      await packageK.save();
+
+      const reservationPop = await Reservation.findById(reservation._id).populate('clients').populate('packageKId');
+      return res.status(200).json({ message: 'Clients ajoutés', reservation: reservationPop });
+    } catch (err) {
+      console.error('Erreur ajout clients:', err);
+      return res.status(500).json({ message: 'Erreur lors de l\'ajout des clients' });
     }
-
-    const reservation = await Reservation.findById(req.params.id);
-    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
-
-    const packageK = await PackageK.findById(reservation.packageKId);
-    if (!packageK) return res.status(404).json({ message: 'Package lié non trouvé' });
-
-    // Vérifier clients existent
-    const foundClients = await Client.find({ _id: { $in: clientIds } });
-    if (foundClients.length !== clientIds.length) {
-      return res.status(400).json({ message: 'Au moins un client est introuvable' });
-    }
-
-    // Filtrer ceux déjà présents
-    const newClientIds = clientIds.filter((id) => !reservation.clients.map((c) => c.toString()).includes(id));
-    if (newClientIds.length === 0) {
-      return res.status(400).json({ message: 'Tous les clients sont déjà présents' });
-    }
-
-    // Vérifier quota
-    if (packageK.placesReservees + newClientIds.length > packageK.quotaMax) {
-      return res.status(400).json({ message: 'Quota insuffisant pour ajouter ces clients' });
-    }
-
-    // Ajouter
-    reservation.clients = reservation.clients.concat(newClientIds);
-    reservation.nombrePlaces = (reservation.nombrePlaces || 0) + newClientIds.length;
-    await reservation.save();
-
-    packageK.placesReservees = (packageK.placesReservees || 0) + newClientIds.length;
-    await packageK.save();
-
-    const reservationPop = await Reservation.findById(reservation._id).populate('clients').populate('packageKId');
-    return res.status(200).json({ message: 'Clients ajoutés', reservation: reservationPop });
-  } catch (err) {
-    console.error('Erreur ajout clients:', err);
-    return res.status(500).json({ message: 'Erreur lors de l\'ajout des clients' });
   }
-});
+);
 
 /**
  * DELETE /api/reservations/:id/clients/:clientId
@@ -212,56 +280,79 @@ router.delete('/:id/clients/:clientId', async (req, res) => {
  * POST /api/reservations/:id/supplements
  * Ajouter un supplément pour un client dans la réservation
  */
-router.post('/:id/supplements', async (req, res) => {
-  try {
-    const reservationId = req.params.id;
-    const { clientId, supplementId, quantite } = req.body;
+router.post(
+  '/:id/supplements',
+  [
+    body('clientId')
+      .trim()
+      .notEmpty().withMessage('clientId est requis')
+      .isMongoId().withMessage('clientId doit être un ID Mongo valide'),
+    body('supplementId')
+      .trim()
+      .notEmpty().withMessage('supplementId est requis')
+      .isMongoId().withMessage('supplementId doit être un ID Mongo valide')
+      .custom(async (value) => {
+        const supplement = await Supplement.findById(value);
+        if (!supplement) {
+          throw new Error('Supplément non trouvé');
+        }
+      }),
+    body('quantite')
+      .notEmpty().withMessage('quantite est requis')
+      .isInt({ min: 1 }).withMessage('quantite doit être un entier >= 1'),
+  ],
+  async (req, res) => {
+    try {
+      // Vérifier erreurs de validation
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
 
-    if (!clientId || !supplementId || !quantite) {
-      return res.status(400).json({ message: 'Champs requis manquants (clientId, supplementId, quantite)' });
+      const reservationId = req.params.id;
+      const { clientId, supplementId, quantite } = req.body;
+
+      const reservation = await Reservation.findById(reservationId);
+      if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
+
+      // Vérifier que le client appartient à la réservation
+      if (!reservation.clients.map((c) => c.toString()).includes(clientId)) {
+        return res.status(400).json({ message: 'Le client n\'appartient pas à cette réservation' });
+      }
+
+      // Vérifier supplément
+      const supplement = await Supplement.findById(supplementId);
+
+      // Calcul prixUnitaire (convert Decimal128 string to Number if needed)
+      const prixUnitaire = supplement.prix ? parseFloat(supplement.prix.toString()) : 0;
+
+      // Créer la ligne
+      const ligne = new LigneSupplement({
+        idLigneSupplement: Date.now(),
+        reservationId: reservation._id,
+        clientId,
+        supplementId,
+        quantite,
+        prixUnitaire,
+        creeParUtilisateurId: req.user.id,
+      });
+
+      await ligne.save();
+
+      // Mettre à jour montantTotalDu
+      reservation.montantTotalDu = (reservation.montantTotalDu || 0) + prixUnitaire * quantite;
+      await reservation.save();
+
+      const lignePop = await LigneSupplement.findById(ligne._id).populate('supplementId');
+      const reservationPop = await Reservation.findById(reservation._id).populate('clients').populate('packageKId');
+
+      return res.status(201).json({ message: 'Ligne de supplément créée', ligne: lignePop, reservation: reservationPop });
+    } catch (err) {
+      console.error('Erreur ajout ligne supplément:', err);
+      return res.status(500).json({ message: 'Erreur lors de l\'ajout du supplément' });
     }
-
-    const reservation = await Reservation.findById(reservationId);
-    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
-
-    // Vérifier que le client appartient à la réservation
-    if (!reservation.clients.map((c) => c.toString()).includes(clientId)) {
-      return res.status(400).json({ message: 'Le client n\'appartient pas à cette réservation' });
-    }
-
-    // Vérifier supplément
-    const supplement = await Supplement.findById(supplementId);
-    if (!supplement) return res.status(404).json({ message: 'Supplément non trouvé' });
-
-    // Calcul prixUnitaire (convert Decimal128 string to Number if needed)
-    const prixUnitaire = supplement.prix ? parseFloat(supplement.prix.toString()) : 0;
-
-    // Créer la ligne
-    const ligne = new LigneSupplement({
-      idLigneSupplement: Date.now(),
-      reservationId: reservation._id,
-      clientId,
-      supplementId,
-      quantite,
-      prixUnitaire,
-      creeParUtilisateurId: req.user.id,
-    });
-
-    await ligne.save();
-
-    // Mettre à jour montantTotalDu
-    reservation.montantTotalDu = (reservation.montantTotalDu || 0) + prixUnitaire * quantite;
-    await reservation.save();
-
-    const lignePop = await LigneSupplement.findById(ligne._id).populate('supplementId');
-    const reservationPop = await Reservation.findById(reservation._id).populate('clients').populate('packageKId');
-
-    return res.status(201).json({ message: 'Ligne de supplément créée', ligne: lignePop, reservation: reservationPop });
-  } catch (err) {
-    console.error('Erreur ajout ligne supplément:', err);
-    return res.status(500).json({ message: 'Erreur lors de l\'ajout du supplément' });
   }
-});
+);
 
 /**
  * GET /api/reservations/:id/supplements
