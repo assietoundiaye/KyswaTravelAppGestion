@@ -25,6 +25,11 @@ yarn-debug.log*
 yarn-error.log*
 logs/
 
+# Fichiers de test locaux (déjà désindexés)
+test-*.js
+test-*.pdf
+tests/
+
 # OS files
 .DS_Store
 Thumbs.db
