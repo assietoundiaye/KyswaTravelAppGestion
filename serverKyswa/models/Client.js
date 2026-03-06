@@ -66,4 +66,25 @@ const clientSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Virtual pour compter les documents en attente
+clientSchema.virtual('documentsEnAttenteCount', {
+  ref: 'Document',
+  localField: '_id',
+  foreignField: 'clientId',
+  count: true,
+  match: { statut: 'EN_ATTENTE' }
+});
+
+// Virtual pour compter tous les documents
+clientSchema.virtual('documentsCount', {
+  ref: 'Document',
+  localField: '_id',
+  foreignField: 'clientId',
+  count: true
+});
+
+// Inclure les virtuals dans les réponses JSON
+clientSchema.set('toJSON', { virtuals: true });
+clientSchema.set('toObject', { virtuals: true });
+
 module.exports = mongoose.model('Client', clientSchema);

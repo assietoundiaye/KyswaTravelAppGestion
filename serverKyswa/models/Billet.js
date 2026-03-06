@@ -92,4 +92,26 @@ billetSchema.methods.mettreAJourStatutPaiement = async function () {
   }
   await this.save();
 };
+
+// Virtual pour compter les documents en attente
+billetSchema.virtual('documentsEnAttenteCount', {
+  ref: 'Document',
+  localField: '_id',
+  foreignField: 'billetId',
+  count: true,
+  match: { statut: 'EN_ATTENTE' }
+});
+
+// Virtual pour compter tous les documents
+billetSchema.virtual('documentsCount', {
+  ref: 'Document',
+  localField: '_id',
+  foreignField: 'billetId',
+  count: true
+});
+
+// Inclure les virtuals dans les réponses JSON
+billetSchema.set('toJSON', { virtuals: true });
+billetSchema.set('toObject', { virtuals: true });
+
 module.exports = mongoose.model('Billet', billetSchema);

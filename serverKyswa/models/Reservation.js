@@ -129,5 +129,26 @@ reservationSchema.methods.verifierDispo = function (quantite) {
   return quantite <= this.nombrePlaces;
 };
 
+// Virtual pour compter les documents en attente
+reservationSchema.virtual('documentsEnAttenteCount', {
+  ref: 'Document',
+  localField: '_id',
+  foreignField: 'reservationId',
+  count: true,
+  match: { statut: 'EN_ATTENTE' }
+});
+
+// Virtual pour compter tous les documents
+reservationSchema.virtual('documentsCount', {
+  ref: 'Document',
+  localField: '_id',
+  foreignField: 'reservationId',
+  count: true
+});
+
+// Inclure les virtuals dans les réponses JSON
+reservationSchema.set('toJSON', { virtuals: true });
+reservationSchema.set('toObject', { virtuals: true });
+
 module.exports = mongoose.model('Reservation', reservationSchema);
 

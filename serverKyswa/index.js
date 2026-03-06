@@ -1,4 +1,6 @@
 require('dotenv').config();
+// initialize Cloudinary config early so env vars are checked
+require('./config/cloudinary');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -58,6 +60,10 @@ app.use('/api/supplements', supplementsRoutes);
 // Routes de gestion des billets (COMMERCIAL, GESTIONNAIRE, COMPTABLE)
 const billetsRoutes = require('./routes/billets');
 app.use('/api/billets', billetsRoutes);
+
+// Routes de gestion des documents (COMMERCIAL, COMPTABLE, ADMIN)
+const documentsRoutes = require('./routes/documents');
+app.use('/api/documents', documentsRoutes);
 
 // Routes de test protégées
 const testRoutes = require('./routes/test');
@@ -119,13 +125,6 @@ const connectDB = async () => {
   }
 };
 
-// Démarrage du serveur
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur lancé sur http://localhost:${PORT}`);
-  console.log(`📡 Route de test: http://localhost:${PORT}/api/test`);
-  connectDB();
-});
-
 // Routes de gestion des réservations (COMMERCIAL ou ADMIN)
 const reservationsRoutes = require('./routes/reservations');
 app.use('/api/reservations', reservationsRoutes);
@@ -133,3 +132,10 @@ app.use('/api/reservations', reservationsRoutes);
 // Routes de factures (génération PDF)
 const facturesRoutes = require('./routes/factures');
 app.use('/api/factures', facturesRoutes);
+
+// Démarrage du serveur
+app.listen(PORT, () => {
+  console.log(`🚀 Serveur lancé sur http://localhost:${PORT}`);
+  console.log(`📡 Route de test: http://localhost:${PORT}/api/test`);
+  connectDB();
+});
