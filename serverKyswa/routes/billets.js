@@ -135,7 +135,8 @@ router.get('/:id', async (req, res) => {
   try {
     const billet = await Billet.findById(req.params.id)
       .populate('clientId', 'nom prenom numeroPasseport email telephone')
-      .populate('paiements', 'idPaiement montant mode dateReglement');
+      .populate('paiements', 'idPaiement montant mode dateReglement')
+      .populate('documents');
 
     if (!billet) {
       return res.status(404).json({ message: 'Billet non trouvé' });

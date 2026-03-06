@@ -156,7 +156,8 @@ router.get('/:id', async (req, res) => {
     const reservation = await Reservation.findById(req.params.id)
       .populate('clients')
       .populate('packageKId')
-      .populate('paiements');
+      .populate('paiements')
+      .populate('documents');
 
     if (!reservation) {
       return res.status(404).json({ message: 'Réservation non trouvée' });

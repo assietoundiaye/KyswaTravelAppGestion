@@ -7,24 +7,35 @@ const documentSchema = new mongoose.Schema(
       required: [true, 'L\'ID du document est requis'],
       unique: true,
     },
-    dateCreation: {
-      type: Date,
-      default: Date.now,
-    },
-    creeParUtilisateurId: {
+    clientId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Utilisateur',
+      ref: 'Client',
+      required: false,
+    },
+    reservationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Reservation',
+      required: false,
+    },
+    billetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Billet',
+      required: false,
     },
     type: {
       type: String,
       enum: {
-        values: ['PASSEPORT', 'VISA', 'CNI', 'CERTIFICAT_VACCINATION', 'AUTRE'],
-        message: 'Le type de document doit être l\'un de: PASSEPORT, VISA, CNI, CERTIFICAT_VACCINATION, AUTRE',
+        values: ['PASSEPORT', 'VISA', 'BILLET_ELECTRONIQUE', 'CERTIFICAT', 'AUTRE'],
+        message: 'Le type de document doit être l\'un de: PASSEPORT, VISA, BILLET_ELECTRONIQUE, CERTIFICAT, AUTRE',
       },
+      required: [true, 'Le type du document est requis'],
     },
     cheminFichier: {
       type: String,
       required: [true, 'Le chemin du fichier est requis'],
+    },
+    publicId: {
+      type: String,
     },
     statut: {
       type: String,
@@ -34,9 +45,25 @@ const documentSchema = new mongoose.Schema(
       },
       default: 'EN_ATTENTE',
     },
+    dateCreation: {
+      type: Date,
+      default: Date.now,
+    },
+    creeParUtilisateurId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Utilisateur',
+    },
   },
   { timestamps: true }
 );
+
+// custom validation: exactly one of clientId, reservationId, billetId
+documentSchema.pre('validate', async function() {
+  const count = [this.clientId, this.reservationId, this.billetId].filter(id => !!id).length;
+  if (count !== 1) {
+    throw new Error('Le document doit être associé à exactement un client, une réservation ou un billet');
+  }
+});
 
 // Méthodes d'instance
 documentSchema.methods.valider = function () {
