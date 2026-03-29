@@ -79,6 +79,12 @@ const Home = () => {
             >
               Suivre mon billet
             </Link>
+            <Link
+              to="/login"
+              className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-gray-700 hover:shadow-lg"
+            >
+              Se connecter
+            </Link>
           </div>
 
           <button
