@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
+import SuiviReservation from './pages/public/SuiviReservation';
+import SuiviBillet from './pages/public/SuiviBillet';
 import './App.css';
 
 const App = () => {
@@ -10,6 +12,8 @@ const App = () => {
         <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/suivi/reservation" element={<SuiviReservation />} />
+          <Route path="/suivi/billet" element={<SuiviBillet />} />
         </Routes>
       </div>
     </BrowserRouter>

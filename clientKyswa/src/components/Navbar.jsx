@@ -33,15 +33,12 @@ const Navbar = () => {
           <Link className="text-sm font-medium text-gray-700 hover:text-primary transition-colors" to="/">
             Accueil
           </Link>
-          <button className="text-sm font-medium text-gray-700 hover:text-primary transition-colors">
-            Omra
-          </button>
-          <button className="text-sm font-medium text-gray-700 hover:text-primary transition-colors">
-            Hajj
-          </button>
-          <button className="text-sm font-medium text-gray-700 hover:text-primary transition-colors">
-            Clients
-          </button>
+          <Link className="text-sm font-medium text-gray-700 hover:text-primary transition-colors" to="/suivi/reservation">
+            Suivre ma réservation
+          </Link>
+          <Link className="text-sm font-medium text-gray-700 hover:text-primary transition-colors" to="/suivi/billet">
+            Suivre mon billet
+          </Link>
         </div>
       </nav>
 
@@ -55,15 +52,20 @@ const Navbar = () => {
             >
               Accueil
             </Link>
-            <button className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary">
-              Omra
-            </button>
-            <button className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary">
-              Hajj
-            </button>
-            <button className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary">
-              Clients
-            </button>
+            <Link
+              to="/suivi/reservation"
+              className="block rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary"
+              onClick={() => setOpen(false)}
+            >
+              Suivre ma réservation
+            </Link>
+            <Link
+              to="/suivi/billet"
+              className="block rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary"
+              onClick={() => setOpen(false)}
+            >
+              Suivre mon billet
+            </Link>
           </div>
         </div>
       )}
