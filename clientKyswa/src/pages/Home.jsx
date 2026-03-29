@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api/axios';
 
 const features = [
@@ -66,12 +67,18 @@ const Home = () => {
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <button className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-600 hover:shadow-lg">
-              Commencer
-            </button>
-            <button className="inline-flex items-center justify-center rounded-lg border border-primary/30 bg-white px-6 py-3 text-sm font-medium text-primary shadow-sm transition hover:border-primary hover:bg-primary/5">
-              Voir la démo
-            </button>
+            <Link
+              to="/suivi/reservation"
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-600 hover:shadow-lg"
+            >
+              Suivre ma réservation
+            </Link>
+            <Link
+              to="/suivi/billet"
+              className="inline-flex items-center justify-center rounded-lg border border-primary/30 bg-white px-6 py-3 text-sm font-medium text-primary shadow-sm transition hover:border-primary hover:bg-primary/5"
+            >
+              Suivre mon billet
+            </Link>
           </div>
 
           <button

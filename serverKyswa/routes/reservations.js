@@ -4,6 +4,7 @@ const router = express.Router();
 const Reservation = require('../models/Reservation');
 const PackageK = require('../models/PackageK');
 const Client = require('../models/Client');
+const Document = require('../models/Document');
 const LigneSupplement = require('../models/LigneSupplement');
 const Supplement = require('../models/Supplement');
 const { protect, requireRole } = require('../middleware/auth');
@@ -156,14 +157,15 @@ router.get('/:id', async (req, res) => {
     const reservation = await Reservation.findById(req.params.id)
       .populate('clients')
       .populate('packageKId')
-      .populate('paiements')
-      .populate('documents');
+      .populate('paiements');
 
     if (!reservation) {
       return res.status(404).json({ message: 'Réservation non trouvée' });
     }
 
-    return res.status(200).json({ reservation });
+    const documents = await Document.find({ reservationId: req.params.id });
+
+    return res.status(200).json({ reservation, documents });
   } catch (err) {
     console.error('Erreur récupération réservation:', err);
     return res.status(500).json({ message: 'Erreur lors de la récupération de la réservation' });

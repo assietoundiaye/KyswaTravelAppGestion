@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const Billet = require('../models/Billet');
 const Client = require('../models/Client');
+const Document = require('../models/Document');
 // s'assurer que le modèle Paiement est enregistré pour les populates
 require('../models/Paiement');
 const { protect, requireRole } = require('../middleware/auth');
@@ -135,14 +136,15 @@ router.get('/:id', async (req, res) => {
   try {
     const billet = await Billet.findById(req.params.id)
       .populate('clientId', 'nom prenom numeroPasseport email telephone')
-      .populate('paiements', 'idPaiement montant mode dateReglement')
-      .populate('documents');
+      .populate('paiements', 'idPaiement montant mode dateReglement');
 
     if (!billet) {
       return res.status(404).json({ message: 'Billet non trouvé' });
     }
 
-    return res.status(200).json({ billet });
+    const documents = await Document.find({ billetId: req.params.id });
+
+    return res.status(200).json({ billet, documents });
   } catch (err) {
     console.error('Erreur récupération billet:', err);
     return res.status(500).json({ message: 'Erreur lors de la récupération du billet' });
