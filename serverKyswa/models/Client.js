@@ -2,11 +2,15 @@ const mongoose = require('mongoose');
 
 const clientSchema = new mongoose.Schema(
   {
+    // Identité
     numeroPasseport: {
       type: String,
       required: [true, 'Le numéro de passeport est requis'],
       unique: true,
       trim: true,
+    },
+    dateExpirationPasseport: {
+      type: Date,
     },
     numeroCNI: {
       type: String,
@@ -24,18 +28,14 @@ const clientSchema = new mongoose.Schema(
       required: [true, 'Le prénom est requis'],
       trim: true,
     },
-    dateNaissance: {
-      type: Date,
-    },
-    lieuNaissance: {
-      type: String,
-    },
+    dateNaissance: { type: Date },
+    lieuNaissance: { type: String },
     telephone: {
       type: String,
       validate: {
         validator: function (v) {
-          // Regex simple pour Sénégal: +221 suivi de 9 chiffres, ou 77/78/70 suivi de 8 chiffres
-          return /^(\+221|0)(7[0-8]|70)\d{7}$/.test(v);
+          if (!v) return true; // optionnel
+          return /^(\+221|0)?(7[0-8]|70)\d{7}$/.test(v);
         },
         message: 'Le numéro de téléphone doit être valide (format Sénégal)',
       },
@@ -46,18 +46,50 @@ const clientSchema = new mongoose.Schema(
       trim: true,
       validate: {
         validator: function (v) {
+          if (!v) return true;
           return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
         },
-        message: 'L\'email doit être valide',
+        message: "L'email doit être valide",
       },
     },
-    adresse: {
+    adresse: { type: String },
+
+    // Niveau fidélité
+    niveauFidelite: {
       type: String,
+      enum: ['BRONZE', 'ARGENT', 'OR', 'PLATINE'],
+      default: 'BRONZE',
     },
-    dateCreation: {
-      type: Date,
-      default: Date.now,
+
+    // Référent (agent qui a amené le client)
+    referentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Utilisateur',
     },
+
+    // Visas détenus
+    visasDetenuts: [{
+      type: {
+        type: String,
+        enum: ['SCHENGEN', 'USA', 'UK', 'CANADA', 'AUTRE'],
+      },
+      dateExpiration: Date,
+      numero: String,
+    }],
+
+    // Historique voyages Hajj/Oumra
+    historiqueVoyages: [{
+      type: {
+        type: String,
+        enum: ['HAJJ', 'OUMRA', 'ZIARRA', 'AUTRE'],
+      },
+      annee: Number,
+      agence: String,
+      notes: String,
+    }],
+
+    // Métadonnées
+    dateCreation: { type: Date, default: Date.now },
     creeParUtilisateurId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Utilisateur',
@@ -66,7 +98,7 @@ const clientSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Virtual pour compter les documents en attente
+// Virtuals documents
 clientSchema.virtual('documentsEnAttenteCount', {
   ref: 'Document',
   localField: '_id',
@@ -74,8 +106,6 @@ clientSchema.virtual('documentsEnAttenteCount', {
   count: true,
   match: { statut: 'EN_ATTENTE' }
 });
-
-// Virtual pour compter tous les documents
 clientSchema.virtual('documentsCount', {
   ref: 'Document',
   localField: '_id',
@@ -83,7 +113,6 @@ clientSchema.virtual('documentsCount', {
   count: true
 });
 
-// Inclure les virtuals dans les réponses JSON
 clientSchema.set('toJSON', { virtuals: true });
 clientSchema.set('toObject', { virtuals: true });
 

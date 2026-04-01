@@ -34,7 +34,7 @@ const upload = multer({
 
 // Protect all routes: COMMERCIAL, COMPTABLE, ADMIN
 router.use(protect);
-router.use(requireRole('COMMERCIAL', 'COMPTABLE', 'ADMIN'));
+router.use(requireRole('commercial', 'secretaire', 'comptable', 'administrateur', 'dg'));
 
 /**
  * POST /api/documents/upload

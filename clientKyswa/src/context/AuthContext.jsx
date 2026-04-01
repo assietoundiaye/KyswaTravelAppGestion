@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
     if (token) {
       const decoded = decodeToken(token);
       if (decoded && !isTokenExpired(decoded)) {
-        setUser({ token, id: decoded.id, role: decoded.role });
+        setUser({ token, id: decoded.id, role: decoded.role, nom: decoded.nom, prenom: decoded.prenom });
       } else {
         localStorage.removeItem('token');
       }
@@ -34,15 +34,17 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  const login = (token) => {
+  const login = (token, refreshToken) => {
     const decoded = decodeToken(token);
     if (!decoded || isTokenExpired(decoded)) return;
     localStorage.setItem('token', token);
-    setUser({ token, id: decoded.id, role: decoded.role });
+    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+    setUser({ token, id: decoded.id, role: decoded.role, nom: decoded.nom, prenom: decoded.prenom });
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     setUser(null);
   };
 

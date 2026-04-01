@@ -22,19 +22,32 @@ api.interceptors.request.use(
   }
 );
 
+// Intercepteur réponse — refresh token automatique
 api.interceptors.response.use(
   (response) => {
     console.log('📥 Réponse API:', response.status, response.config.url);
     return response;
   },
-  (error) => {
-    console.error('❌ Erreur réponse API:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      message: error.message,
-      code: error.code
-    });
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          const res = await api.post('/auth/refresh', { refreshToken });
+          const newToken = res.data.token;
+          localStorage.setItem('token', newToken);
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+      }
+    }
+    console.error('❌ Erreur réponse API:', { url: error.config?.url, status: error.response?.status, message: error.message });
     return Promise.reject(error);
   }
 );

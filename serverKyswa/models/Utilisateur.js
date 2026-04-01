@@ -40,8 +40,8 @@ const utilisateurSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ['ADMIN', 'GESTIONNAIRE', 'COMMERCIAL', 'COMPTABLE'],
-        message: 'Le rôle doit être l\'un de: ADMIN, GESTIONNAIRE, COMMERCIAL, COMPTABLE',
+        values: ['dg', 'administrateur', 'comptable', 'oumra', 'commercial', 'secretaire', 'billets', 'ziara', 'social'],
+        message: 'Rôle invalide',
       },
       required: [true, 'Le rôle est requis'],
     },

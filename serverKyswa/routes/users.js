@@ -5,7 +5,7 @@ const { protect, requireRole } = require('../middleware/auth');
 
 // Protéger toutes les routes : authentification et rôle ADMIN requis
 router.use(protect);
-router.use(requireRole('ADMIN'));
+router.use(requireRole('administrateur'));
 
 /**
  * GET /api/users
@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Données invalides ou manquantes' });
     }
 
-    const rolesAutorises = ['ADMIN', 'GESTIONNAIRE', 'COMMERCIAL', 'COMPTABLE'];
+    const rolesAutorises = ['dg', 'administrateur', 'comptable', 'oumra', 'commercial', 'secretaire', 'billets', 'ziara', 'social'];
     if (!rolesAutorises.includes(role)) {
       return res.status(400).json({ message: 'Rôle non autorisé' });
     }
@@ -114,7 +114,7 @@ router.patch('/:id', async (req, res) => {
     }
 
     if (role) {
-      const rolesAutorises = ['ADMIN', 'GESTIONNAIRE', 'COMMERCIAL', 'COMPTABLE'];
+      const rolesAutorises = ['dg', 'administrateur', 'comptable', 'oumra', 'commercial', 'secretaire', 'billets', 'ziara', 'social'];
       if (!rolesAutorises.includes(role)) {
         return res.status(400).json({ message: 'Rôle invalide' });
       }

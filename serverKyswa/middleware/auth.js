@@ -20,6 +20,11 @@ const protect = async (req, res, next) => {
     const user = await Utilisateur.findById(decoded.id).select('-password');
     if (!user) return res.status(401).json({ message: 'Utilisateur introuvable' });
 
+    // Bloquer immédiatement si compte désactivé
+    if (user.etat === 'INACTIF') {
+      return res.status(403).json({ message: 'Compte désactivé. Contactez l\'administrateur.' });
+    }
+
     // Attacher l'utilisateur simplifié à la requête
     req.user = {
       id: user._id,

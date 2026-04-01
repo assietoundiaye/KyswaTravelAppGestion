@@ -51,17 +51,17 @@ export default function DashboardGestionnaire() {
       <h1 className="text-2xl font-bold text-gray-900">Dashboard Gestionnaire</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Packages ouverts" value={ouverts} color="text-green-600" />
-        <StatCard label="Packages complets" value={complets} color="text-red-600" />
-        <StatCard label="Places restantes" value={placesRestantes} />
+        <StatCard label="Packages ouverts" value={ouverts} colorClass="grad-card-green" icon="📦" />
+        <StatCard label="Packages complets" value={complets} colorClass="grad-card-rose" icon="🔒" />
+        <StatCard label="Places restantes" value={placesRestantes} colorClass="grad-card-blue" icon="💺" />
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="premium-card">
         <h2 className="text-sm font-semibold text-gray-700 mb-4">Packages</h2>
         <DataTable columns={colsPkg} data={packages} loading={loading} />
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="premium-card">
         <h2 className="text-sm font-semibold text-gray-700 mb-4">Suppléments</h2>
         <DataTable columns={colsSupp} data={supplements} loading={loading} />
       </div>

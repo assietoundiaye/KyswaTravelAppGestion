@@ -132,4 +132,37 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+/**
+ * PATCH /api/clients/:id
+ * Modifier un client
+ */
+router.patch('/:id', async (req, res) => {
+  try {
+    const { nom, prenom, telephone, email, adresse, dateNaissance, lieuNaissance, numeroCNI } = req.body;
+    const client = await Client.findById(req.params.id);
+    if (!client) return res.status(404).json({ message: 'Client non trouvé' });
+
+    if (nom) client.nom = nom;
+    if (prenom) client.prenom = prenom;
+    if (telephone !== undefined) client.telephone = telephone || undefined;
+    if (email !== undefined) client.email = email || undefined;
+    if (adresse !== undefined) client.adresse = adresse;
+    if (dateNaissance !== undefined) client.dateNaissance = dateNaissance;
+    if (lieuNaissance !== undefined) client.lieuNaissance = lieuNaissance;
+    if (numeroCNI !== undefined) client.numeroCNI = numeroCNI || undefined;
+    if (req.body.niveauFidelite) client.niveauFidelite = req.body.niveauFidelite;
+    if (req.body.referentId !== undefined) client.referentId = req.body.referentId || undefined;
+    if (req.body.dateExpirationPasseport !== undefined) client.dateExpirationPasseport = req.body.dateExpirationPasseport;
+
+    await client.save();
+    return res.status(200).json({ message: 'Client modifié', client });
+  } catch (err) {
+    console.error('Erreur modification client:', err);
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: Object.values(err.errors).map(e => e.message).join(', ') });
+    }
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;

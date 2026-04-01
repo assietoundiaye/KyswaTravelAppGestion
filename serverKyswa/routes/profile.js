@@ -76,4 +76,35 @@ router.patch(
   }
 );
 
+/**
+ * PATCH /api/profile/me/password
+ * Changer son mot de passe
+ */
+router.patch('/me/password',
+  [
+    body('ancienPassword').notEmpty().withMessage('Ancien mot de passe requis'),
+    body('nouveauPassword').isLength({ min: 6 }).withMessage('Le nouveau mot de passe doit contenir au moins 6 caractères'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(400).json({ message: errors.array().map(e => e.msg).join('; ') });
+
+      const { ancienPassword, nouveauPassword } = req.body;
+      const user = await Utilisateur.findById(req.user.id).select('+password');
+      if (!user) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+
+      const valide = await user.comparePassword(ancienPassword);
+      if (!valide) return res.status(400).json({ message: 'Ancien mot de passe incorrect' });
+
+      user.password = nouveauPassword;
+      await user.save();
+
+      return res.status(200).json({ message: 'Mot de passe modifié avec succès' });
+    } catch (err) {
+      return res.status(500).json({ message: 'Erreur serveur' });
+    }
+  }
+);
+
 module.exports = router;

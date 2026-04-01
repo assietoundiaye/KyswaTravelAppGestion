@@ -1,134 +1,138 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../api/axios';
 
-const features = [
+const services = [
   {
+    icon: '🕌',
     title: 'Omra',
-    description: 'Suivi des dossiers Omra, gestion des groupes, vols et hébergements en un seul endroit.',
+    description: 'Gestion complète des dossiers Omra, groupes, vols et hébergements.',
   },
   {
+    icon: '🌙',
     title: 'Hajj',
-    description: 'Planification complète des campagnes Hajj avec tableaux de bord pour vos équipes.',
+    description: 'Planification des campagnes Hajj avec suivi en temps réel.',
   },
   {
-    title: 'Clients',
-    description: 'Base clients centralisée, historique des voyages et automatisation de la communication.',
+    icon: '✈️',
+    title: 'Billets',
+    description: 'Émission et suivi des billets d\'avion pour vos clients.',
+  },
+  {
+    icon: '📋',
+    title: 'Réservations',
+    description: 'Centralisez toutes vos réservations et paiements.',
   },
 ];
 
-const Home = () => {
-  const [backendStatus, setBackendStatus] = useState('');
+const stats = [
+  { value: '500+', label: 'Clients gérés' },
+  { value: '50+', label: 'Packages actifs' },
+  { value: '99%', label: 'Satisfaction' },
+];
 
-  const testBackend = async () => {
-    try {
-      console.log('🔄 Test de connexion au backend...');
-      const response = await api.get('/test');
-      console.log('✅ Réponse backend:', response.data);
-      setBackendStatus(response.data.message);
-      alert('✅ ' + response.data.message);
-    } catch (error) {
-      console.error('❌ Erreur détaillée:', {
-        message: error.message,
-        code: error.code,
-        response: error.response?.data,
-        status: error.response?.status,
-        url: error.config?.url,
-        baseURL: error.config?.baseURL
-      });
-      
-      let errorMessage = '❌ Erreur connexion backend';
-      if (error.code === 'ECONNREFUSED') {
-        errorMessage = '❌ Backend non accessible (vérifie qu\'il tourne sur http://localhost:3000)';
-      } else if (error.response) {
-        errorMessage = `❌ Erreur ${error.response.status}: ${error.response.statusText}`;
-      } else if (error.message) {
-        errorMessage = `❌ ${error.message}`;
-      }
-      
-      setBackendStatus(errorMessage);
-      alert(errorMessage + '\n\nVérifie la console pour plus de détails.');
-    }
-  };
-
+export default function Home() {
   return (
-    <main className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-emerald-50 via-white to-emerald-50">
-      <section className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-12 md:flex-row md:items-center md:justify-between md:py-20">
-        <div className="max-w-xl space-y-6">
-          <p className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-            Plateforme agences de voyage
-          </p>
-          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl md:text-5xl">
-            Kyswa Travel – Gestion Omra &amp; Hajj
-          </h1>
-          <p className="text-base text-gray-600 sm:text-lg">
-            Plateforme de gestion complète pour agences de voyage spécialisées dans l&apos;Omra et le Hajj :
-            centralisez vos dossiers, vos paiements et la communication avec vos groupes.
-          </p>
+    <div className="min-h-screen bg-white">
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white">
+        <div className="absolute inset-0 opacity-10"
+          style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+        <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-32 text-center">
+          <span className="inline-block rounded-full bg-white/20 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest mb-6">
+            Plateforme de gestion — Agence de voyage
+          </span>
+          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl mb-6 leading-tight">
+            Kyswa Travel
+            <span className="block text-emerald-200 text-3xl sm:text-4xl mt-2 font-semibold">
+              Gestion Omra & Hajj
+            </span>
+          </h1>
+          <p className="mx-auto max-w-2xl text-lg text-emerald-100 mb-10">
+            Centralisez vos dossiers, paiements et communications. Une plateforme complète pour les agences spécialisées dans les voyages religieux.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              to="/login"
+              className="rounded-xl bg-white px-8 py-3.5 text-sm font-bold text-emerald-700 shadow-lg hover:bg-emerald-50 transition-all hover:shadow-xl"
+            >
+              Se connecter →
+            </Link>
             <Link
               to="/suivi/reservation"
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-600 hover:shadow-lg"
+              className="rounded-xl border-2 border-white/40 bg-white/10 px-8 py-3.5 text-sm font-semibold text-white hover:bg-white/20 transition-all backdrop-blur"
             >
               Suivre ma réservation
             </Link>
-            <Link
-              to="/suivi/billet"
-              className="inline-flex items-center justify-center rounded-lg border border-primary/30 bg-white px-6 py-3 text-sm font-medium text-primary shadow-sm transition hover:border-primary hover:bg-primary/5"
-            >
-              Suivre mon billet
-            </Link>
-            <Link
-              to="/login"
-              className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-gray-700 hover:shadow-lg"
-            >
-              Se connecter
-            </Link>
-          </div>
-
-          <button
-            onClick={testBackend}
-            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-          >
-            Tester Backend
-          </button>
-          {backendStatus && (
-            <p className="mt-2 text-sm font-medium text-gray-700">{backendStatus}</p>
-          )}
-
-          <div className="mt-6 flex flex-wrap gap-4 text-xs text-gray-500">
-            <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 shadow-sm">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Suivi temps réel des groupes
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 shadow-sm">
-              <span className="h-2 w-2 rounded-full bg-blue-500" />
-              Accessible sur mobile &amp; web
-            </span>
           </div>
         </div>
 
-        <div className="grid w-full max-w-md gap-4 rounded-2xl bg-white/70 p-5 shadow-md backdrop-blur md:max-w-sm">
-          {features.map((feature) => (
-            <article
-              key={feature.title}
-              className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">{feature.title}</h3>
-                <span className="text-[10px] font-medium uppercase tracking-wide text-primary/80">
-                  Module
-                </span>
-              </div>
-              <p className="text-xs text-gray-600">{feature.description}</p>
-            </article>
+        {/* Wave */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 60L1440 60L1440 0C1200 50 960 60 720 40C480 20 240 0 0 30L0 60Z" fill="white"/>
+          </svg>
+        </div>
+      </section>
+
+      {/* Stats */}
+      <section className="mx-auto max-w-4xl px-4 py-12">
+        <div className="grid grid-cols-3 gap-6 text-center">
+          {stats.map((s) => (
+            <div key={s.label}>
+              <p className="text-3xl font-extrabold text-emerald-600">{s.value}</p>
+              <p className="text-sm text-gray-500 mt-1">{s.label}</p>
+            </div>
           ))}
         </div>
       </section>
-    </main>
+
+      {/* Services */}
+      <section className="bg-gray-50 py-16 px-4">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">Nos modules</h2>
+          <p className="text-center text-gray-500 text-sm mb-10">Tout ce dont votre agence a besoin en un seul endroit</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {services.map((s) => (
+              <div key={s.title} className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-1 transition-all">
+                <div className="text-3xl mb-3">{s.icon}</div>
+                <h3 className="font-semibold text-gray-900 mb-1">{s.title}</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">{s.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Suivi public */}
+      <section className="py-16 px-4">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Suivi en ligne</h2>
+          <p className="text-gray-500 text-sm mb-8">Consultez votre dossier sans avoir besoin de vous connecter</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Link
+              to="/suivi/reservation"
+              className="rounded-2xl border-2 border-emerald-100 bg-emerald-50 p-6 text-left hover:border-emerald-300 hover:bg-emerald-100 transition-all group"
+            >
+              <div className="text-2xl mb-2">📋</div>
+              <h3 className="font-semibold text-gray-900 group-hover:text-emerald-700">Suivre ma réservation</h3>
+              <p className="text-xs text-gray-500 mt-1">Entrez votre numéro et votre nom</p>
+            </Link>
+            <Link
+              to="/suivi/billet"
+              className="rounded-2xl border-2 border-blue-100 bg-blue-50 p-6 text-left hover:border-blue-300 hover:bg-blue-100 transition-all group"
+            >
+              <div className="text-2xl mb-2">✈️</div>
+              <h3 className="font-semibold text-gray-900 group-hover:text-blue-700">Suivre mon billet</h3>
+              <p className="text-xs text-gray-500 mt-1">Entrez votre numéro de billet</p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-400 text-center py-6 text-xs">
+        © {new Date().getFullYear()} Kyswa Travel — Tous droits réservés
+      </footer>
+    </div>
   );
-};
-
-export default Home;
-
+}

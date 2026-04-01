@@ -1,0 +1,190 @@
+@startuml Activité 1 — Processus de Désistement
+
+title Processus de désistement avec calcul de remboursement
+
+skinparam activityBackgroundColor #F0FDF4
+skinparam activityBorderColor #00674F
+skinparam activityArrowColor #00674F
+skinparam activityDiamondBackgroundColor #FFFBEB
+skinparam activityDiamondBorderColor #D97706
+
+start
+
+:Commercial / Comptable sélectionne\nune inscription à annuler;
+
+:Système charge l'inscription\n(statut, paiements, date de départ);
+
+if (Inscription déjà annulée\nou désistée ?) then (Oui)
+  :Afficher erreur\n"Inscription déjà annulée";
+  stop
+else (Non)
+end if
+
+:Saisir le motif du désistement;
+
+:Calculer le nombre de jours\navant le départ\n(dateDepart - dateAnnulation);
+
+:Calculer le montant payé\n(Σ paiements enregistrés);
+
+if (jours ≥ 60 ?) then (Oui)
+  :Taux de remboursement = 100%;
+else if (jours entre 30 et 59 ?) then (Oui)
+  :Taux de remboursement = 80%;
+else if (jours entre 15 et 29 ?) then (Oui)
+  :Taux de remboursement = 50%;
+else if (jours entre 1 et 14 ?) then (Oui)
+  :Taux de remboursement = 25%;
+else (0 jour)
+  :Taux de remboursement = 0%;
+end if
+
+:Calculer montant remboursable\n= montantPaye × taux;
+
+:Afficher récapitulatif :\n- Montant payé\n- Taux applicable\n- Montant à rembourser;
+
+:Confirmer le désistement;
+
+:Créer le document Desistement\n(statut = EN_ATTENTE);
+
+:Mettre à jour l'inscription\n(statutClient = DESISTE);
+
+:Notifier le comptable\n(remboursement en attente);
+
+fork
+  :Comptable consulte\nles remboursements en attente;
+  :Effectue le remboursement\n(virement / espèces);
+  :Valider le remboursement\n(statut = REMBOURSE);
+fork again
+  :Inscription archivée\navec statut DESISTE;
+end fork
+
+stop
+
+@enduml
+
+'─────────────────────────────────────────────────────────────────────────────
+
+@startuml Activité 2 — Processus de Gestion des Visas
+
+title Processus de suivi des dossiers visa (Oumra)
+
+skinparam activityBackgroundColor #EFF6FF
+skinparam activityBorderColor #2563EB
+skinparam activityArrowColor #2563EB
+skinparam activityDiamondBackgroundColor #FFFBEB
+
+start
+
+:Responsable Oumra crée\nun dossier visa\n(inscription + client);
+
+:Vérifier que le client\nest dans l'inscription;
+
+if (Client dans l'inscription ?) then (Non)
+  :Erreur : "Client non trouvé\ndans cette inscription";
+  stop
+else (Oui)
+end if
+
+if (Dossier visa déjà existant\npour ce client/inscription ?) then (Oui)
+  :Erreur : "Dossier déjà créé";
+  stop
+else (Non)
+end if
+
+:Créer le dossier visa\n(statut = EN_ATTENTE);
+
+:Collecter le passeport\ndu pèlerin;
+
+:Marquer "Passeport collecté"\n(passeportCollecte = true);
+
+:Envoyer le dossier\nsur la plateforme Nusuk;
+
+:Marquer "Envoyé sur Nusuk"\n(envoiNusuk = true);
+
+:Attendre la réponse\nde la plateforme;
+
+if (Visa accordé ?) then (Oui)
+  :Marquer "Visa reçu"\n(visaRecu = true)\n(statut = RECU);
+  :Remettre le visa\nau pèlerin;
+  :Mettre à jour la checklist\npré-départ (visaOK = true);
+else (Non — Refus)
+  :Saisir le motif de refus;
+  :Mettre à jour le statut\n(statut = REFUSE);
+  :Notifier le commercial\net le pèlerin;
+  if (Recours possible ?) then (Oui)
+    :Préparer un nouveau dossier;
+    :Retourner à l'étape\n"Envoyer sur Nusuk";
+  else (Non)
+    :Initier un désistement\nsi le pèlerin ne peut pas partir;
+    stop
+  end if
+end if
+
+stop
+
+@enduml
+
+'─────────────────────────────────────────────────────────────────────────────
+
+@startuml Activité 3 — Processus de Recouvrement
+
+title Processus de recouvrement des impayés
+
+skinparam activityBackgroundColor #FEF2F2
+skinparam activityBorderColor #DC2626
+skinparam activityArrowColor #DC2626
+skinparam activityDiamondBackgroundColor #FFFBEB
+
+start
+
+:Système identifie automatiquement\nles inscriptions impayées\n(départ dans ≤ 30 jours\net resteAPayer > 0);
+
+:Afficher la liste triée\npar urgence (jours restants);
+
+:Commercial / Comptable\nsélectionne un dossier;
+
+:Consulter les coordonnées\ndu client (téléphone, email);
+
+:Appeler le client;
+
+if (Client joint ?) then (Non)
+  :Enregistrer relance\n(résultat = NON_JOINT);
+  :Planifier prochaine relance;
+else (Oui)
+  if (Promesse de paiement ?) then (Oui)
+    :Enregistrer relance\n(résultat = PROMESSE_PAIEMENT);
+    :Définir date de prochaine relance;
+    :Attendre le paiement;
+    if (Paiement reçu ?) then (Oui)
+      :Enregistrer le paiement;
+      :Mettre à jour le statut\n(PARTIEL ou SOLDE);
+      stop
+    else (Non — délai dépassé)
+      :Relancer à nouveau;
+    end if
+  else if (Refus de payer ?) then (Oui)
+    :Enregistrer relance\n(résultat = REFUSE);
+    :Escalader au DG;
+    if (Décision DG : désistement ?) then (Oui)
+      :Initier le processus\nde désistement;
+      stop
+    else (Maintien)
+      :Continuer les relances;
+    end if
+  else (Paiement immédiat)
+    :Enregistrer le paiement\nsur place;
+    :Mettre à jour le statut;
+    stop
+  end if
+end if
+
+if (Départ dans ≤ 7 jours\net toujours impayé ?) then (Oui)
+  :Alerte critique\n(bordure rouge dans le dashboard);
+  :Notifier le DG et le Comptable;
+else (Non)
+  :Dossier reste en surveillance;
+end if
+
+stop
+
+@enduml
