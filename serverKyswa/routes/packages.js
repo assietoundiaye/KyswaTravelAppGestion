@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
 /**
  * POST /api/packages
  */
-router.post('/', requireRole('GESTIONNAIRE'), async (req, res) => {
+router.post('/', requireRole('dg', 'administrateur'), async (req, res) => {
   try {
     const { nomReference, type, statut, dateDepart, dateRetour, prixEco, prixCont, prixVip, hotel, quotaMax } = req.body;
 
@@ -76,7 +76,7 @@ router.post('/', requireRole('GESTIONNAIRE'), async (req, res) => {
 /**
  * PATCH /api/packages/:id
  */
-router.patch('/:id', requireRole('GESTIONNAIRE'), async (req, res) => {
+router.patch('/:id', requireRole('dg', 'administrateur'), async (req, res) => {
   try {
     const { nomReference, type, statut, dateDepart, dateRetour, prixEco, prixCont, prixVip, hotel, quotaMax } = req.body;
     const packageK = await PackageK.findById(req.params.id);
@@ -122,7 +122,7 @@ router.patch('/:id', requireRole('GESTIONNAIRE'), async (req, res) => {
 /**
  * DELETE /api/packages/:id
  */
-router.delete('/:id', requireRole('GESTIONNAIRE'), async (req, res) => {
+router.delete('/:id', requireRole('dg', 'administrateur'), async (req, res) => {
   try {
     const packageK = await PackageK.findById(req.params.id);
     if (!packageK) return res.status(404).json({ message: 'Package non trouvé' });
@@ -141,7 +141,7 @@ router.delete('/:id', requireRole('GESTIONNAIRE'), async (req, res) => {
 /**
  * POST /api/packages/:id/supplements
  */
-router.post('/:id/supplements', requireRole('GESTIONNAIRE'), async (req, res) => {
+router.post('/:id/supplements', requireRole('dg', 'administrateur'), async (req, res) => {
   try {
     const { supplementIds } = req.body;
     if (!Array.isArray(supplementIds)) return res.status(400).json({ message: 'Array supplementIds requis' });

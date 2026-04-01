@@ -23,7 +23,7 @@ function formatMoney(n) {
 /**
  * GET /api/factures/reservation/:id
  */
-router.get('/reservation/:id', protect, requireRole('COMMERCIAL', 'COMPTABLE', 'ADMIN'), async (req, res) => {
+router.get('/reservation/:id', protect, requireRole('commercial', 'comptable', 'administrateur', 'dg'), async (req, res) => {
   try {
     const factureType = req.query.type === 'acompte' ? 'acompte' : 'solde';
 
@@ -125,7 +125,7 @@ router.get('/reservation/:id', protect, requireRole('COMMERCIAL', 'COMPTABLE', '
 /**
  * GET /api/factures/billet/:id
  */
-router.get('/billet/:id', protect, requireRole('COMMERCIAL', 'COMPTABLE', 'ADMIN'), async (req, res) => {
+router.get('/billet/:id', protect, requireRole('commercial', 'comptable', 'administrateur', 'dg'), async (req, res) => {
   try {
     const billet = await Billet.findById(req.params.id).populate('clientId').populate('paiements');
     if (!billet) return res.status(404).json({ message: 'Billet introuvable' });

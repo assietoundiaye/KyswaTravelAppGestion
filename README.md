@@ -1,139 +1,213 @@
-# Kyswa Travel — Plateforme de Gestion Omra & Hajj
+# Kyswa Travel — Plateforme de Gestion Interne
 
-Système de gestion interne (ERP) pour agence de voyage spécialisée au Sénégal.  
-Gestion des réservations, billets, clients, paiements, documents et suivi public.
+Application web de gestion interne pour une agence de voyages religieux (Oumra, Hajj, Ziarra Fès). Développée avec la stack MERN (MongoDB, Express, React, Node.js).
 
 ---
 
-## Stack technique
+## Prérequis
 
-- **Backend** : Node.js, Express 5, MongoDB/Mongoose, JWT, Cloudinary, jsPDF
-- **Frontend** : React 19, Vite, Tailwind CSS, Axios, React Hook Form, Zod
+- Node.js ≥ 18
+- npm ou pnpm
+- Compte MongoDB Atlas (ou MongoDB local)
+- Compte Cloudinary (pour l'upload de documents)
+
+---
+
+## Installation
+
+### 1. Cloner le projet
+
+```bash
+git clone https://github.com/KYSWAPP/kyswa-app.git
+cd kyswa-app
+```
+
+### 2. Backend
+
+```bash
+cd serverKyswa
+npm install
+```
+
+Créer le fichier `.env` :
+
+```env
+MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/kyswa
+JWT_SECRET=votre_secret_jwt_tres_long
+JWT_REFRESH_SECRET=votre_secret_refresh_different
+PORT=3000
+CLOUDINARY_CLOUD_NAME=votre_cloud_name
+CLOUDINARY_API_KEY=votre_api_key
+CLOUDINARY_API_SECRET=votre_api_secret
+```
+
+Démarrer le serveur :
+
+```bash
+node index.js
+# ou avec nodemon
+npx nodemon index.js
+```
+
+### 3. Frontend
+
+```bash
+cd clientKyswa
+npm install
+npm run dev
+```
+
+L'application est accessible sur `http://localhost:5173`.
+
+### 4. Créer le premier compte administrateur
+
+```bash
+node serverKyswa/scripts/createAdmin.js
+```
+
+Identifiants par défaut : `admin@kyswa.sn` / `Admin123!`
 
 ---
 
 ## Structure du projet
 
 ```
-KyswaTravelAppGestion/
-├── serverKyswa/           # Backend Express
-│   ├── config/            # Cloudinary config
+kyswa-app/
+├── serverKyswa/          # API Node.js/Express
+│   ├── config/           # Cloudinary
 │   ├── middleware/        # auth.js, errorHandler.js
-│   ├── models/            # Mongoose schemas
-│   ├── routes/            # Routes API
-│   ├── utils/             # jwt.js
-│   ├── scripts/           # Seeds et tests
-│   ├── index.js           # Point d'entrée serveur
-│   └── .env               # Variables d'environnement (à remplir)
-└── clientKyswa/           # Frontend React
+│   ├── models/           # Schémas Mongoose
+│   ├── routes/           # Routes REST
+│   ├── scripts/          # createAdmin.js
+│   ├── utils/            # jwt.js
+│   └── index.js
+│
+└── clientKyswa/          # SPA React/Vite
     └── src/
-        ├── api/           # axios.js (instance configurée)
-        ├── components/    # Navbar
-        └── pages/
-            ├── Home.jsx
-            └── public/
-                ├── SuiviReservation.jsx
-                └── SuiviBillet.jsx
+        ├── api/           # axios.js (intercepteurs JWT)
+        ├── components/    # Composants réutilisables
+        ├── context/       # AuthContext
+        ├── hooks/         # useSocket.js
+        ├── pages/         # Pages par module
+        └── utils/         # roles.js
 ```
-
----
-
-## Lancer l'application
-
-**Prérequis** : Node.js v20+
-
-**Backend** (terminal 1) :
-```bash
-cd serverKyswa
-npm install
-npm run dev
-```
-Serveur sur `http://localhost:3000`
-
-**Frontend** (terminal 2) :
-```bash
-cd clientKyswa
-npm install
-npm run dev
-```
-App sur `http://localhost:5173`
-
----
-
-## Variables d'environnement
-
-Fichier `serverKyswa/.env` à compléter :
-
-```
-MONGO_URI=
-JWT_SECRET=
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-PORT=3000
-```
-
----
-
-## API — Routes principales
-
-### Authentification (public)
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| POST | `/api/auth/register` | Créer un compte |
-| POST | `/api/auth/login` | Connexion (JWT) |
-
-### Suivi public (sans login)
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| GET | `/api/public/reservation` | Suivi réservation par numéro + nom |
-| GET | `/api/public/billet` | Suivi billet par numéro + nom |
-
-### Routes protégées (JWT requis)
-| Route | Rôles |
-|-------|-------|
-| `/api/users` | ADMIN |
-| `/api/profile` | Tous |
-| `/api/clients` | Tous |
-| `/api/packages` | GESTIONNAIRE (écriture), Tous (lecture) |
-| `/api/supplements` | GESTIONNAIRE |
-| `/api/reservations` | COMMERCIAL, GESTIONNAIRE, COMPTABLE |
-| `/api/billets` | COMMERCIAL, GESTIONNAIRE, COMPTABLE |
-| `/api/documents` | COMMERCIAL, COMPTABLE, ADMIN |
-| `/api/factures` | COMMERCIAL, COMPTABLE, ADMIN |
 
 ---
 
 ## Rôles utilisateurs
 
-| Rôle | Accès |
-|------|-------|
-| ADMIN | Tout + gestion utilisateurs |
-| GESTIONNAIRE | Packages, suppléments, réservations |
-| COMMERCIAL | Clients, réservations, billets |
-| COMPTABLE | Paiements, factures, documents |
+| Rôle | Description |
+|---|---|
+| `dg` | Directeur Général — accès complet |
+| `administrateur` | Gestion système, utilisateurs, audit |
+| `comptable` | Finances, paiements, comptabilité |
+| `oumra` | Responsable Oumra — inscriptions, visas, billets |
+| `commercial` | Clients, inscriptions, recouvrement |
+| `secretaire` | Coordination, documents, réunions |
+| `billets` | Billets individuels et groupe |
+| `ziara` | Prospects Ziarra Fès |
+| `social` | Messagerie, rapports |
 
 ---
 
-## Pages frontend
+## Modules fonctionnels
 
-| URL | Description | Auth |
-|-----|-------------|------|
-| `/` | Page d'accueil | Non |
-| `/suivi/reservation` | Suivi réservation public | Non |
-| `/suivi/billet` | Suivi billet public | Non |
+| Module | Description |
+|---|---|
+| Clients CRM | Fiches clients avec historique voyages |
+| Inscriptions | Gestion des pèlerins par départ |
+| Paiements | Versements avec calcul automatique du reste |
+| Packages | Offres de voyage avec prix par chambre |
+| Visas | Suivi des dossiers visa |
+| Billets | Individuels et groupe |
+| Désistements | Annulations avec calcul remboursement |
+| Recouvrement | Impayés urgents + relances |
+| Réunions | Pré-départ avec checklist |
+| Comptabilité | Dépenses + solde mensuel |
+| Bilan Départs | Synthèse financière par départ |
+| Messagerie | Temps réel via Socket.IO |
+| Rapports | Journaliers par agent |
+| Secrétariat | Documents, urgences, supervision |
+| Utilisateurs | Gestion des comptes |
+| Audit | Journal de traçabilité |
+| Simulateur | Calcul estimatif de prix |
+| Ziarra | Prospects voyages Fès |
 
 ---
 
-## Avancement
+## API — Endpoints principaux
 
-| Étape | Description | Statut |
-|-------|-------------|--------|
-| 1–6 | Auth, Users, Clients, Packages, Suppléments, Réservations | ✅ |
-| 7 | Paiements (Réservations + Billets) | ✅ |
-| 8 | Génération factures PDF | ✅ |
-| 9 | Documents + upload Cloudinary | ✅ |
-| 10 | Suivi public réservation + billet | ✅ |
-| 11 | Dashboard frontend par rôle | 🔜 |
-| 12 | Sécurité + robustesse backend | 🔜 |
-| 13–18 | Tests, déploiement, polish | 🔜 |
+```
+POST   /api/auth/login              Connexion
+POST   /api/auth/refresh            Renouvellement token
+
+GET    /api/clients                 Liste clients
+POST   /api/clients                 Créer client
+
+GET    /api/reservations            Liste inscriptions
+POST   /api/reservations            Créer inscription
+PATCH  /api/reservations/:id/statut-client  Changer statut
+
+POST   /api/reservations/:id/paiements  Enregistrer paiement
+DELETE /api/paiements/:id           Supprimer paiement (comptable)
+
+GET    /api/packages                Liste départs
+POST   /api/packages                Créer départ (dg/admin)
+
+GET    /api/stats                   Statistiques globales
+GET    /api/export/clients          Export CSV clients
+GET    /api/factures/reservation/:id  Facture PDF
+
+GET    /api/public/reservation      Suivi public inscription
+GET    /api/public/billet           Suivi public billet
+```
+
+---
+
+## Variables d'environnement
+
+| Variable | Description | Requis |
+|---|---|---|
+| `MONGO_URI` | URI MongoDB Atlas | Oui |
+| `JWT_SECRET` | Clé secrète access token | Oui |
+| `JWT_REFRESH_SECRET` | Clé secrète refresh token | Non (fallback JWT_SECRET) |
+| `PORT` | Port du serveur (défaut: 3000) | Non |
+| `CLOUDINARY_CLOUD_NAME` | Nom du cloud Cloudinary | Pour uploads |
+| `CLOUDINARY_API_KEY` | Clé API Cloudinary | Pour uploads |
+| `CLOUDINARY_API_SECRET` | Secret API Cloudinary | Pour uploads |
+| `KYSWA_LOGO_BASE64` | Logo en base64 pour les PDF | Non |
+
+---
+
+## Technologies utilisées
+
+**Backend**
+- Node.js 18+ / Express 4
+- MongoDB Atlas / Mongoose 8
+- Socket.IO 4
+- JWT (jsonwebtoken) + bcryptjs
+- Multer + Cloudinary
+- jsPDF + jspdf-autotable
+- express-validator / express-rate-limit
+
+**Frontend**
+- React 18 / Vite 5
+- React Router v6
+- Axios (avec intercepteurs JWT)
+- Socket.IO Client
+- Lucide React (icônes)
+- Tailwind CSS + CSS Variables
+
+---
+
+## Documentation complémentaire
+
+- [Architecture technique](docs/architecture-technique.md)
+- [Fonctionnalités détaillées](docs/fonctionnalites.md)
+- [Choix technologiques](docs/choix-technologiques.md)
+
+---
+
+## Licence
+
+Usage interne — Kyswa Travel © 2026

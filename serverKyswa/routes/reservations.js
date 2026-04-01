@@ -11,7 +11,7 @@ const { protect, requireRole } = require('../middleware/auth');
 
 // Protection: COMMERCIAL, GESTIONNAIRE et COMPTABLE
 router.use(protect);
-router.use(requireRole('COMMERCIAL', 'GESTIONNAIRE', 'COMPTABLE'));
+router.use(requireRole('commercial', 'oumra', 'billets', 'comptable', 'administrateur', 'dg', 'secretaire'));
 
 /**
  * POST /api/reservations
@@ -406,6 +406,53 @@ router.delete('/:id/supplements/:ligneId', async (req, res) => {
   } catch (err) {
     console.error('Erreur suppression ligne supplément:', err);
     return res.status(500).json({ message: 'Erreur lors de la suppression du supplément' });
+  }
+});
+
+/**
+ * PATCH /api/reservations/:id/statut
+ * Changer le statut d'une réservation (rétrocompatibilité)
+ */
+router.patch('/:id/statut', async (req, res) => {
+  try {
+    const { statut } = req.body;
+    const statutsValides = ['EN_ATTENTE', 'INSCRIT', 'CONFIRME', 'PARTIEL', 'SOLDE', 'ANNULEE', 'PAYEE', 'DESISTE', 'PARTI', 'RENTRE'];
+    if (!statutsValides.includes(statut)) {
+      return res.status(400).json({ message: 'Statut invalide' });
+    }
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
+    reservation.statut = statut;
+    // Synchroniser avec les nouveaux champs
+    if (['INSCRIT', 'CONFIRME', 'DESISTE', 'PARTI', 'RENTRE', 'ANNULEE'].includes(statut)) {
+      reservation.statutClient = statut === 'ANNULEE' ? 'ANNULE' : statut;
+    }
+    await reservation.save();
+    return res.status(200).json({ message: 'Statut mis à jour', statut: reservation.statut });
+  } catch (err) {
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+/**
+ * PATCH /api/reservations/:id/statut-client
+ * Changer uniquement le statut client (INSCRIT → CONFIRME → PARTI → RENTRE)
+ */
+router.patch('/:id/statut-client', async (req, res) => {
+  try {
+    const { statutClient } = req.body;
+    const valides = ['INSCRIT', 'CONFIRME', 'DESISTE', 'PARTI', 'RENTRE', 'ANNULE'];
+    if (!valides.includes(statutClient)) {
+      return res.status(400).json({ message: 'Statut client invalide' });
+    }
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
+    reservation.statutClient = statutClient;
+    reservation.statut = statutClient === 'ANNULE' ? 'ANNULEE' : statutClient;
+    await reservation.save();
+    return res.status(200).json({ message: 'Statut client mis à jour', statutClient: reservation.statutClient });
+  } catch (err) {
+    return res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 

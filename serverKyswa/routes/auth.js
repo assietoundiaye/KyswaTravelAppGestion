@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Utilisateur = require('../models/Utilisateur');
-const { generateToken } = require('../utils/jwt');
+const { generateToken, generateRefreshToken } = require('../utils/jwt');
+const { logLogin } = require('../middleware/audit');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 
@@ -24,7 +25,7 @@ router.post('/register',
     body('prenom').isString().notEmpty().withMessage('Le prénom est requis'),
     body('email').isEmail().withMessage('Email invalide'),
     body('password').isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
-    body('role').isIn(['ADMIN','GESTIONNAIRE','COMMERCIAL','COMPTABLE']).withMessage('Rôle invalide'),
+    body('role').isIn(['dg','administrateur','comptable','oumra','commercial','secretaire','billets','ziara','social']).withMessage('Rôle invalide'),
   ],
   async (req, res) => {
   try {
@@ -38,7 +39,7 @@ router.post('/register',
       return res.status(400).json({ message: 'Champs requis manquants ou format invalide' });
     }
 
-    const rolesAutorises = ['ADMIN', 'GESTIONNAIRE', 'COMMERCIAL', 'COMPTABLE'];
+    const rolesAutorises = ['dg', 'administrateur', 'comptable', 'oumra', 'commercial', 'secretaire', 'billets', 'ziara', 'social'];
     if (!rolesAutorises.includes(role)) {
       return res.status(400).json({ message: 'Rôle non autorisé' });
     }
@@ -132,10 +133,18 @@ router.post('/login', loginLimiter,
     await utilisateur.save();
 
     const token = generateToken(utilisateur);
+    const refreshToken = generateRefreshToken(utilisateur);
+
+    // Enregistrer la connexion dans le journal d'audit
+    await logLogin(utilisateur._id, `${utilisateur.prenom} ${utilisateur.nom}`, {
+      event: 'SIGNED_IN',
+      role: utilisateur.role,
+    });
 
     return res.status(200).json({
       message: 'Connexion réussie',
       token,
+      refreshToken,
       user: {
         id: utilisateur._id,
         nom: utilisateur.nom,
@@ -148,6 +157,35 @@ router.post('/login', loginLimiter,
   } catch (err) {
     console.error('Erreur lors de la connexion:', err);
     return res.status(500).json({ message: 'Erreur lors de la connexion' });
+  }
+});
+
+/**
+ * POST /api/auth/refresh
+ * Renouveler l'access token
+ */
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(401).json({ message: 'Refresh token manquant' });
+
+    const { verifyToken, generateToken } = require('../utils/jwt');
+    let decoded;
+    try {
+      decoded = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ message: 'Refresh token invalide ou expiré' });
+    }
+
+    const user = await Utilisateur.findById(decoded.id);
+    if (!user || user.etat === 'INACTIF') {
+      return res.status(401).json({ message: 'Compte désactivé ou introuvable' });
+    }
+
+    const newToken = generateToken(user);
+    return res.status(200).json({ token: newToken });
+  } catch (err) {
+    return res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 

@@ -6,20 +6,17 @@ const jwt = require('jsonwebtoken');
  * @returns {String} Token JWT
  */
 function generateToken(user) {
-  const payload = {
-    id: user._id,
-    role: user.role,
-  };
-
-  // 1. Correction : Utiliser process.env sans valeur par défaut "en dur"
+  const payload = { id: user._id, role: user.role, nom: user.nom, prenom: user.prenom };
   const secret = process.env.JWT_SECRET;
-
-  if (!secret) {
-    throw new Error("La variable JWT_SECRET n'est pas configurée dans l'environnement !");
-  }
-
-  // 2. Utilisation de jwt.sign pour créer le jeton (7 jours de validité)
+  if (!secret) throw new Error("JWT_SECRET non configuré");
   return jwt.sign(payload, secret, { expiresIn: '7d' });
+}
+
+function generateRefreshToken(user) {
+  const payload = { id: user._id };
+  const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET non configuré");
+  return jwt.sign(payload, secret, { expiresIn: '30d' });
 }
 
 /**
@@ -41,5 +38,6 @@ function verifyToken(token, secretOverride) {
 
 module.exports = {
   generateToken,
+  generateRefreshToken,
   verifyToken,
 };

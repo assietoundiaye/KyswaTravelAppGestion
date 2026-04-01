@@ -1,0 +1,277 @@
+@startuml Cas d'utilisation — Kyswa Travel
+
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #F0FDF4
+  BorderColor #00674F
+  ArrowColor #00674F
+}
+skinparam actor {
+  BackgroundColor #E6B537
+  BorderColor #00674F
+}
+
+left to right direction
+
+' ─── Acteurs ───────────────────────────────────────────
+actor "Visiteur" as Visiteur
+actor "Commercial" as Commercial
+actor "Responsable Oumra" as Oumra
+actor "Comptable" as Comptable
+actor "Secrétaire" as Secretaire
+actor "Resp. Billets" as Billets
+actor "Resp. Ziarra" as Ziara
+actor "Social" as Social
+actor "DG" as DG
+actor "Administrateur" as Admin
+
+' ─── Héritage acteurs ──────────────────────────────────
+Commercial --|> Oumra : <<extend>>
+
+' ─── Système ───────────────────────────────────────────
+rectangle "Kyswa Travel — Système de Gestion" {
+
+  ' Authentification
+  package "Authentification" {
+    usecase "Se connecter" as UC_LOGIN
+    usecase "Renouveler le token" as UC_REFRESH
+    usecase "Se déconnecter" as UC_LOGOUT
+  }
+
+  ' CRM Clients
+  package "Gestion Clients (CRM)" {
+    usecase "Créer une fiche client" as UC_CLIENT_CREATE
+    usecase "Modifier une fiche client" as UC_CLIENT_EDIT
+    usecase "Consulter un client" as UC_CLIENT_VIEW
+    usecase "Rechercher un client" as UC_CLIENT_SEARCH
+    usecase "Uploader un passeport" as UC_CLIENT_UPLOAD
+  }
+
+  ' Inscriptions
+  package "Gestion des Inscriptions" {
+    usecase "Inscrire un pèlerin" as UC_RESA_CREATE
+    usecase "Modifier une inscription" as UC_RESA_EDIT
+    usecase "Consulter une inscription" as UC_RESA_VIEW
+    usecase "Changer le statut client" as UC_RESA_STATUT
+  }
+
+  ' Paiements
+  package "Gestion des Paiements" {
+    usecase "Enregistrer un paiement" as UC_PAY_CREATE
+    usecase "Consulter les paiements" as UC_PAY_VIEW
+    usecase "Supprimer un paiement" as UC_PAY_DELETE
+    usecase "Générer une facture PDF" as UC_FACTURE
+  }
+
+  ' Packages
+  package "Gestion des Départs" {
+    usecase "Créer un départ" as UC_PKG_CREATE
+    usecase "Modifier un départ" as UC_PKG_EDIT
+    usecase "Activer / Désactiver" as UC_PKG_TOGGLE
+    usecase "Consulter les départs" as UC_PKG_VIEW
+  }
+
+  ' Visas
+  package "Gestion des Visas" {
+    usecase "Créer un dossier visa" as UC_VISA_CREATE
+    usecase "Mettre à jour le statut visa" as UC_VISA_UPDATE
+    usecase "Saisir motif de refus" as UC_VISA_REFUS
+  }
+
+  ' Billets
+  package "Gestion des Billets" {
+    usecase "Créer un billet individuel" as UC_BILLET_CREATE
+    usecase "Gérer les vols groupés" as UC_BILLET_GROUPE
+    usecase "Annuler un billet" as UC_BILLET_ANNUL
+  }
+
+  ' Désistements
+  package "Désistements" {
+    usecase "Créer un désistement" as UC_DESIST_CREATE
+    usecase "Calculer le remboursement" as UC_DESIST_CALC
+    usecase "Valider le remboursement" as UC_DESIST_VALID
+  }
+
+  ' Recouvrement
+  package "Recouvrement" {
+    usecase "Voir les impayés urgents" as UC_RECOUV_VIEW
+    usecase "Enregistrer une relance" as UC_RELANCE
+    usecase "Voir les remboursements" as UC_REMBOURS
+  }
+
+  ' Réunions
+  package "Réunions Pré-départ" {
+    usecase "Planifier une réunion" as UC_REUNION_CREATE
+    usecase "Gérer la checklist" as UC_CHECKLIST
+  }
+
+  ' Comptabilité
+  package "Comptabilité" {
+    usecase "Enregistrer une dépense" as UC_DEPENSE
+    usecase "Consulter le solde" as UC_SOLDE
+    usecase "Voir le bilan départs" as UC_BILAN
+  }
+
+  ' Rapports
+  package "Rapports Quotidiens" {
+    usecase "Soumettre son rapport" as UC_RAPPORT_CREATE
+    usecase "Consulter les rapports" as UC_RAPPORT_VIEW
+    usecase "Modifier son rapport (7j)" as UC_RAPPORT_EDIT
+  }
+
+  ' Messagerie
+  package "Messagerie" {
+    usecase "Envoyer un message" as UC_MSG_SEND
+    usecase "Recevoir en temps réel" as UC_MSG_RECV
+  }
+
+  ' Administration
+  package "Administration Système" {
+    usecase "Créer un compte utilisateur" as UC_USER_CREATE
+    usecase "Activer / Désactiver un compte" as UC_USER_TOGGLE
+    usecase "Supprimer un compte" as UC_USER_DELETE
+    usecase "Consulter le journal d'audit" as UC_AUDIT
+    usecase "Voir les statistiques" as UC_STATS
+    usecase "Exporter en CSV" as UC_EXPORT
+  }
+
+  ' Suivi public
+  package "Accès Public (sans connexion)" {
+    usecase "Suivre son inscription" as UC_PUBLIC_RESA
+    usecase "Suivre son billet" as UC_PUBLIC_BILLET
+  }
+}
+
+' ─── Associations Visiteur ─────────────────────────────
+Visiteur --> UC_PUBLIC_RESA
+Visiteur --> UC_PUBLIC_BILLET
+
+' ─── Associations tous rôles connectés ─────────────────
+Commercial --> UC_LOGIN
+Commercial --> UC_LOGOUT
+Commercial --> UC_REFRESH
+Commercial --> UC_CLIENT_CREATE
+Commercial --> UC_CLIENT_EDIT
+Commercial --> UC_CLIENT_VIEW
+Commercial --> UC_CLIENT_SEARCH
+Commercial --> UC_CLIENT_UPLOAD
+Commercial --> UC_RESA_CREATE
+Commercial --> UC_RESA_EDIT
+Commercial --> UC_RESA_VIEW
+Commercial --> UC_RECOUV_VIEW
+Commercial --> UC_RELANCE
+Commercial --> UC_PKG_VIEW
+Commercial --> UC_RAPPORT_CREATE
+Commercial --> UC_RAPPORT_EDIT
+Commercial --> UC_MSG_SEND
+Commercial --> UC_MSG_RECV
+
+Oumra --> UC_LOGIN
+Oumra --> UC_RESA_CREATE
+Oumra --> UC_RESA_EDIT
+Oumra --> UC_RESA_VIEW
+Oumra --> UC_PAY_CREATE
+Oumra --> UC_VISA_CREATE
+Oumra --> UC_VISA_UPDATE
+Oumra --> UC_VISA_REFUS
+Oumra --> UC_BILLET_GROUPE
+Oumra --> UC_REUNION_CREATE
+Oumra --> UC_CHECKLIST
+Oumra --> UC_RAPPORT_CREATE
+Oumra --> UC_MSG_SEND
+
+Comptable --> UC_LOGIN
+Comptable --> UC_PAY_CREATE
+Comptable --> UC_PAY_VIEW
+Comptable --> UC_PAY_DELETE
+Comptable --> UC_FACTURE
+Comptable --> UC_DESIST_CREATE
+Comptable --> UC_DESIST_VALID
+Comptable --> UC_RECOUV_VIEW
+Comptable --> UC_REMBOURS
+Comptable --> UC_RELANCE
+Comptable --> UC_DEPENSE
+Comptable --> UC_SOLDE
+Comptable --> UC_BILAN
+Comptable --> UC_RAPPORT_CREATE
+Comptable --> UC_MSG_SEND
+
+Secretaire --> UC_LOGIN
+Secretaire --> UC_RESA_CREATE
+Secretaire --> UC_RESA_EDIT
+Secretaire --> UC_REUNION_CREATE
+Secretaire --> UC_RAPPORT_CREATE
+Secretaire --> UC_RAPPORT_VIEW
+Secretaire --> UC_MSG_SEND
+
+Billets --> UC_LOGIN
+Billets --> UC_BILLET_CREATE
+Billets --> UC_BILLET_GROUPE
+Billets --> UC_BILLET_ANNUL
+Billets --> UC_RESA_VIEW
+Billets --> UC_RAPPORT_CREATE
+Billets --> UC_MSG_SEND
+
+Ziara --> UC_LOGIN
+Ziara --> UC_RESA_CREATE
+Ziara --> UC_RESA_VIEW
+Ziara --> UC_RAPPORT_CREATE
+Ziara --> UC_MSG_SEND
+
+Social --> UC_LOGIN
+Social --> UC_RAPPORT_CREATE
+Social --> UC_RAPPORT_EDIT
+Social --> UC_MSG_SEND
+Social --> UC_MSG_RECV
+
+DG --> UC_LOGIN
+DG --> UC_CLIENT_CREATE
+DG --> UC_CLIENT_EDIT
+DG --> UC_CLIENT_VIEW
+DG --> UC_RESA_CREATE
+DG --> UC_RESA_EDIT
+DG --> UC_RESA_STATUT
+DG --> UC_PAY_CREATE
+DG --> UC_PAY_VIEW
+DG --> UC_FACTURE
+DG --> UC_PKG_CREATE
+DG --> UC_PKG_EDIT
+DG --> UC_PKG_TOGGLE
+DG --> UC_VISA_CREATE
+DG --> UC_VISA_UPDATE
+DG --> UC_BILLET_CREATE
+DG --> UC_BILLET_GROUPE
+DG --> UC_DESIST_CREATE
+DG --> UC_RECOUV_VIEW
+DG --> UC_REMBOURS
+DG --> UC_REUNION_CREATE
+DG --> UC_CHECKLIST
+DG --> UC_DEPENSE
+DG --> UC_SOLDE
+DG --> UC_BILAN
+DG --> UC_RAPPORT_CREATE
+DG --> UC_RAPPORT_VIEW
+DG --> UC_STATS
+DG --> UC_EXPORT
+DG --> UC_MSG_SEND
+
+Admin --> UC_LOGIN
+Admin --> UC_USER_CREATE
+Admin --> UC_USER_TOGGLE
+Admin --> UC_USER_DELETE
+Admin --> UC_AUDIT
+Admin --> UC_PKG_CREATE
+Admin --> UC_PKG_EDIT
+Admin --> UC_STATS
+Admin --> UC_RAPPORT_VIEW
+Admin --> UC_MSG_SEND
+
+' ─── Relations include ─────────────────────────────────
+UC_RESA_CREATE ..> UC_CLIENT_VIEW : <<include>>
+UC_PAY_CREATE ..> UC_RESA_VIEW : <<include>>
+UC_DESIST_CREATE ..> UC_DESIST_CALC : <<include>>
+UC_VISA_UPDATE ..> UC_VISA_REFUS : <<extend>>
+UC_FACTURE ..> UC_PAY_VIEW : <<include>>
+
+@enduml

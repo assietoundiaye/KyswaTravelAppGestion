@@ -1,0 +1,193 @@
+@startuml Séquence 1 — Authentification JWT avec Refresh
+
+title Authentification JWT avec renouvellement automatique
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipant underline
+
+actor "Utilisateur" as User
+participant "React\n(Frontend)" as FE
+participant "Axios\nIntercepteur" as Axios
+participant "Express\n/api/auth" as Auth
+database "MongoDB" as DB
+
+== Connexion initiale ==
+
+User -> FE : Saisit email + mot de passe
+FE -> Auth : POST /api/auth/login\n{ email, password }
+Auth -> DB : findOne({ email })\n.select('+password')
+DB --> Auth : Utilisateur trouvé
+Auth -> Auth : bcrypt.compare(password, hash)
+alt Mot de passe invalide
+  Auth --> FE : 401 { message: "Identifiants incorrects" }
+  FE --> User : Affiche erreur
+else Mot de passe valide
+  Auth -> DB : Mise à jour dateDerniereConnexion
+  Auth -> Auth : generateToken() → JWT 7j\ngenerateRefreshToken() → JWT 30j
+  Auth --> FE : 200 { token, refreshToken, user }
+  FE -> FE : localStorage.setItem('token')\nlocalStorage.setItem('refreshToken')
+  FE --> User : Redirection vers /dashboard
+end
+
+== Requête API normale ==
+
+User -> FE : Action (ex: charger les clients)
+FE -> Axios : GET /api/clients
+Axios -> Axios : Ajoute header\nAuthorization: Bearer <token>
+Axios -> Auth : GET /api/clients + Bearer token
+Auth -> Auth : verifyToken(token)
+Auth -> DB : findById(decoded.id)
+DB --> Auth : Utilisateur actif
+Auth --> Axios : 200 { clients: [...] }
+Axios --> FE : Données reçues
+FE --> User : Affiche les clients
+
+== Token expiré — Refresh automatique ==
+
+User -> FE : Action quelconque
+FE -> Axios : GET /api/reservations
+Axios -> Auth : GET /api/reservations + Bearer token expiré
+Auth --> Axios : 401 { message: "Token invalide" }
+Axios -> Axios : _retry = true\nrécupère refreshToken du localStorage
+Axios -> Auth : POST /api/auth/refresh\n{ refreshToken }
+Auth -> Auth : verifyToken(refreshToken)
+Auth -> DB : findById(decoded.id)
+DB --> Auth : Utilisateur actif
+Auth -> Auth : generateToken() → nouveau JWT 7j
+Auth --> Axios : 200 { token: newToken }
+Axios -> Axios : localStorage.setItem('token', newToken)\nMet à jour le header Authorization
+Axios -> Auth : GET /api/reservations + nouveau token
+Auth --> Axios : 200 { reservations: [...] }
+Axios --> FE : Données reçues
+FE --> User : Affiche les réservations
+
+== Refresh token expiré ==
+
+Axios -> Auth : POST /api/auth/refresh (refreshToken expiré)
+Auth --> Axios : 401 { message: "Refresh token invalide" }
+Axios -> Axios : Supprime token + refreshToken\ndu localStorage
+Axios -> FE : Redirection vers /login
+FE --> User : Page de connexion
+
+@enduml
+
+'─────────────────────────────────────────────────────────────────────────────
+
+@startuml Séquence 2 — Inscription d'un pèlerin
+
+title Processus d'inscription d'un pèlerin
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+
+actor "Commercial" as User
+participant "React\n(Frontend)" as FE
+participant "Express\n/api" as API
+database "MongoDB" as DB
+
+== Vérification / Création du client ==
+
+User -> FE : Ouvre le formulaire d'inscription
+FE -> API : GET /api/clients?search=<nom>
+API -> DB : Client.find({ $text: ... })
+DB --> API : Liste clients correspondants
+API --> FE : { clients: [...] }
+FE --> User : Affiche les clients trouvés
+
+alt Client inexistant
+  User -> FE : Clique "Nouveau client"
+  FE -> API : POST /api/clients\n{ nom, prenom, telephone,\nnumeroPasseport, ... }
+  API -> DB : Client.create(...)
+  DB --> API : Client créé
+  API --> FE : 201 { client }
+  FE --> User : Client ajouté à la sélection
+end
+
+== Sélection du départ ==
+
+FE -> API : GET /api/packages?statut=OUVERT
+API -> DB : PackageK.find({ statut: 'OUVERT' })
+DB --> API : Liste des départs disponibles
+API --> FE : { packages: [...] }
+FE --> User : Affiche les départs avec prix par chambre
+
+User -> FE : Sélectionne un départ\n+ type de chambre
+FE -> FE : Auto-remplit dates + montant\nselon prixDouble/Triple/...
+
+== Création de l'inscription ==
+
+User -> FE : Valide le formulaire
+FE -> API : POST /api/reservations\n{ packageKId, clients[], typeChambre,\nmontantTotalDu, dateDepart, dateRetour, notes }
+API -> API : Validation express-validator
+API -> DB : PackageK.findById(packageKId)
+DB --> API : Package trouvé (statut OUVERT)
+API -> API : Vérifie quota disponible\n(placesReservees + nbClients ≤ quotaMax)
+
+alt Quota insuffisant
+  API --> FE : 400 { message: "Quota insuffisant" }
+  FE --> User : Affiche erreur
+else Quota OK
+  API -> DB : Reservation.create(...)\nnumero = "INS-2026-001" (auto)
+  API -> DB : PackageK.update\n(placesReservees += nbClients)
+  DB --> API : Inscription créée
+  API --> FE : 201 { reservation }
+  FE --> User : Toast "Inscription créée"\nRedirection vers détail
+end
+
+@enduml
+
+'─────────────────────────────────────────────────────────────────────────────
+
+@startuml Séquence 3 — Enregistrement d'un paiement
+
+title Enregistrement d'un paiement et mise à jour du statut
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+
+actor "Commercial /\nComptable" as User
+participant "React\n(Frontend)" as FE
+participant "Express\n/api" as API
+database "MongoDB" as DB
+
+== Sélection de l'inscription ==
+
+User -> FE : Ouvre le formulaire de paiement
+FE -> API : GET /api/reservations
+API -> DB : Reservation.find().populate('paiements')
+DB --> API : Liste inscriptions avec paiements
+API --> FE : { reservations: [...] }
+FE --> User : Affiche liste avec\n[N° · Package · Client · Reste à payer]
+
+User -> FE : Sélectionne une inscription
+FE -> FE : Affiche récapitulatif :\nPackage, Total dû, Déjà reçu, Reste
+
+== Saisie et validation ==
+
+User -> FE : Saisit montant, mode, date, référence
+FE -> API : POST /api/reservations/:id/paiements\n{ montant, mode, dateReglement, reference }
+API -> API : Validation (montant > 0, date valide, mode enum)
+API -> DB : Reservation.findById(id).populate('paiements')
+DB --> API : Inscription + paiements existants
+
+== Calcul du nouveau statut ==
+
+API -> DB : Paiement.create({ montant, mode, ... })
+DB --> API : Paiement créé
+API -> DB : Reservation.update\n(paiements.push(paiement._id))
+API -> API : Calcul totalPaye = Σ paiements\nreste = montantTotalDu - totalPaye
+
+alt reste ≤ 0
+  API -> DB : Reservation.update\n(statutPaiement = 'SOLDE',\nstatut = 'SOLDE')
+else totalPaye > 0
+  API -> DB : Reservation.update\n(statutPaiement = 'PARTIEL',\nstatut = 'PARTIEL')
+else totalPaye = 0
+  API -> DB : Reservation.update\n(statutPaiement = 'EN_ATTENTE')
+end
+
+DB --> API : Inscription mise à jour
+API --> FE : 201 { paiement, reservation }
+FE --> User : Toast "Paiement enregistré"\nMise à jour du badge statut
+
+@enduml

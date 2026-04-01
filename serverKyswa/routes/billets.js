@@ -10,7 +10,7 @@ const { protect, requireRole } = require('../middleware/auth');
 
 // Protéger toutes les routes : COMMERCIAL, GESTIONNAIRE, COMPTABLE
 router.use(protect);
-router.use(requireRole('COMMERCIAL', 'GESTIONNAIRE', 'COMPTABLE'));
+router.use(requireRole('commercial', 'oumra', 'billets', 'comptable', 'administrateur', 'dg'));
 
 /**
  * POST /api/billets

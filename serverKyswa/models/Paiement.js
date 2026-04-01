@@ -26,10 +26,11 @@ mode: {
         'WAVE',
         'MONEY',
         'ESPECES',
+        'CHEQUE',
         'AUTRE',
     ],
     message:
-    'Le mode doit être l\'un de: CARTE_BANCAIRE, VIREMENT, ORANGE_MONEY, WAVE, MONEY, ESPECES, AUTRE',
+    'Le mode doit être l\'un de: CARTE_BANCAIRE, VIREMENT, ORANGE_MONEY, WAVE, MONEY, ESPECES, CHEQUE, AUTRE',
     },
     required: [true, 'Le mode de paiement est requis'],
 },
