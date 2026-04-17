@@ -88,7 +88,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { packageKId, nombrePlaces, formule, niveauConfort, dateDepart, dateRetour, clients, montantTotalDu } = req.body;
+      const { packageKId, nombrePlaces, formule, niveauConfort, typeChambre, dateDepart, dateRetour, clients, montantTotalDu, statutClient, notes } = req.body;
 
       // Vérifier le package
       const packageK = await PackageK.findById(packageKId);
@@ -102,12 +102,15 @@ router.post(
       const reservation = new Reservation({
         idReservation: Date.now(),
         nombrePlaces,
-        formule,
-        niveauConfort,
+        formule: formule || undefined,
+        niveauConfort: niveauConfort || undefined,
+        typeChambre: typeChambre || undefined,
         dateDepart,
         dateRetour,
         montantTotalDu,
-        statut: 'EN_ATTENTE',
+        statut: 'INSCRIT',
+        statutClient: statutClient || 'INSCRIT',
+        notes: notes || undefined,
         statutCreation: new Date(),
         creeParUtilisateurId: req.user.id,
         packageKId: packageK._id,

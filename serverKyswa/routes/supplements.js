@@ -6,7 +6,7 @@ const { protect, requireRole } = require('../middleware/auth');
 
 // Protéger toutes les routes avec protect et requireRole('GESTIONNAIRE')
 router.use(protect);
-router.use(requireRole('dg', 'administrateur'));
+router.use(requireRole('dg', 'administrateur', 'commercial', 'oumra', 'secretaire'));
 
 /**
  * GET /api/supplements

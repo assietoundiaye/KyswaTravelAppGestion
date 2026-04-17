@@ -12,7 +12,7 @@ router.use(requireRole('commercial', 'comptable', 'oumra', 'administrateur', 'dg
 const paiementValidation = [
   body('montant').isFloat({ min: 0.01 }).withMessage('Montant invalide'),
   body('dateReglement').isISO8601().withMessage('Date invalide'),
-  body('mode').isIn(['CARTE_BANCAIRE','VIREMENT','ORANGE_MONEY','WAVE','MONEY','ESPECES','AUTRE']).withMessage('Mode invalide'),
+  body('mode').isIn(['CARTE_BANCAIRE','VIREMENT','CHEQUE','ORANGE_MONEY','WAVE','MONEY','ESPECES','AUTRE']).withMessage('Mode invalide'),
   body('reference').optional().trim(),
 ];
 
@@ -117,9 +117,8 @@ router.get('/', async (req, res) => {
 
 /**
  * DELETE /api/paiements/:id
- * Supprimer un paiement et mettre à jour l'entité liée
  */
-router.delete('/paiements/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const paiement = await Paiement.findById(req.params.id);
     if (!paiement) return res.status(404).json({ message: 'Paiement non trouvé' });

@@ -1,190 +1,122 @@
-@startuml Activité 1 — Processus de Désistement
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
 
-title Processus de désistement avec calcul de remboursement
+    <!-- START -->
+    <mxCell id="start" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="363" y="40" width="30" height="30" as="geometry"/>
+    </mxCell>
 
-skinparam activityBackgroundColor #F0FDF4
-skinparam activityBorderColor #00674F
-skinparam activityArrowColor #00674F
-skinparam activityDiamondBackgroundColor #FFFBEB
-skinparam activityDiamondBorderColor #D97706
+    <!-- ACTION 1 -->
+    <mxCell id="a1" value="Sélectionner le client" style="rounded=1;arcSize=30;fillColor=#006EAF;strokeColor=#006EAF;fontColor=#ffffff;fontSize=12;align=center;" vertex="1" parent="1">
+      <mxGeometry x="288" y="110" width="180" height="50" as="geometry"/>
+    </mxCell>
 
-start
+    <!-- DECISION 1 -->
+    <mxCell id="d1" value="Client existant ?" style="rhombus;fillColor=#006EAF;strokeColor=#006EAF;fontColor=#ffffff;fontSize=11;align=center;" vertex="1" parent="1">
+      <mxGeometry x="303" y="200" width="150" height="60" as="geometry"/>
+    </mxCell>
 
-:Commercial / Comptable sélectionne\nune inscription à annuler;
+    <!-- ACTION creer client -->
+    <mxCell id="a_new" value="Créer une fiche client" style="rounded=1;arcSize=30;fillColor=#006EAF;strokeColor=#006EAF;fontColor=#ffffff;fontSize=12;align=center;" vertex="1" parent="1">
+      <mxGeometry x="520" y="210" width="160" height="50" as="geometry"/>
+    </mxCell>
 
-:Système charge l'inscription\n(statut, paiements, date de départ);
+    <!-- BARRE SYNC -->
+    <mxCell id="sync1" value="" style="shape=mxgraph.flowchart.start_2;fillColor=#000000;strokeColor=#000000;" vertex="1" parent="1">
+      <mxGeometry x="263" y="310" width="230" height="10" as="geometry"/>
+    </mxCell>
 
-if (Inscription déjà annulée\nou désistée ?) then (Oui)
-  :Afficher erreur\n"Inscription déjà annulée";
-  stop
-else (Non)
-end if
+    <!-- ACTION 2 -->
+    <mxCell id="a2" value="Sélectionner le package (départ)" style="rounded=1;arcSize=30;fillColor=#006EAF;strokeColor=#006EAF;fontColor=#ffffff;fontSize=12;align=center;" vertex="1" parent="1">
+      <mxGeometry x="288" y="360" width="180" height="50" as="geometry"/>
+    </mxCell>
 
-:Saisir le motif du désistement;
+    <!-- ACTION 3 -->
+    <mxCell id="a3" value="Choisir le type de chambre" style="rounded=1;arcSize=30;fillColor=#006EAF;strokeColor=#006EAF;fontColor=#ffffff;fontSize=12;align=center;" vertex="1" parent="1">
+      <mxGeometry x="288" y="450" width="180" height="50" as="geometry"/>
+    </mxCell>
 
-:Calculer le nombre de jours\navant le départ\n(dateDepart - dateAnnulation);
+    <!-- NOTE -->
+    <mxCell id="note1" value="Single, Double,&#xa;Triple, Quadruple,&#xa;Suite" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fontSize=11;fillColor=#fff9c4;strokeColor=#aaaaaa;" vertex="1" parent="1">
+      <mxGeometry x="510" y="445" width="130" height="60" as="geometry"/>
+    </mxCell>
 
-:Calculer le montant payé\n(Σ paiements enregistrés);
+    <!-- ACTION 4 -->
+    <mxCell id="a4" value="Calcul automatique du montant" style="rounded=1;arcSize=30;fillColor=#00897B;strokeColor=#00897B;fontColor=#ffffff;fontSize=12;align=center;" vertex="1" parent="1">
+      <mxGeometry x="288" y="540" width="180" height="50" as="geometry"/>
+    </mxCell>
 
-if (jours ≥ 60 ?) then (Oui)
-  :Taux de remboursement = 100%;
-else if (jours entre 30 et 59 ?) then (Oui)
-  :Taux de remboursement = 80%;
-else if (jours entre 15 et 29 ?) then (Oui)
-  :Taux de remboursement = 50%;
-else if (jours entre 1 et 14 ?) then (Oui)
-  :Taux de remboursement = 25%;
-else (0 jour)
-  :Taux de remboursement = 0%;
-end if
+    <!-- DECISION 2 -->
+    <mxCell id="d2" value="Informations valides ?" style="rhombus;fillColor=#006EAF;strokeColor=#006EAF;fontColor=#ffffff;fontSize=11;align=center;" vertex="1" parent="1">
+      <mxGeometry x="303" y="630" width="150" height="60" as="geometry"/>
+    </mxCell>
 
-:Calculer montant remboursable\n= montantPaye × taux;
+    <!-- ACTION 5 -->
+    <mxCell id="a5" value="Enregistrer l'inscription" style="rounded=1;arcSize=30;fillColor=#006EAF;strokeColor=#006EAF;fontColor=#ffffff;fontSize=12;align=center;" vertex="1" parent="1">
+      <mxGeometry x="288" y="730" width="180" height="50" as="geometry"/>
+    </mxCell>
 
-:Afficher récapitulatif :\n- Montant payé\n- Taux applicable\n- Montant à rembourser;
+    <!-- ACTION 6 -->
+    <mxCell id="a6" value="Statut : INSCRIT&#xa;Paiement : EN ATTENTE" style="rounded=1;arcSize=30;fillColor=#00897B;strokeColor=#00897B;fontColor=#ffffff;fontSize=12;align=center;" vertex="1" parent="1">
+      <mxGeometry x="288" y="820" width="180" height="50" as="geometry"/>
+    </mxCell>
 
-:Confirmer le désistement;
+    <!-- END -->
+    <mxCell id="end" value="" style="ellipse;aspect=fixed;fillColor=#000000;strokeColor=#000000;strokeWidth=3;" vertex="1" parent="1">
+      <mxGeometry x="363" y="910" width="30" height="30" as="geometry"/>
+    </mxCell>
 
-:Créer le document Desistement\n(statut = EN_ATTENTE);
+    <!-- EDGES -->
+    <mxCell id="e1" edge="1" source="start" target="a1" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e2" edge="1" source="a1" target="d1" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e3" value="oui" edge="1" source="d1" target="sync1" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e4" value="non" edge="1" source="d1" target="a_new" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e5" edge="1" source="a_new" target="sync1" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="600" y="320"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e6" edge="1" source="sync1" target="a2" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e7" edge="1" source="a2" target="a3" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e8" edge="1" source="a3" target="a4" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e9" edge="1" source="a4" target="d2" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e10" value="si informations valides" edge="1" source="d2" target="a5" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e11" value="sinon" edge="1" source="d2" target="a3" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="500" y="660"/>
+          <mxPoint x="500" y="475"/>
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e12" edge="1" source="a5" target="a6" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e13" edge="1" source="a6" target="end" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
 
-:Mettre à jour l'inscription\n(statutClient = DESISTE);
-
-:Notifier le comptable\n(remboursement en attente);
-
-fork
-  :Comptable consulte\nles remboursements en attente;
-  :Effectue le remboursement\n(virement / espèces);
-  :Valider le remboursement\n(statut = REMBOURSE);
-fork again
-  :Inscription archivée\navec statut DESISTE;
-end fork
-
-stop
-
-@enduml
-
-'─────────────────────────────────────────────────────────────────────────────
-
-@startuml Activité 2 — Processus de Gestion des Visas
-
-title Processus de suivi des dossiers visa (Oumra)
-
-skinparam activityBackgroundColor #EFF6FF
-skinparam activityBorderColor #2563EB
-skinparam activityArrowColor #2563EB
-skinparam activityDiamondBackgroundColor #FFFBEB
-
-start
-
-:Responsable Oumra crée\nun dossier visa\n(inscription + client);
-
-:Vérifier que le client\nest dans l'inscription;
-
-if (Client dans l'inscription ?) then (Non)
-  :Erreur : "Client non trouvé\ndans cette inscription";
-  stop
-else (Oui)
-end if
-
-if (Dossier visa déjà existant\npour ce client/inscription ?) then (Oui)
-  :Erreur : "Dossier déjà créé";
-  stop
-else (Non)
-end if
-
-:Créer le dossier visa\n(statut = EN_ATTENTE);
-
-:Collecter le passeport\ndu pèlerin;
-
-:Marquer "Passeport collecté"\n(passeportCollecte = true);
-
-:Envoyer le dossier\nsur la plateforme Nusuk;
-
-:Marquer "Envoyé sur Nusuk"\n(envoiNusuk = true);
-
-:Attendre la réponse\nde la plateforme;
-
-if (Visa accordé ?) then (Oui)
-  :Marquer "Visa reçu"\n(visaRecu = true)\n(statut = RECU);
-  :Remettre le visa\nau pèlerin;
-  :Mettre à jour la checklist\npré-départ (visaOK = true);
-else (Non — Refus)
-  :Saisir le motif de refus;
-  :Mettre à jour le statut\n(statut = REFUSE);
-  :Notifier le commercial\net le pèlerin;
-  if (Recours possible ?) then (Oui)
-    :Préparer un nouveau dossier;
-    :Retourner à l'étape\n"Envoyer sur Nusuk";
-  else (Non)
-    :Initier un désistement\nsi le pèlerin ne peut pas partir;
-    stop
-  end if
-end if
-
-stop
-
-@enduml
-
-'─────────────────────────────────────────────────────────────────────────────
-
-@startuml Activité 3 — Processus de Recouvrement
-
-title Processus de recouvrement des impayés
-
-skinparam activityBackgroundColor #FEF2F2
-skinparam activityBorderColor #DC2626
-skinparam activityArrowColor #DC2626
-skinparam activityDiamondBackgroundColor #FFFBEB
-
-start
-
-:Système identifie automatiquement\nles inscriptions impayées\n(départ dans ≤ 30 jours\net resteAPayer > 0);
-
-:Afficher la liste triée\npar urgence (jours restants);
-
-:Commercial / Comptable\nsélectionne un dossier;
-
-:Consulter les coordonnées\ndu client (téléphone, email);
-
-:Appeler le client;
-
-if (Client joint ?) then (Non)
-  :Enregistrer relance\n(résultat = NON_JOINT);
-  :Planifier prochaine relance;
-else (Oui)
-  if (Promesse de paiement ?) then (Oui)
-    :Enregistrer relance\n(résultat = PROMESSE_PAIEMENT);
-    :Définir date de prochaine relance;
-    :Attendre le paiement;
-    if (Paiement reçu ?) then (Oui)
-      :Enregistrer le paiement;
-      :Mettre à jour le statut\n(PARTIEL ou SOLDE);
-      stop
-    else (Non — délai dépassé)
-      :Relancer à nouveau;
-    end if
-  else if (Refus de payer ?) then (Oui)
-    :Enregistrer relance\n(résultat = REFUSE);
-    :Escalader au DG;
-    if (Décision DG : désistement ?) then (Oui)
-      :Initier le processus\nde désistement;
-      stop
-    else (Maintien)
-      :Continuer les relances;
-    end if
-  else (Paiement immédiat)
-    :Enregistrer le paiement\nsur place;
-    :Mettre à jour le statut;
-    stop
-  end if
-end if
-
-if (Départ dans ≤ 7 jours\net toujours impayé ?) then (Oui)
-  :Alerte critique\n(bordure rouge dans le dashboard);
-  :Notifier le DG et le Comptable;
-else (Non)
-  :Dossier reste en surveillance;
-end if
-
-stop
-
-@enduml
+  </root>
+</mxGraphModel>

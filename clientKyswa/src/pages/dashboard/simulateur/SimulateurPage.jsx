@@ -5,7 +5,7 @@ const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
 
 export default function SimulateurPage() {
   const [packages, setPackages] = useState([]);
-  const [form, setForm] = useState({ packageKId: '', typeChambre: 'DOUBLE', nombrePersonnes: 1, supplements: [] });
+  const [form, setForm] = useState({ packageKId: '', classeVol: 'ECO', nombrePersonnes: 1, supplements: [] });
   const [result, setResult] = useState(null);
   const [selectedPkg, setSelectedPkg] = useState(null);
 
@@ -20,18 +20,17 @@ export default function SimulateurPage() {
     setResult(null);
   };
 
-  const getPrixChambre = () => {
+  const getPrixClasse = () => {
     if (!selectedPkg) return 0;
-    const map = { SINGLE: selectedPkg.prixSingle, DOUBLE: selectedPkg.prixDouble, TRIPLE: selectedPkg.prixTriple, QUADRUPLE: selectedPkg.prixQuadruple };
-    return parseFloat(map[form.typeChambre] || selectedPkg.prixEco || 0);
+    const map = { ECO: selectedPkg.prixEco, CONFORT: selectedPkg.prixCont, VIP: selectedPkg.prixVip };
+    return parseFloat(map[form.classeVol] || 0);
   };
 
   const simuler = () => {
     if (!selectedPkg) return;
-    const prixChambre = getPrixChambre();
-    const totalParPersonne = prixChambre;
-    const totalGeneral = totalParPersonne * form.nombrePersonnes;
-    setResult({ prixChambre, totalParPersonne, totalGeneral, nombrePersonnes: form.nombrePersonnes, typeChambre: form.typeChambre, package: selectedPkg.nomReference });
+    const prixClasse = getPrixClasse();
+    const totalGeneral = prixClasse * form.nombrePersonnes;
+    setResult({ prixClasse, totalGeneral, nombrePersonnes: form.nombrePersonnes, classeVol: form.classeVol, package: selectedPkg.nomReference });
   };
 
   return (
@@ -58,9 +57,9 @@ export default function SimulateurPage() {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div>
-                <label className="input-label">Type de chambre</label>
-                <select value={form.typeChambre} onChange={e => setForm(f => ({...f, typeChambre: e.target.value}))} className="premium-input">
-                  {['SINGLE','DOUBLE','TRIPLE','QUADRUPLE'].map(t => <option key={t} value={t}>{t}</option>)}
+                <label className="input-label">Classe</label>
+                <select value={form.classeVol} onChange={e => setForm(f => ({...f, classeVol: e.target.value}))} className="premium-input">
+                  {['ECO', 'CONFORT', 'VIP'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
@@ -73,10 +72,10 @@ export default function SimulateurPage() {
 
             {/* Prix disponibles */}
             <div style={{ background: 'var(--bg-main)', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Prix par chambre</p>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Prix par classe</p>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                {[['SINGLE', selectedPkg.prixSingle], ['DOUBLE', selectedPkg.prixDouble], ['TRIPLE', selectedPkg.prixTriple], ['QUADRUPLE', selectedPkg.prixQuadruple]].map(([t, p]) => p && (
-                  <span key={t} style={{ fontSize: 12, color: form.typeChambre === t ? 'var(--primary)' : 'var(--text-muted)', fontWeight: form.typeChambre === t ? 700 : 400 }}>
+                {[['ECO', selectedPkg.prixEco], ['CONFORT', selectedPkg.prixCont], ['VIP', selectedPkg.prixVip]].map(([t, p]) => p && (
+                  <span key={t} style={{ fontSize: 12, color: form.classeVol === t ? 'var(--primary)' : 'var(--text-muted)', fontWeight: form.classeVol === t ? 700 : 400 }}>
                     {t}: {fmt(p)}
                   </span>
                 ))}
@@ -98,8 +97,8 @@ export default function SimulateurPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {[
               ['Package', result.package],
-              ['Type chambre', result.typeChambre],
-              ['Prix/chambre', fmt(result.prixChambre)],
+              ['Classe', result.classeVol],
+              ['Prix/personne', fmt(result.prixClasse)],
               ['Nb personnes', result.nombrePersonnes],
             ].map(([l, v]) => (
               <div key={l}>

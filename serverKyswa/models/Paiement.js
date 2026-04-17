@@ -79,14 +79,13 @@ statut: 'GENEREE',
 return facture;
 };
 
-paiementSchema.pre('save', function(next) {
+paiementSchema.pre('save', async function() {
   if (!this.reservationId && !this.billetId) {
-    return next(new Error('Le paiement doit être lié à une réservation OU à un billet'));
+    throw new Error('Le paiement doit être lié à une réservation OU à un billet');
   }
   if (this.reservationId && this.billetId) {
-    return next(new Error('Le paiement ne peut être lié qu\'à UNE seule entité'));
+    throw new Error('Le paiement ne peut être lié qu\'à UNE seule entité');
   }
-  next();
 });
 
 

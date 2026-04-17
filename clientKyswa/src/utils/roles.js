@@ -80,6 +80,7 @@ export const MENU_BY_ROLE = {
     { label: 'Rapports', to: '/dashboard/rapports', icon: ClipboardList },
     { label: 'Inscriptions', to: '/dashboard/reservations', icon: CalendarCheck },
     { label: 'Clients', to: '/dashboard/clients', icon: UserCheck },
+    { label: 'Suppléments', to: '/dashboard/supplements', icon: Package },
     { label: 'Simulateur', to: '/dashboard/simulateur', icon: BookOpen },
     { label: 'Recouvrement', to: '/dashboard/recouvrement', icon: AlertTriangle },
     { label: 'Départs', to: '/dashboard/packages', icon: Package },
