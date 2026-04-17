@@ -52,7 +52,7 @@ export default function PaiementsPage() {
         await api.post(`/billets/${form.billetId}/paiements`, payload);
       }
       setShowForm(false);
-      setForm({ montant: '', dateReglement: '', mode: 'ESPECES', reference: '', reservationId: '', billetId: '' });
+      setForm({ montant: '', dateReglement: new Date().toISOString().split('T')[0], mode: 'ESPECES', reference: '', reservationId: '', billetId: '' });
       fetchAll();
       toast('Paiement enregistré');
     } catch (err) {
@@ -132,7 +132,7 @@ export default function PaiementsPage() {
                 <select value={form.reservationId} onChange={e => setForm(f => ({...f, reservationId: e.target.value}))}
                   className="premium-input">
                   <option value="">Sélectionner...</option>
-                  {reservations.filter(r => r.statut !== 'ANNULEE' && r.statut !== 'PAYEE' && (r.resteAPayer || 0) > 0).map(r => (
+                  {reservations.filter(r => !['ANNULEE', 'DESISTE'].includes(r.statut) && !['ANNULEE', 'DESISTE'].includes(r.statutClient)).map(r => (
                     <option key={r._id} value={r._id}>
                       {r.numero || `#${r.idReservation}`}
                       {r.packageKId?.nomReference ? ` — ${r.packageKId.nomReference}` : ''}

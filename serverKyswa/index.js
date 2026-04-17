@@ -181,11 +181,9 @@ const connectDB = async () => {
 const reservationsRoutes = require('./routes/reservations');
 app.use('/api/reservations', auditMiddleware, reservationsRoutes);
 
-// Routes de paiements (réservations + billets)
+// Routes de paiements — montées sur /api pour garder les chemins complets
 const paiementsRoutes = require('./routes/paiements');
-app.use('/api/reservations', auditMiddleware, paiementsRoutes);
-app.use('/api/billets', auditMiddleware, paiementsRoutes);
-app.use('/api/paiements', auditMiddleware, paiementsRoutes);
+app.use('/api', auditMiddleware, paiementsRoutes);
 
 // Routes de factures (génération PDF)
 const facturesRoutes = require('./routes/factures');

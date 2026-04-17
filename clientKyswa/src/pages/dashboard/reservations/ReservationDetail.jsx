@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
 
-const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
+const fmt = (n) => {
+  if (!n) return '0 FCFA';
+  const val = typeof n === 'object' && n.$numberDecimal ? n.$numberDecimal : n;
+  return Number(val).toLocaleString('fr-FR') + ' FCFA';
+};
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-';
 
 const statutBadge = {

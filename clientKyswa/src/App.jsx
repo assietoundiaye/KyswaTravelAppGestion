@@ -99,7 +99,7 @@ const App = () => {
 
           {/* Packages / Départs */}
           <Route path="packages" element={<PrivateRoute><PackagesPage /></PrivateRoute>} />
-          <Route path="supplements" element={<PrivateRoute roles={['GESTIONNAIRE', 'ADMIN']}><SupplementsPage /></PrivateRoute>} />
+          <Route path="supplements" element={<PrivateRoute><SupplementsPage /></PrivateRoute>} />
 
           {/* Documents */}
           <Route path="documents" element={<PrivateRoute><DocumentsPage /></PrivateRoute>} />

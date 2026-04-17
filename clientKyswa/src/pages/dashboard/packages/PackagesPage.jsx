@@ -11,7 +11,7 @@ const fmt = (n) => n ? Number(n).toLocaleString('fr-FR') + ' FCFA' : '—';
 const EMPTY = {
   nomReference: '', type: 'OUMRA', statut: 'OUVERT',
   dateDepart: '', dateRetour: '',
-  prixSingle: '', prixDouble: '', prixTriple: '', prixQuadruple: '',
+  prixEco: '', prixCont: '', prixVip: '',
   compagnieAerienne: '', numeroVol: '', villeDepart: '', villeArrivee: '',
   hotel: '', quotaMax: '',
 };
@@ -53,10 +53,9 @@ export default function PackagesPage() {
       statut: pkg.statut || 'OUVERT',
       dateDepart: pkg.dateDepart?.slice(0, 10) || '',
       dateRetour: pkg.dateRetour?.slice(0, 10) || '',
-      prixSingle: pkg.prixSingle || '',
-      prixDouble: pkg.prixDouble || '',
-      prixTriple: pkg.prixTriple || '',
-      prixQuadruple: pkg.prixQuadruple || '',
+      prixEco: pkg.prixEco || '',
+      prixCont: pkg.prixCont || '',
+      prixVip: pkg.prixVip || '',
       compagnieAerienne: pkg.compagnieAerienne || '',
       numeroVol: pkg.numeroVol || '',
       villeDepart: pkg.villeDepart || '',
@@ -78,10 +77,9 @@ export default function PackagesPage() {
         dateDepart: form.dateDepart,
         dateRetour: form.dateRetour,
         quotaMax: Number(form.quotaMax),
-        prixSingle: form.prixSingle ? Number(form.prixSingle) : undefined,
-        prixDouble: form.prixDouble ? Number(form.prixDouble) : undefined,
-        prixTriple: form.prixTriple ? Number(form.prixTriple) : undefined,
-        prixQuadruple: form.prixQuadruple ? Number(form.prixQuadruple) : undefined,
+        prixEco: form.prixEco ? Number(form.prixEco) : undefined,
+        prixCont: form.prixCont ? Number(form.prixCont) : undefined,
+        prixVip: form.prixVip ? Number(form.prixVip) : undefined,
         compagnieAerienne: form.compagnieAerienne || undefined,
         numeroVol: form.numeroVol || undefined,
         villeDepart: form.villeDepart || undefined,
@@ -126,7 +124,7 @@ export default function PackagesPage() {
                 <th>Départ</th>
                 <th>Retour</th>
                 <th>Places</th>
-                <th>Prix Double</th>
+                <th>Prix Éco</th>
                 <th>Compagnie</th>
                 {canEdit && <th>Actions</th>}
               </tr>
@@ -151,7 +149,7 @@ export default function PackagesPage() {
                       <span style={{ fontWeight: 600 }}>{p.placesReservees || 0}</span>
                       <span style={{ color: 'var(--text-muted)' }}>/{p.quotaMax}</span>
                     </td>
-                    <td style={{ fontSize: 12 }}>{fmt(p.prixDouble)}</td>
+                    <td style={{ fontSize: 12 }}>{fmt(p.prixEco)}</td>
                     <td style={{ fontSize: 12 }}>{p.compagnieAerienne || '—'}</td>
                     {canEdit && (
                       <td>
@@ -215,10 +213,10 @@ export default function PackagesPage() {
             </div>
           </div>
 
-          {/* Prix par chambre */}
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Prix par type de chambre (FCFA)</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[['prixSingle', 'Single'], ['prixDouble', 'Double'], ['prixTriple', 'Triple'], ['prixQuadruple', 'Quadruple']].map(([k, l]) => (
+          {/* Prix par classe */}
+          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Prix par classe (FCFA)</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            {[['prixEco', 'Éco'], ['prixCont', 'Confort'], ['prixVip', 'VIP']].map(([k, l]) => (
               <div key={k}>
                 <label className="input-label">{l}</label>
                 <input type="number" min="0" value={form[k]} onChange={set(k)} className="premium-input" placeholder="0" />

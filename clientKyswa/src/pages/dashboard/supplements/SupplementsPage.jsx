@@ -2,7 +2,12 @@ import { useEffect, useState, useMemo } from 'react';
 import api from '../../../api/axios';
 import DataTable from '../../../components/DataTable';
 
-const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
+const fmt = (n) => {
+  if (!n) return '0 FCFA';
+  // Gérer Decimal128 MongoDB qui arrive comme { $numberDecimal: "..." }
+  const val = typeof n === 'object' && n.$numberDecimal ? n.$numberDecimal : n;
+  return Number(val).toLocaleString('fr-FR') + ' FCFA';
+};
 
 export default function SupplementsPage() {
   const [supplements, setSupplements] = useState([]);
@@ -24,7 +29,10 @@ export default function SupplementsPage() {
 
   const openEdit = (s) => {
     setEditId(s._id);
-    setForm({ nom: s.nom, prix: s.prix || '' });
+    const prixVal = s.prix && typeof s.prix === 'object' && s.prix.$numberDecimal
+      ? s.prix.$numberDecimal
+      : (s.prix || '');
+    setForm({ nom: s.nom, prix: prixVal });
     setShowForm(true);
   };
 

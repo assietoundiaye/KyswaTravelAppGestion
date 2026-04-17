@@ -30,7 +30,7 @@ function Badge({ val, map }) {
 const PAGE_SIZE = 20;
 
 const EMPTY_FORM = {
-  packageKId: '', typeChambre: 'DOUBLE', formule: '', niveauConfort: '',
+  packageKId: '', niveauConfort: 'ECO',
   dateDepart: '', dateRetour: '', montantTotalDu: '', notes: '',
   statutClient: 'INSCRIT', clients: [],
 };
@@ -68,41 +68,33 @@ export default function ReservationsPage() {
   // Auto-fill dates AND prix when package is selected
   const handlePackageChange = (pkgId) => {
     const pkg = packages.find(p => p._id === pkgId);
-    // Auto-suggest price based on current typeChambre
-    const prixMap = {
-      SINGLE: pkg?.prixSingle,
-      DOUBLE: pkg?.prixDouble,
-      TRIPLE: pkg?.prixTriple,
-      QUADRUPLE: pkg?.prixQuadruple,
-    };
-    const suggestedPrice = prixMap[form.typeChambre] || pkg?.prixDouble || '';
+    const prixMap = { ECO: pkg?.prixEco, CONFORT: pkg?.prixCont, VIP: pkg?.prixVip };
+    // Choisir le premier niveau disponible par défaut
+    const defaultNiveau = ['ECO', 'CONFORT', 'VIP'].find(n => prixMap[n]) || 'ECO';
+    const suggestedPrice = prixMap[defaultNiveau] || '';
     setForm(f => ({
       ...f,
       packageKId: pkgId,
+      niveauConfort: defaultNiveau,
       dateDepart: pkg?.dateDepart ? pkg.dateDepart.slice(0, 10) : f.dateDepart,
       dateRetour: pkg?.dateRetour ? pkg.dateRetour.slice(0, 10) : f.dateRetour,
       montantTotalDu: suggestedPrice ? String(Math.round(Number(suggestedPrice))) : f.montantTotalDu,
     }));
   };
 
-  // Recalculate price when chambre type changes
-  const handleChambreChange = (typeChambre) => {
+  // Recalculate price when niveau confort changes
+  const handleConfortChange = (niveauConfort) => {
     const pkg = packages.find(p => p._id === form.packageKId);
     if (pkg) {
-      const prixMap = {
-        SINGLE: pkg.prixSingle,
-        DOUBLE: pkg.prixDouble,
-        TRIPLE: pkg.prixTriple,
-        QUADRUPLE: pkg.prixQuadruple,
-      };
-      const prix = prixMap[typeChambre];
+      const prixMap = { ECO: pkg.prixEco, CONFORT: pkg.prixCont, VIP: pkg.prixVip };
+      const prix = prixMap[niveauConfort];
       setForm(f => ({
         ...f,
-        typeChambre,
+        niveauConfort,
         montantTotalDu: prix ? String(Math.round(Number(prix))) : f.montantTotalDu,
       }));
     } else {
-      setForm(f => ({ ...f, typeChambre }));
+      setForm(f => ({ ...f, niveauConfort }));
     }
   };
 
@@ -141,11 +133,18 @@ export default function ReservationsPage() {
     if (!form.packageKId) { toast('Sélectionnez un départ', 'error'); return; }
     setSaving(true);
     try {
-      await api.post('/reservations', {
-        ...form,
+      const payload = {
+        packageKId: form.packageKId,
+        niveauConfort: form.niveauConfort || undefined,
+        dateDepart: form.dateDepart,
+        dateRetour: form.dateRetour,
         montantTotalDu: Number(form.montantTotalDu),
         nombrePlaces: form.clients.length,
-      });
+        clients: form.clients,
+        statutClient: form.statutClient || 'INSCRIT',
+        notes: form.notes || undefined,
+      };
+      await api.post('/reservations', payload);
       setShowForm(false);
       setForm(EMPTY_FORM);
       setClientSearch('');
@@ -185,7 +184,7 @@ export default function ReservationsPage() {
                 <th>Client(s)</th>
                 <th>Téléphone</th>
                 <th>Départ</th>
-                <th>Chambre</th>
+                <th>Classe</th>
                 <th>Prix total</th>
                 <th>Reçu</th>
                 <th>Restant</th>
@@ -207,7 +206,7 @@ export default function ReservationsPage() {
                     <td style={{ fontWeight: 600 }}>{r.clients?.map(c => `${c.nom} ${c.prenom}`).join(', ') || '—'}</td>
                     <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{r.clients?.[0]?.telephone || '—'}</td>
                     <td style={{ fontSize: 12 }}>{fmtDate(r.dateDepart)}</td>
-                    <td style={{ fontSize: 12 }}>{r.typeChambre || '—'}</td>
+                    <td style={{ fontSize: 12 }}>{r.niveauConfort || r.typeChambre || '—'}</td>
                     <td style={{ fontWeight: 600 }}>{fmt(r.montantTotalDu)}</td>
                     <td style={{ color: '#16A34A', fontWeight: 600 }}>{fmt(recu)}</td>
                     <td style={{ color: r.resteAPayer > 0 ? '#DC2626' : '#16A34A', fontWeight: 700 }}>{fmt(r.resteAPayer)}</td>
@@ -260,8 +259,7 @@ export default function ReservationsPage() {
                 const pkg = packages.find(p => p._id === form.packageKId);
                 if (!pkg) return null;
                 const prix = [
-                  ['Single', pkg.prixSingle], ['Double', pkg.prixDouble],
-                  ['Triple', pkg.prixTriple], ['Quadruple', pkg.prixQuadruple],
+                  ['Éco', pkg.prixEco], ['Confort', pkg.prixCont], ['VIP', pkg.prixVip],
                 ].filter(([, v]) => v);
                 if (!prix.length) return null;
                 return (
@@ -291,31 +289,34 @@ export default function ReservationsPage() {
             </div>
           </div>
 
-          {/* Hébergement */}
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Hébergement</p>
+          {/* Niveau confort */}
+          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Classe / Confort</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <div>
-              <label className="input-label">Type de chambre</label>
-              <select value={form.typeChambre} onChange={e => handleChambreChange(e.target.value)} className="premium-input">
-                {['SINGLE', 'DOUBLE', 'TRIPLE', 'QUADRUPLE', 'SUITE'].map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="input-label">Formule</label>
-              <select value={form.formule} onChange={set('formule')} className="premium-input">
-                <option value="">—</option>
-                {['LOGEMENT_SEUL', 'LOGEMENT_PETIT_DEJEUNER', 'DEMI_PENSION', 'PENSION_COMPLETE', 'ALL_INCLUSIVE', 'ALL_INCLUSIVE_PREMIUM'].map(f => (
-                  <option key={f} value={f}>{f.replace(/_/g, ' ')}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="input-label">Niveau confort</label>
-              <select value={form.niveauConfort} onChange={set('niveauConfort')} className="premium-input">
-                <option value="">—</option>
-                {['ECO', 'CONFORT', 'VIP'].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-            </div>
+            {[['ECO', 'prixEco'], ['CONFORT', 'prixCont'], ['VIP', 'prixVip']].map(([niveau, key]) => {
+              const pkg = packages.find(p => p._id === form.packageKId);
+              const prix = pkg?.[key];
+              const isSelected = form.niveauConfort === niveau;
+              return (
+                <button
+                  key={niveau}
+                  type="button"
+                  onClick={() => handleConfortChange(niveau)}
+                  style={{
+                    padding: '12px 8px',
+                    borderRadius: 10,
+                    border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                    background: isSelected ? 'rgba(0,103,79,0.06)' : 'white',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                  }}
+                >
+                  <p style={{ fontWeight: 800, fontSize: 13, color: isSelected ? 'var(--primary)' : 'var(--text-main)', marginBottom: 4 }}>{niveau}</p>
+                  <p style={{ fontSize: 12, color: prix ? (isSelected ? 'var(--primary)' : 'var(--text-muted)') : 'var(--text-muted)', fontWeight: prix ? 600 : 400 }}>
+                    {prix ? `${Number(prix).toLocaleString('fr-FR')} FCFA` : '—'}
+                  </p>
+                </button>
+              );
+            })}
           </div>
 
           {/* Financier */}

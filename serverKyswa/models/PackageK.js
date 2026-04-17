@@ -35,13 +35,7 @@ const packageKSchema = new mongoose.Schema(
     dateDepart: { type: Date, required: [true, 'La date de départ est requise'] },
     dateRetour: { type: Date, required: [true, 'La date de retour est requise'] },
 
-    // Prix par type de chambre
-    prixSingle: { type: mongoose.Decimal128, get: (v) => v ? v.toString() : null },
-    prixDouble: { type: mongoose.Decimal128, get: (v) => v ? v.toString() : null },
-    prixTriple: { type: mongoose.Decimal128, get: (v) => v ? v.toString() : null },
-    prixQuadruple: { type: mongoose.Decimal128, get: (v) => v ? v.toString() : null },
-
-    // Anciens champs conservés
+    // Prix par classe
     prixEco: { type: mongoose.Decimal128, get: (v) => v ? v.toString() : null },
     prixCont: { type: mongoose.Decimal128, get: (v) => v ? v.toString() : null },
     prixVip: { type: mongoose.Decimal128, get: (v) => v ? v.toString() : null },
@@ -82,15 +76,14 @@ packageKSchema.methods.calculerPlacesRestantes = function () {
   return this.quotaMax - this.placesReservees;
 };
 
-// Prix selon type de chambre
-packageKSchema.methods.getPrixChambre = function (typeChambre) {
+// Prix selon classe
+packageKSchema.methods.getPrixClasse = function (classe) {
   const map = {
-    SINGLE: this.prixSingle,
-    DOUBLE: this.prixDouble,
-    TRIPLE: this.prixTriple,
-    QUADRUPLE: this.prixQuadruple,
+    ECO: this.prixEco,
+    CONFORT: this.prixCont,
+    VIP: this.prixVip,
   };
-  return map[typeChambre] || this.prixEco || null;
+  return map[classe] || null;
 };
 
 module.exports = mongoose.model('PackageK', packageKSchema);
