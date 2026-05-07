@@ -98,6 +98,27 @@ router.post(
         return res.status(400).json({ message: 'Quota insuffisant pour cette réservation' });
       }
 
+      // Vérifier qu'aucun client n'est déjà inscrit sur ce package (hors annulés/désistés)
+      const reservationsExistantes = await Reservation.find({
+        packageKId: packageK._id,
+        statut: { $nin: ['ANNULEE', 'DESISTE'] },
+        statutClient: { $nin: ['ANNULE', 'DESISTE'] },
+      }).select('clients');
+
+      const clientsDejaInscrits = new Set(
+        reservationsExistantes.flatMap(r => r.clients.map(c => c.toString()))
+      );
+
+      const doublons = clients.filter(clientId => clientsDejaInscrits.has(clientId.toString()));
+      if (doublons.length > 0) {
+        // Récupérer les noms pour le message d'erreur
+        const clientsEnDoublon = await Client.find({ _id: { $in: doublons } }).select('nom prenom');
+        const noms = clientsEnDoublon.map(c => `${c.nom} ${c.prenom}`).join(', ');
+        return res.status(400).json({
+          message: `Ce(s) client(s) est/sont déjà inscrit(s) sur ce package : ${noms}`,
+        });
+      }
+
       // Créer la réservation
       const reservation = new Reservation({
         idReservation: Date.now(),
@@ -142,7 +163,8 @@ router.get('/', async (req, res) => {
   try {
     const reservations = await Reservation.find()
       .populate('clients', 'nom prenom numeroPasseport')
-      .populate('packageKId', 'nomReference type statut dateDepart dateRetour');
+      .populate('packageKId', 'nomReference type statut dateDepart dateRetour')
+      .populate('paiements', 'montant mode dateReglement reference');
 
     return res.status(200).json({ count: reservations.length, reservations });
   } catch (err) {
@@ -215,7 +237,7 @@ router.post(
       const packageK = await PackageK.findById(reservation.packageKId);
       if (!packageK) return res.status(404).json({ message: 'Package lié non trouvé' });
 
-      // Filtrer ceux déjà présents
+      // Filtrer ceux déjà présents dans cette réservation
       const newClientIds = clientIds.filter((id) => !reservation.clients.map((c) => c.toString()).includes(id));
       if (newClientIds.length === 0) {
         return res.status(400).json({ message: 'Tous les clients sont déjà présents' });
@@ -224,6 +246,27 @@ router.post(
       // Vérifier quota
       if (packageK.placesReservees + newClientIds.length > packageK.quotaMax) {
         return res.status(400).json({ message: 'Quota insuffisant pour ajouter ces clients' });
+      }
+
+      // Vérifier qu'aucun client n'est déjà inscrit sur ce package dans une autre réservation
+      const autresReservations = await Reservation.find({
+        packageKId: packageK._id,
+        _id: { $ne: reservation._id },
+        statut: { $nin: ['ANNULEE', 'DESISTE'] },
+        statutClient: { $nin: ['ANNULE', 'DESISTE'] },
+      }).select('clients');
+
+      const clientsDejaInscrits = new Set(
+        autresReservations.flatMap(r => r.clients.map(c => c.toString()))
+      );
+
+      const doublons = newClientIds.filter(id => clientsDejaInscrits.has(id.toString()));
+      if (doublons.length > 0) {
+        const clientsEnDoublon = await Client.find({ _id: { $in: doublons } }).select('nom prenom');
+        const noms = clientsEnDoublon.map(c => `${c.nom} ${c.prenom}`).join(', ');
+        return res.status(400).json({
+          message: `Ce(s) client(s) est/sont déjà inscrit(s) sur ce package : ${noms}`,
+        });
       }
 
       // Ajouter
@@ -455,6 +498,43 @@ router.patch('/:id/statut-client', async (req, res) => {
     await reservation.save();
     return res.status(200).json({ message: 'Statut client mis à jour', statutClient: reservation.statutClient });
   } catch (err) {
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+/**
+ * DELETE /api/reservations/:id
+ * Supprimer une réservation et ses données liées
+ */
+router.delete('/:id', async (req, res) => {
+  try {
+    const reservation = await Reservation.findById(req.params.id).populate('paiements');
+    if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
+
+    const Paiement = require('../models/Paiement');
+
+    // Supprimer les paiements liés
+    if (reservation.paiements?.length > 0) {
+      await Paiement.deleteMany({ reservationId: reservation._id });
+    }
+
+    // Supprimer les lignes de suppléments liées
+    await LigneSupplement.deleteMany({ reservationId: reservation._id });
+
+    // Supprimer les documents liés
+    await Document.deleteMany({ reservationId: reservation._id });
+
+    // Libérer les places dans le package
+    if (reservation.packageKId && reservation.nombrePlaces) {
+      await PackageK.findByIdAndUpdate(reservation.packageKId, {
+        $inc: { placesReservees: -reservation.nombrePlaces },
+      });
+    }
+
+    await Reservation.findByIdAndDelete(req.params.id);
+    return res.status(200).json({ message: 'Inscription supprimée' });
+  } catch (err) {
+    console.error('Erreur suppression réservation:', err);
     return res.status(500).json({ message: 'Erreur serveur' });
   }
 });

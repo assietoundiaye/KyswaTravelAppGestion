@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import api from '../../../api/axios';
 import DataTable from '../../../components/DataTable';
 import Modal from '../../../components/Modal';
@@ -20,6 +21,19 @@ export default function BilletsGroupePage() {
     villeDepart: '', villeArrivee: '', nombreSieges: '', prixUnitaire: '', statut: 'EN_ATTENTE', notes: ''
   });
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const billetsFiltres = useMemo(() => {
+    if (!search.trim()) return billets;
+    const q = search.toLowerCase();
+    return billets.filter(b =>
+      (b.compagnie || '').toLowerCase().includes(q) ||
+      (b.numeroVol || '').toLowerCase().includes(q) ||
+      (b.villeDepart || '').toLowerCase().includes(q) ||
+      (b.villeArrivee || '').toLowerCase().includes(q) ||
+      (b.packageKId?.nomReference || '').toLowerCase().includes(q)
+    );
+  }, [billets, search]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -73,7 +87,20 @@ export default function BilletsGroupePage() {
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-main)' }}>Billets Groupe</h1>
         <button onClick={() => { setEditId(null); setShowForm(true); }} className="btn-primary">+ Nouveau vol groupe</button>
       </div>
-      <div className="premium-card"><DataTable columns={cols} data={billets} loading={loading} /></div>
+
+      {/* Barre de recherche */}
+      <div style={{ position: 'relative', maxWidth: 380 }}>
+        <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Rechercher par compagnie, vol, trajet, départ..."
+          className="premium-input"
+          style={{ paddingLeft: 36 }}
+        />
+      </div>
+
+      <div className="premium-card"><DataTable columns={cols} data={billetsFiltres} loading={loading} /></div>
 
       <Modal open={showForm} onClose={() => { setShowForm(false); setEditId(null); }} title={editId ? 'Modifier le vol' : 'Nouveau vol groupe'} size="lg">
         <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>

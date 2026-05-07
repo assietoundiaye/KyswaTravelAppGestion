@@ -1,30 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ShieldCheck, Package, BarChart2, ClipboardList, Download } from 'lucide-react';
 import api from '../../../api/axios';
 import { ROLE_LABELS, ROLE_COLORS } from '../../../utils/roles';
 
 // ── KPI card ──────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, icon: Icon, color, onClick }) {
+function KpiCard({ label, value, color, onClick }) {
   return (
-    <div onClick={onClick} style={{
-      background: 'white', borderRadius: 'var(--radius-xl)', padding: '20px 24px',
-      boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
-      borderLeft: `4px solid ${color}`, cursor: onClick ? 'pointer' : 'default',
-      transition: 'box-shadow 0.15s',
-    }}
-      onMouseEnter={e => { if (onClick) e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
+    <div
+      onClick={onClick}
+      style={{
+        background: `${color}0F`,
+        borderRadius: 12,
+        padding: '14px 18px',
+        borderLeft: `4px solid ${color}`,
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform 0.12s',
+      }}
+      onMouseEnter={e => { if (onClick) e.currentTarget.style.transform = 'translateY(-1px)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 6 }}>{label}</p>
-          <p style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, color: 'var(--text-main)', lineHeight: 1 }}>{value}</p>
-        </div>
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon size={20} color={color} />
-        </div>
-      </div>
+      <p style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', marginBottom: 4 }}>{label}</p>
+      <p style={{ fontSize: 22, fontWeight: 800, color, fontFamily: 'var(--font-display)', lineHeight: 1 }}>{value}</p>
     </div>
   );
 }
@@ -230,24 +226,31 @@ export default function StatistiquesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
-        <KpiCard label="Comptes" value={loading ? '…' : utilisateurs.length} icon={Users} color="#6B7280"
-          onClick={() => navigate('/dashboard/utilisateurs')} />
-        <KpiCard label="Actifs" value={loading ? '…' : actifs} icon={ShieldCheck} color="#16A34A" />
-        <KpiCard label="Inactifs" value={loading ? '…' : inactifs} icon={Users} color="#DC2626" />
-        <KpiCard label="Départs" value={loading ? '…' : packages.length} icon={Package} color="var(--primary)"
-          onClick={() => navigate('/dashboard/packages')} />
-        <KpiCard label="Ouverts" value={loading ? '…' : departsOuverts} icon={BarChart2} color="#2563EB" />
-        <KpiCard label="Rapports" value={loading ? '…' : rapports.length} icon={ClipboardList} color="#7C3AED"
-          onClick={() => navigate('/dashboard/rapports')} />
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-main)' }}>
+          Statistiques
+        </h1>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => navigate('/dashboard/utilisateurs')} className="btn-primary">Gérer les utilisateurs</button>
+          <button onClick={() => navigate('/dashboard/audit')} className="btn-secondary">Journal d'audit</button>
+          <button onClick={() => navigate('/dashboard/packages')} className="btn-secondary">Gérer les départs</button>
+        </div>
       </div>
 
-      {/* Actions */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        <button onClick={() => navigate('/dashboard/utilisateurs')} className="btn-primary">Gérer les utilisateurs</button>
-        <button onClick={() => navigate('/dashboard/audit')} className="btn-secondary">Journal d'audit</button>
-        <button onClick={() => navigate('/dashboard/packages')} className="btn-secondary">Gérer les départs</button>
+      {/* KPI */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <KpiCard label="Total comptes" value={loading ? '…' : utilisateurs.length} color="#6B7280"
+          onClick={() => navigate('/dashboard/utilisateurs')} />
+        <KpiCard label="Comptes actifs" value={loading ? '…' : actifs} color="#16A34A" />
+        <KpiCard label="Comptes inactifs" value={loading ? '…' : inactifs} color="#DC2626" />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <KpiCard label="Total départs" value={loading ? '…' : packages.length} color="var(--primary)"
+          onClick={() => navigate('/dashboard/packages')} />
+        <KpiCard label="Départs ouverts" value={loading ? '…' : departsOuverts} color="#2563EB" />
+        <KpiCard label="Rapports" value={loading ? '…' : rapports.length} color="#7C3AED"
+          onClick={() => navigate('/dashboard/rapports')} />
       </div>
 
       {/* Graphe en barres */}
@@ -267,7 +270,7 @@ export default function StatistiquesPage() {
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700 }}>Comptes récents</h2>
           <button onClick={() => navigate('/dashboard/utilisateurs')}
             style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            Voir tout →
+            Voir tout
           </button>
         </div>
         <div style={{ overflowX: 'auto' }}>

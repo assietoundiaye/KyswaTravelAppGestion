@@ -5,12 +5,18 @@ import { useAuth } from '../context/AuthContext';
 import { MENU_BY_ROLE, ROLE_LABELS, ROLE_COLORS } from '../utils/roles';
 import { useSocket } from '../hooks/useSocket';
 
-export default function Sidebar() {
+export default function Sidebar({ onCollapseChange }) {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const { unreadCount, connected } = useSocket();
+
+  const toggleCollapse = (val) => {
+    const next = val !== undefined ? val : !collapsed;
+    setCollapsed(next);
+    onCollapseChange?.(next);
+  };
 
   const items = MENU_BY_ROLE[role] || [];
   const roleLabel = ROLE_LABELS[role] || role;
@@ -50,7 +56,7 @@ export default function Sidebar() {
             )}
           </div>
           {!isMobile && (
-            <button onClick={() => setCollapsed(c => !c)} style={{
+            <button onClick={() => toggleCollapse()} style={{
               background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6,
               color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: 4, display: 'flex',
             }}>

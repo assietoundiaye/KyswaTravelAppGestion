@@ -86,4 +86,7 @@ packageKSchema.methods.getPrixClasse = function (classe) {
   return map[classe] || null;
 };
 
+packageKSchema.set('toJSON', { getters: true });
+packageKSchema.set('toObject', { getters: true });
+
 module.exports = mongoose.model('PackageK', packageKSchema);

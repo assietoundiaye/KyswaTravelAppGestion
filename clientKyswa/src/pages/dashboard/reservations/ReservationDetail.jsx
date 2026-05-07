@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
+import ConfirmDialog from '../../../components/ConfirmDialog';
+import { toast } from '../../../components/Toast';
 
 const fmt = (n) => {
-  if (!n) return '0 FCFA';
-  const val = typeof n === 'object' && n.$numberDecimal ? n.$numberDecimal : n;
-  return Number(val).toLocaleString('fr-FR') + ' FCFA';
+  if (n === null || n === undefined) return '0 FCFA';
+  const raw = typeof n === 'object' && n.$numberDecimal ? n.$numberDecimal : n;
+  const v = parseFloat(raw);
+  return isNaN(v) ? '0 FCFA' : v.toLocaleString('fr-FR') + ' FCFA';
 };
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-';
 
@@ -28,6 +31,8 @@ export default function ReservationDetail() {
   const [allClients, setAllClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Paiement form
   const [showPaiement, setShowPaiement] = useState(false);
@@ -97,6 +102,17 @@ export default function ReservationDetail() {
     catch (e) { alert(e.response?.data?.message || 'Erreur'); }
   };
 
+  const handleDeleteReservation = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/reservations/${id}`);
+      toast('Inscription supprimée');
+      navigate('/dashboard/reservations');
+    } catch (err) {
+      toast(err.response?.data?.message || 'Erreur lors de la suppression', 'error');
+    } finally { setDeleting(false); setConfirmDelete(false); }
+  };
+
   if (loading) return <p className="text-sm text-gray-500 p-8">Chargement...</p>;
   if (!reservation) return <p className="text-sm text-red-500 p-8">Réservation introuvable</p>;
 
@@ -109,14 +125,16 @@ export default function ReservationDetail() {
       <div className="flex items-center justify-between">
         <div>
           <button onClick={() => navigate('/dashboard/reservations')} className="text-xs text-gray-500 hover:text-gray-700 mb-1 flex items-center gap-1">
-            ← Retour aux réservations
+            Retour aux réservations
           </button>
           <h1 className="text-2xl font-bold text-gray-900">Réservation #{r.idReservation}</h1>
         </div>
-        <a href={`/api/factures/reservation/${id}`} target="_blank" rel="noreferrer"
-          className="rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/5">
-          Télécharger facture PDF
-        </a>
+        <button
+          onClick={() => setConfirmDelete(true)}
+          style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '7px 16px', color: '#DC2626', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+        >
+          Supprimer l'inscription
+        </button>
       </div>
 
       {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -263,52 +281,7 @@ export default function ReservationDetail() {
       <div className="premium-card">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-gray-800">Paiements</h2>
-          {r.statut !== 'ANNULEE' && r.statut !== 'PAYEE' && (
-            <button onClick={() => setShowPaiement(true)}
-              className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
-              + Ajouter paiement
-            </button>
-          )}
         </div>
-
-        {showPaiement && (
-          <form onSubmit={handlePaiement} className="mb-4 rounded-lg border border-gray-200 p-4 space-y-3 bg-gray-50">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Montant (FCFA) *</label>
-                <input type="number" min="1" value={paiementForm.montant} onChange={e => setPaiementForm(f => ({...f, montant: e.target.value}))}
-                  className="premium-input" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Date règlement *</label>
-                <input type="date" value={paiementForm.dateReglement} onChange={e => setPaiementForm(f => ({...f, dateReglement: e.target.value}))}
-                  className="premium-input" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Mode *</label>
-                <select value={paiementForm.mode} onChange={e => setPaiementForm(f => ({...f, mode: e.target.value}))}
-                  className="premium-input">
-                  {MODES.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Référence</label>
-                <input value={paiementForm.reference} onChange={e => setPaiementForm(f => ({...f, reference: e.target.value}))}
-                  className="premium-input" />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button type="submit" disabled={savingPaiement}
-                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-60">
-                {savingPaiement ? '...' : 'Enregistrer'}
-              </button>
-              <button type="button" onClick={() => setShowPaiement(false)}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
-                Annuler
-              </button>
-            </div>
-          </form>
-        )}
 
         {(!r.paiements || r.paiements.length === 0) ? (
           <p className="text-sm text-gray-400">Aucun paiement</p>
@@ -324,13 +297,20 @@ export default function ReservationDetail() {
                   <td className="py-2 pr-4">{fmtDate(p.dateReglement)}</td>
                   <td className="py-2 pr-4">{p.mode}</td>
                   <td className="py-2 pr-4 text-gray-500">{p.reference || '-'}</td>
-                  <td className="py-2 text-right font-medium text-green-700">{fmt(p.montant ? parseFloat(p.montant.toString()) : 0)}</td>
+                  <td className="py-2 text-right font-medium text-green-700">{fmt(p.montant)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        message={`Supprimer définitivement l'inscription ${r.numero || `#${r.idReservation}`} ? Tous les paiements et suppléments associés seront aussi supprimés.`}
+        onConfirm={handleDeleteReservation}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

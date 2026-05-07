@@ -59,7 +59,7 @@ billetId: {
   required: false   // optionnel
 },
 },
-{ timestamps: true }
+{ timestamps: true, toJSON: { getters: true }, toObject: { getters: true } }
 );
 
 

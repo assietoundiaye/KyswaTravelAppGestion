@@ -94,6 +94,10 @@ const clientSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Utilisateur',
     },
+
+    // Photo de profil
+    photoUrl: { type: String },
+    photoPublicId: { type: String },
   },
   { timestamps: true }
 );

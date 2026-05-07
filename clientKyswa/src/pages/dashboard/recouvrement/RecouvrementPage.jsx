@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import api from '../../../api/axios';
 import { toast } from '../../../components/Toast';
 import Modal from '../../../components/Modal';
@@ -15,6 +16,26 @@ export default function RecouvrementPage() {
   const [selectedResa, setSelectedResa] = useState(null);
   const [relanceForm, setRelanceForm] = useState({ resultat: 'JOINT', notes: '', dateProchaineRelance: '' });
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const impayesFiltres = useMemo(() => {
+    if (!search.trim()) return data.impayés;
+    const q = search.toLowerCase();
+    return data.impayés.filter(r =>
+      (r.numero || r.idReservation || '').toLowerCase().includes(q) ||
+      (r.clients || []).some(c => `${c.nom} ${c.prenom}`.toLowerCase().includes(q)) ||
+      (r.clients?.[0]?.telephone || '').toLowerCase().includes(q)
+    );
+  }, [data.impayés, search]);
+
+  const remboursementsFiltres = useMemo(() => {
+    if (!search.trim()) return data.remboursements;
+    const q = search.toLowerCase();
+    return data.remboursements.filter(d =>
+      `${d.clientId?.nom || ''} ${d.clientId?.prenom || ''}`.toLowerCase().includes(q) ||
+      (d.reservationId?.numero || d.reservationId?.idReservation || '').toLowerCase().includes(q)
+    );
+  }, [data.remboursements, search]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -57,18 +78,31 @@ export default function RecouvrementPage() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-main)' }}>
-        Recouvrement
-      </h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-main)' }}>
+          Recouvrement
+        </h1>
+        {/* Barre de recherche */}
+        <div style={{ position: 'relative' }}>
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher par client, N° réservation..."
+            className="premium-input"
+            style={{ paddingLeft: 36, width: 300 }}
+          />
+        </div>
+      </div>
 
       {/* Impayés */}
       <div className="premium-card">
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-main)' }}>
-          Inscriptions impayées — départ dans moins de 30 jours ({data.impayés.length})
+          Inscriptions impayées — départ dans moins de 30 jours ({impayesFiltres.length})
         </h2>
         {loading ? <p style={{ color: 'var(--text-muted)' }}>Chargement...</p> :
-          data.impayés.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>Aucun impayé urgent</p> :
-          data.impayés.map(r => {
+          impayesFiltres.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>Aucun impayé urgent</p> :
+          impayesFiltres.map(r => {
             const jours = joursRestants(r.dateDepart);
             return (
               <div key={r._id} style={{
@@ -94,7 +128,7 @@ export default function RecouvrementPage() {
                       </p>
                     </div>
                     <button onClick={() => openRelance(r)} className="btn-primary" style={{ fontSize: 12, padding: '8px 14px' }}>
-                      📞 Relancer
+                      Relancer
                     </button>
                   </div>
                 </div>
@@ -105,12 +139,12 @@ export default function RecouvrementPage() {
       </div>
 
       {/* Remboursements en attente — pas pour les commerciaux */}
-      {!['commercial'].includes(role) && data.remboursements?.length > 0 && (
+      {!['commercial'].includes(role) && remboursementsFiltres?.length > 0 && (
         <div className="premium-card">
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-main)' }}>
-            Remboursements en attente ({data.remboursements.length})
+            Remboursements en attente ({remboursementsFiltres.length})
           </h2>
-          {data.remboursements.map(d => (
+          {remboursementsFiltres.map(d => (
             <div key={d._id} style={{
               padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: 8,
               background: 'var(--info-bg)', border: '1px solid rgba(37,99,235,0.2)',

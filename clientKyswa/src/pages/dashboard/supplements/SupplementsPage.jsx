@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import api from '../../../api/axios';
 import DataTable from '../../../components/DataTable';
 
@@ -17,6 +18,13 @@ export default function SupplementsPage() {
   const [form, setForm] = useState({ nom: '', prix: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+
+  const supplementsFiltres = useMemo(() => {
+    if (!search.trim()) return supplements;
+    const q = search.toLowerCase();
+    return supplements.filter(s => (s.nom || '').toLowerCase().includes(q));
+  }, [supplements, search]);
 
   const fetchSupplements = async () => {
     setLoading(true);
@@ -79,6 +87,18 @@ export default function SupplementsPage() {
         </button>
       </div>
 
+      {/* Barre de recherche */}
+      <div style={{ position: 'relative', maxWidth: 320 }}>
+        <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Rechercher un supplément..."
+          className="premium-input"
+          style={{ paddingLeft: 36 }}
+        />
+      </div>
+
       {showForm && (
         <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
           <h2 className="font-semibold text-gray-800">{editId ? 'Modifier' : 'Nouveau supplément'}</h2>
@@ -109,7 +129,7 @@ export default function SupplementsPage() {
       )}
 
       <div className="premium-card">
-        <DataTable columns={cols} data={supplements} loading={loading} />
+        <DataTable columns={cols} data={supplementsFiltres} loading={loading} />
       </div>
     </div>
   );

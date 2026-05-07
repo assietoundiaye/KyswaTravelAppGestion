@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import api from '../../../api/axios';
 import DataTable from '../../../components/DataTable';
 import { toast } from '../../../components/Toast';
@@ -25,6 +26,17 @@ export default function VisasPage() {
   const [visas, setVisas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatut, setFilterStatut] = useState('');
+  const [search, setSearch] = useState('');
+
+  const visasFiltres = useMemo(() => {
+    if (!search.trim()) return visas;
+    const q = search.toLowerCase();
+    return visas.filter(v =>
+      `${v.clientId?.nom || ''} ${v.clientId?.prenom || ''}`.toLowerCase().includes(q) ||
+      (v.clientId?.numeroPasseport || '').toLowerCase().includes(q) ||
+      (v.reservationId?.numero || v.reservationId?.idReservation || '').toLowerCase().includes(q)
+    );
+  }, [visas, search]);
 
   const fetchVisas = async () => {
     setLoading(true);
@@ -91,18 +103,31 @@ export default function VisasPage() {
 
   return (
     <div className="animate-fade-in space-y-5">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-main)' }}>
           Suivi Visas
         </h1>
-        <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)} className="premium-input" style={{ width: 220 }}>
-          <option value="">Tous les statuts</option>
-          {STATUTS.map(s => <option key={s} value={s}>{statutLabels[s]}</option>)}
-        </select>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {/* Barre de recherche */}
+          <div style={{ position: 'relative' }}>
+            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher par client, passeport..."
+              className="premium-input"
+              style={{ paddingLeft: 36, width: 260 }}
+            />
+          </div>
+          <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)} className="premium-input" style={{ width: 220 }}>
+            <option value="">Tous les statuts</option>
+            {STATUTS.map(s => <option key={s} value={s}>{statutLabels[s]}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="premium-card">
-        <DataTable columns={cols} data={visas} loading={loading} />
+        <DataTable columns={cols} data={visasFiltres} loading={loading} />
       </div>
     </div>
   );

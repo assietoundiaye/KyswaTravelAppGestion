@@ -98,7 +98,7 @@ export default function Login() {
             )}
 
             <button type="submit" disabled={loading} className="btn-primary" style={{ marginTop: 4, width: '100%', justifyContent: 'center' }}>
-              {loading ? 'Connexion...' : 'Se connecter →'}
+              {loading ? 'Connexion...' : 'Se connecter'}
             </button>
           </form>
         </div>

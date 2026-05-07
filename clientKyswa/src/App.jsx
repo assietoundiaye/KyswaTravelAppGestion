@@ -4,10 +4,8 @@ import { DEFAULT_REDIRECT, ALL_ROLES } from './utils/roles';
 
 // Layouts
 import DashboardLayout from './components/DashboardLayout';
-import PublicLayout from './components/PublicLayout';
 
 // Public pages
-import Home from './pages/Home';
 import Login from './pages/Login';
 import SuiviReservation from './pages/public/SuiviReservation';
 import SuiviBillet from './pages/public/SuiviBillet';
@@ -57,10 +55,8 @@ const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public — avec Navbar */}
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<Home />} />
-        </Route>
+        {/* Redirect racine vers login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* Pages publiques — sans Navbar */}
         <Route path="/suivi/reservation" element={<SuiviReservation />} />

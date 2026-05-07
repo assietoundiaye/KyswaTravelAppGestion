@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import api from '../../../api/axios';
 import DataTable from '../../../components/DataTable';
 import Modal from '../../../components/Modal';
@@ -14,6 +15,22 @@ export default function ZiarraPage() {
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({ nom: '', prenom: '', telephone: '', email: '', statut: 'PROSPECT', notes: '', dateDepart: '' });
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterStatut, setFilterStatut] = useState('');
+
+  const prospectsFiltres = useMemo(() => {
+    let result = prospects;
+    if (filterStatut) result = result.filter(p => p.statut === filterStatut);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(p =>
+        `${p.clientId?.nom || p.nom || ''} ${p.clientId?.prenom || p.prenom || ''}`.toLowerCase().includes(q) ||
+        (p.clientId?.telephone || p.telephone || '').toLowerCase().includes(q) ||
+        (p.email || '').toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [prospects, search, filterStatut]);
 
   const fetchProspects = async () => {
     setLoading(true);
@@ -67,14 +84,33 @@ export default function ZiarraPage() {
       {/* Stats par statut */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {parStatut.map(({ statut, count }) => (
-          <div key={statut} className="premium-card" style={{ flex: '1 1 100px', textAlign: 'center', padding: '12px 16px' }}>
+          <div key={statut} className="premium-card" style={{ flex: '1 1 100px', textAlign: 'center', padding: '12px 16px', cursor: 'pointer', outline: filterStatut === statut ? '2px solid var(--primary)' : 'none' }}
+            onClick={() => setFilterStatut(f => f === statut ? '' : statut)}>
             <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--primary)', fontFamily: 'var(--font-display)' }}>{count}</p>
             <p style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{statut}</p>
           </div>
         ))}
       </div>
 
-      <div className="premium-card"><DataTable columns={cols} data={prospects} loading={loading} /></div>
+      {/* Barre de recherche + filtre statut */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher par nom, téléphone, email..."
+            className="premium-input"
+            style={{ paddingLeft: 36 }}
+          />
+        </div>
+        <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)} className="premium-input" style={{ width: 180 }}>
+          <option value="">Tous les statuts</option>
+          {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+
+      <div className="premium-card"><DataTable columns={cols} data={prospectsFiltres} loading={loading} /></div>
 
       <Modal open={showForm} onClose={() => { setShowForm(false); setEditId(null); }} title={editId ? 'Modifier le prospect' : 'Nouveau prospect Ziarra'} size="md">
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

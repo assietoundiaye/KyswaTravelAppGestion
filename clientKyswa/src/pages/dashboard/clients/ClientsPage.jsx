@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../api/axios';
 import Modal from '../../../components/Modal';
+import ConfirmDialog from '../../../components/ConfirmDialog';
 import { toast } from '../../../components/Toast';
 
 const EMPTY = {
@@ -19,6 +20,19 @@ export default function ClientsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/clients/${confirmDeleteId}`);
+      toast('Client supprimé');
+      fetchClients();
+    } catch (err) {
+      toast(err.response?.data?.message || 'Erreur lors de la suppression', 'error');
+    } finally { setDeleting(false); setConfirmDeleteId(null); }
+  };
 
   const fetchClients = async (q = '') => {
     setLoading(true);
@@ -60,7 +74,7 @@ export default function ClientsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{clients.length} client(s)</p>
         <div style={{ display: 'flex', gap: 10 }}>
-          <input value={search} onChange={handleSearch} placeholder="🔍 Nom, téléphone, passeport..."
+          <input value={search} onChange={handleSearch} placeholder="Nom, téléphone, passeport..."
             className="premium-input" style={{ width: 260 }} />
           <button onClick={() => setShowModal(true)} className="btn-primary">+ Nouveau client</button>
         </div>
@@ -98,10 +112,16 @@ export default function ClientsPage() {
                     }}>{c.niveauFidelite || 'BRONZE'}</span>
                   </td>
                   <td onClick={e => e.stopPropagation()}>
-                    <button onClick={() => navigate(`/dashboard/clients/${c._id}`)}
-                      style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '4px 12px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                      Voir →
-                    </button>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => navigate(`/dashboard/clients/${c._id}`)}
+                        style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '4px 12px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                        Voir
+                      </button>
+                      <button onClick={() => setConfirmDeleteId(c._id)}
+                        style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, padding: '4px 12px', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                        Supprimer
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -181,6 +201,13 @@ export default function ClientsPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        message="Supprimer ce client ? Cette action est irréversible."
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }
