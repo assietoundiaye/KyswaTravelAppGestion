@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import api from '../../../api/axios';
 import DataTable from '../../../components/DataTable';
 import Modal from '../../../components/Modal';
@@ -17,6 +18,18 @@ export default function BilletsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmId, setConfirmId] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const billetsFiltres = useMemo(() => {
+    if (!search.trim()) return billets;
+    const q = search.toLowerCase();
+    return billets.filter(b =>
+      (b.numeroBillet || '').toLowerCase().includes(q) ||
+      `${b.clientId?.nom || ''} ${b.clientId?.prenom || ''}`.toLowerCase().includes(q) ||
+      (b.destination || '').toLowerCase().includes(q) ||
+      (b.compagnie || '').toLowerCase().includes(q)
+    );
+  }, [billets, search]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -89,6 +102,18 @@ export default function BilletsPage() {
         </button>
       </div>
 
+      {/* Barre de recherche */}
+      <div style={{ position: 'relative', maxWidth: 380 }}>
+        <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Rechercher par N° billet, client, destination..."
+          className="premium-input"
+          style={{ paddingLeft: 36 }}
+        />
+      </div>
+
       {showForm && (
         <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
           <h2 className="font-semibold text-gray-800">Nouveau billet</h2>
@@ -147,7 +172,7 @@ export default function BilletsPage() {
       )}
 
       <div className="premium-card">
-        <DataTable columns={cols} data={billets} loading={loading} />
+        <DataTable columns={cols} data={billetsFiltres} loading={loading} />
       </div>
 
       <ConfirmDialog

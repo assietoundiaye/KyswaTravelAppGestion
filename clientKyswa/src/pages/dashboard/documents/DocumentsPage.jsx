@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertTriangle, Clock, ChevronDown, ChevronUp, Download, X } from 'lucide-react';
 import api from '../../../api/axios';
 import Modal from '../../../components/Modal';
+import ConfirmDialog from '../../../components/ConfirmDialog';
 import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -47,6 +48,9 @@ export default function DocumentsPage() {
   const [showReunionModal, setShowReunionModal] = useState(false);
   const [filterDate, setFilterDate] = useState('');
   const [expandedRapport, setExpandedRapport] = useState(null);
+  const [editDoc, setEditDoc] = useState(null);
+  const [editDocForm, setEditDocForm] = useState({ titre: '', categorie: '', statut: '', echeance: '', description: '' });
+  const [confirmDeleteDocId, setConfirmDeleteDocId] = useState(null);
 
   const [docForm, setDocForm] = useState({ titre: '', categorie: 'Administratif', statut: 'EN_COURS', echeance: '', description: '' });
   const [reunionForm, setReunionForm] = useState({ titre: '', date: '', lieu: '', ordreJour: '', participants: '' });
@@ -109,6 +113,25 @@ export default function DocumentsPage() {
     catch (e) { toast('Erreur', 'error'); }
   };
 
+  const handleEditDoc = async (e) => {
+    e.preventDefault();
+    try {
+      await api.patch(`/documents/${editDoc._id}`, editDocForm);
+      toast('Document modifié');
+      setEditDoc(null);
+      fetchAll();
+    } catch (err) { toast(err.response?.data?.message || 'Erreur', 'error'); }
+  };
+
+  const handleDeleteDoc = async () => {
+    try {
+      await api.delete(`/documents/${confirmDeleteDocId}`);
+      toast('Document supprimé');
+      setConfirmDeleteDocId(null);
+      fetchAll();
+    } catch (err) { toast(err.response?.data?.message || 'Erreur', 'error'); }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Tabs */}
@@ -124,7 +147,7 @@ export default function DocumentsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {urgents.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-              <p style={{ fontSize: 32 }}>✅</p>
+              <p style={{ fontSize: 32 }}></p>
               <p>Aucune urgence</p>
             </div>
           ) : urgents.map(d => {
@@ -186,10 +209,28 @@ export default function DocumentsPage() {
                         </td>
                         <td style={{ fontSize: 12 }}>{fmtDate(d.echeance)}</td>
                         <td>
-                          {d.fichierUrl && (
-                            <a href={d.fichierUrl} target="_blank" rel="noreferrer"
-                              style={{ color: 'var(--primary)', fontSize: 12, fontWeight: 600 }}>PDF ↗</a>
-                          )}
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            {d.fichierUrl && (
+                              <>
+                                <a href={d.fichierUrl} target="_blank" rel="noreferrer"
+                                  style={{ background: 'rgba(0,103,79,0.08)', borderRadius: 6, padding: '3px 10px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+                                  Voir
+                                </a>
+                                <a href={d.fichierUrl} download
+                                  style={{ background: 'rgba(37,99,235,0.08)', borderRadius: 6, padding: '3px 10px', color: '#2563EB', fontSize: 12, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                  <Download size={12} /> Télécharger
+                                </a>
+                              </>
+                            )}
+                            <button onClick={() => { setEditDoc(d); setEditDocForm({ titre: d.titre || '', categorie: d.categorie || 'Administratif', statut: d.statut || 'EN_COURS', echeance: d.echeance ? d.echeance.substring(0, 10) : '', description: d.description || '' }); }}
+                              style={{ background: 'rgba(217,119,6,0.08)', border: 'none', borderRadius: 6, padding: '3px 10px', color: '#D97706', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                              Modifier
+                            </button>
+                            <button onClick={() => setConfirmDeleteDocId(d._id)}
+                              style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, padding: '3px 10px', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                              Supprimer
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -216,12 +257,12 @@ export default function DocumentsPage() {
                   <div>
                     <p style={{ fontWeight: 700, fontSize: 15 }}>{r.titre}</p>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                      📅 {fmtDate(r.date)} · 📍 {r.lieu || '—'}
+                      {fmtDate(r.date)} · {r.lieu || '—'}
                     </p>
                     {r.ordreJour && <p style={{ fontSize: 13, marginTop: 8, color: 'var(--text-main)' }}>{r.ordreJour}</p>}
                     {r.participants?.length > 0 && (
                       <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-                        👥 {r.participants.join(', ')}
+                        {r.participants.join(', ')}
                       </p>
                     )}
                   </div>
@@ -241,7 +282,7 @@ export default function DocumentsPage() {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
               className="premium-input" style={{ width: 180 }} />
-            {filterDate && <button onClick={() => setFilterDate('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>✕ Effacer</button>}
+            {filterDate && <button onClick={() => setFilterDate('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 3 }}><X size={12} /> Effacer</button>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {rapports.length === 0 ? (
@@ -365,6 +406,50 @@ export default function DocumentsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Modal modification document */}
+      <Modal open={!!editDoc} onClose={() => setEditDoc(null)} title="Modifier le document">
+        <form onSubmit={handleEditDoc} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label className="input-label">Titre *</label>
+            <input value={editDocForm.titre} onChange={e => setEditDocForm(f => ({ ...f, titre: e.target.value }))} className="premium-input" required />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label className="input-label">Catégorie</label>
+              <select value={editDocForm.categorie} onChange={e => setEditDocForm(f => ({ ...f, categorie: e.target.value }))} className="premium-input">
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="input-label">Statut</label>
+              <select value={editDocForm.statut} onChange={e => setEditDocForm(f => ({ ...f, statut: e.target.value }))} className="premium-input">
+                {STATUTS.map(s => <option key={s} value={s}>{STATUT_LABELS[s]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="input-label">Date d'échéance</label>
+              <input type="date" value={editDocForm.echeance} onChange={e => setEditDocForm(f => ({ ...f, echeance: e.target.value }))} className="premium-input" />
+            </div>
+          </div>
+          <div>
+            <label className="input-label">Description</label>
+            <textarea value={editDocForm.description} onChange={e => setEditDocForm(f => ({ ...f, description: e.target.value }))} className="premium-input" rows={3} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={() => setEditDoc(null)} className="btn-secondary">Annuler</button>
+            <button type="submit" className="btn-primary">Sauvegarder</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Confirmation suppression document */}
+      <ConfirmDialog
+        open={!!confirmDeleteDocId}
+        message="Supprimer ce document ? Le fichier sera aussi supprimé définitivement."
+        onConfirm={handleDeleteDoc}
+        onCancel={() => setConfirmDeleteDocId(null)}
+      />
     </div>
   );
 }

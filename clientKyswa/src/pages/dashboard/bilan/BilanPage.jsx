@@ -22,7 +22,7 @@ export default function BilanPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-main)' }}>{pkg.nomReference}</h2>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{pkg.type} · {fmtDate(pkg.dateDepart)} → {fmtDate(pkg.dateRetour)}</p>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{pkg.type} · {fmtDate(pkg.dateDepart)} — {fmtDate(pkg.dateRetour)}</p>
             </div>
             <span className={`badge ${pkg.statut === 'OUVERT' ? 'badge-success' : pkg.statut === 'COMPLET' ? 'badge-danger' : 'badge-neutral'}`}>{pkg.statut}</span>
           </div>

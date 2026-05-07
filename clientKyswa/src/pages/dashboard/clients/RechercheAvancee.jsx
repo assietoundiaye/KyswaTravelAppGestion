@@ -66,7 +66,7 @@ export default function RechercheAvancee() {
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? 'Recherche...' : '🔍 Rechercher'}
+            {loading ? 'Recherche...' : 'Rechercher'}
           </button>
           <button type="button" onClick={reset} className="btn-secondary">Réinitialiser</button>
         </div>
@@ -98,7 +98,7 @@ export default function RechercheAvancee() {
                       {c.numeroPasseport} {c.telephone ? `· ${c.telephone}` : ''} {c.email ? `· ${c.email}` : ''}
                     </p>
                   </div>
-                  <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>Voir →</span>
+                  <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>Voir</span>
                 </div>
               ))}
             </div>

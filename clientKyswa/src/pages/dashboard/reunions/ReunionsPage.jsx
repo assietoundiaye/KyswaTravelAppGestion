@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import api from '../../../api/axios';
 import DataTable from '../../../components/DataTable';
 import Modal from '../../../components/Modal';
@@ -15,6 +16,17 @@ export default function ReunionsPage() {
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({ packageKId: '', titre: '', dateReunion: '', lieu: '', ordreJour: '', participants: [] });
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const reunionsFiltrees = useMemo(() => {
+    if (!search.trim()) return reunions;
+    const q = search.toLowerCase();
+    return reunions.filter(r =>
+      (r.titre || '').toLowerCase().includes(q) ||
+      (r.lieu || '').toLowerCase().includes(q) ||
+      (r.packageKId?.nomReference || '').toLowerCase().includes(q)
+    );
+  }, [reunions, search]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -90,8 +102,20 @@ export default function ReunionsPage() {
         <button onClick={() => { setEditId(null); setShowForm(true); }} className="btn-primary">+ Nouvelle réunion</button>
       </div>
 
+      {/* Barre de recherche */}
+      <div style={{ position: 'relative', maxWidth: 380 }}>
+        <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Rechercher par titre, lieu, départ..."
+          className="premium-input"
+          style={{ paddingLeft: 36 }}
+        />
+      </div>
+
       <div className="premium-card">
-        <DataTable columns={cols} data={reunions} loading={loading} />
+        <DataTable columns={cols} data={reunionsFiltrees} loading={loading} />
       </div>
 
       <Modal open={showForm} onClose={() => { setShowForm(false); setEditId(null); }} title={editId ? 'Modifier la réunion' : 'Nouvelle réunion'} size="lg">

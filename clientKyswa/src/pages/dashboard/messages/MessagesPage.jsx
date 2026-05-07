@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import api from '../../../api/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { toast } from '../../../components/Toast';
@@ -8,13 +9,14 @@ const fmtDate = (d) => d ? new Date(d).toLocaleString('fr-FR', { day: '2-digit',
 
 export default function MessagesPage() {
   const { user } = useAuth();
-  const { socket, connected, resetUnread, sendMessage } = useSocket();
+  const { socket, resetUnread, sendMessage } = useSocket();
   const [messages, setMessages] = useState([]);
   const [utilisateurs, setUtilisateurs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ destinataireId: '', contenu: '' });
   const [sending, setSending] = useState(false);
+  const [search, setSearch] = useState('');
 
   const fetchMessages = async () => {
     try {
@@ -72,6 +74,24 @@ export default function MessagesPage() {
   const envoyés = messages.filter(m => m.expediteurId?._id === user?.id || m.expediteurId?.id === user?.id);
   const nonLus = reçus.filter(m => !m.lu).length;
 
+  const reçusFiltres = useMemo(() => {
+    if (!search.trim()) return reçus;
+    const q = search.toLowerCase();
+    return reçus.filter(m =>
+      (m.contenu || '').toLowerCase().includes(q) ||
+      `${m.expediteurId?.prenom || ''} ${m.expediteurId?.nom || ''}`.toLowerCase().includes(q)
+    );
+  }, [reçus, search]);
+
+  const envoyésFiltres = useMemo(() => {
+    if (!search.trim()) return envoyés;
+    const q = search.toLowerCase();
+    return envoyés.filter(m =>
+      (m.contenu || '').toLowerCase().includes(q) ||
+      `${m.destinataireId?.prenom || ''} ${m.destinataireId?.nom || ''}`.toLowerCase().includes(q)
+    );
+  }, [envoyés, search]);
+
   return (
     <div className="animate-fade-in space-y-5" style={{ maxWidth: 800 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -83,7 +103,20 @@ export default function MessagesPage() {
             <span className="badge badge-warning" style={{ marginTop: 4 }}>{nonLus} non lu(s)</span>
           )}
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary">+ Nouveau message</button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {/* Barre de recherche */}
+          <div style={{ position: 'relative' }}>
+            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher dans les messages..."
+              className="premium-input"
+              style={{ paddingLeft: 36, width: 260 }}
+            />
+          </div>
+          <button onClick={() => setShowForm(true)} className="btn-primary">+ Nouveau message</button>
+        </div>
       </div>
 
       {showForm && (
@@ -115,11 +148,11 @@ export default function MessagesPage() {
       {/* Messages reçus */}
       <div className="premium-card">
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, marginBottom: 16, color: 'var(--text-main)' }}>
-          Reçus ({reçus.length})
+          Reçus ({reçusFiltres.length})
         </h2>
         {loading ? <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Chargement...</p> :
-          reçus.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Aucun message reçu</p> :
-          reçus.map(m => (
+          reçusFiltres.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Aucun message reçu</p> :
+          reçusFiltres.map(m => (
             <div key={m._id} style={{
               padding: '14px 16px', borderRadius: 'var(--radius-md)', marginBottom: 8,
               background: m.lu ? 'var(--bg-main)' : 'rgba(var(--primary-rgb), 0.06)',
@@ -149,10 +182,10 @@ export default function MessagesPage() {
       {/* Messages envoyés */}
       <div className="premium-card">
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, marginBottom: 16, color: 'var(--text-main)' }}>
-          Envoyés ({envoyés.length})
+          Envoyés ({envoyésFiltres.length})
         </h2>
-        {envoyés.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Aucun message envoyé</p> :
-          envoyés.map(m => (
+        {envoyésFiltres.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Aucun message envoyé</p> :
+          envoyésFiltres.map(m => (
             <div key={m._id} style={{
               padding: '14px 16px', borderRadius: 'var(--radius-md)', marginBottom: 8,
               background: 'var(--bg-main)', border: '1px solid var(--border-light)',

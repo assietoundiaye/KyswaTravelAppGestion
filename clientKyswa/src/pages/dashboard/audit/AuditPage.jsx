@@ -87,7 +87,6 @@ export default function AuditPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 20 }}>🛡️</span>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--text-main)' }}>Journal d'audit</h1>
         </div>
         <button onClick={fetchLogs} style={{
@@ -113,7 +112,7 @@ export default function AuditPage() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="🔍 Rechercher..."
+          placeholder="Rechercher..."
           className="premium-input"
           style={{ width: 280 }}
         />

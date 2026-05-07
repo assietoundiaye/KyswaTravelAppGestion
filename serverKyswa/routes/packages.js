@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
   try {
     const packages = await PackageK.find()
       .populate('creeParUtilisateurId', 'nom prenom email')
-      .select('idPackageK nomReference type statut dateDepart dateRetour quotaMax placesReservees prixEco prixCont prixVip hotel')
+      .select('idPackageK nomReference type statut dateDepart dateRetour quotaMax placesReservees prixEco prixCont prixVip hotel compagnieAerienne numeroVol villeDepart villeArrivee')
       .sort({ dateDepart: -1 });
 
     return res.status(200).json({ count: packages.length, packages });
@@ -78,7 +78,7 @@ router.post('/', requireRole('dg', 'administrateur'), async (req, res) => {
  */
 router.patch('/:id', requireRole('dg', 'administrateur'), async (req, res) => {
   try {
-    const { nomReference, type, statut, dateDepart, dateRetour, prixEco, prixCont, prixVip, hotel, quotaMax } = req.body;
+    const { nomReference, type, statut, dateDepart, dateRetour, prixEco, prixCont, prixVip, hotel, quotaMax, compagnieAerienne, numeroVol, villeDepart, villeArrivee } = req.body;
     const packageK = await PackageK.findById(req.params.id);
 
     if (!packageK) return res.status(404).json({ message: 'Package non trouvé' });
@@ -106,11 +106,15 @@ router.patch('/:id', requireRole('dg', 'administrateur'), async (req, res) => {
     if (statut) packageK.statut = statut;
     if (dateDepart) packageK.dateDepart = dateDepart;
     if (dateRetour) packageK.dateRetour = dateRetour;
-    if (prixEco) packageK.prixEco = prixEco;
-    if (prixCont) packageK.prixCont = prixCont;
-    if (prixVip) packageK.prixVip = prixVip;
-    if (hotel) packageK.hotel = Array.isArray(hotel) ? hotel : packageK.hotel;
+    if (prixEco !== undefined) packageK.prixEco = prixEco || null;
+    if (prixCont !== undefined) packageK.prixCont = prixCont || null;
+    if (prixVip !== undefined) packageK.prixVip = prixVip || null;
+    if (hotel !== undefined) packageK.hotel = Array.isArray(hotel) ? hotel : packageK.hotel;
     if (quotaMax) packageK.quotaMax = quotaMax;
+    if (compagnieAerienne !== undefined) packageK.compagnieAerienne = compagnieAerienne || undefined;
+    if (numeroVol !== undefined) packageK.numeroVol = numeroVol || undefined;
+    if (villeDepart !== undefined) packageK.villeDepart = villeDepart || undefined;
+    if (villeArrivee !== undefined) packageK.villeArrivee = villeArrivee || undefined;
 
     await packageK.save();
     return res.status(200).json({ message: 'Modifié avec succès', package: packageK });

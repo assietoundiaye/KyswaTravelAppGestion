@@ -127,7 +127,7 @@ function LineChart({ seriesData }) {
         {series.map(s => (
           <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 24, height: 3, background: s.color, borderRadius: 2 }} />
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>→ {s.name}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{s.name}</span>
           </div>
         ))}
       </div>
@@ -405,7 +405,7 @@ export default function DashboardCommercial() {
                 onClick={() => navigate('/dashboard/rapports')}
                 style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 8, padding: '10px 16px', color: 'var(--primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
               >
-                {myRapportToday ? 'Voir / Modifier mon rapport →' : '+ Soumettre mon rapport →'}
+                {myRapportToday ? 'Voir / Modifier mon rapport' : '+ Soumettre mon rapport'}
               </button>
             </div>
           )}

@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import api from '../../../api/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { toast } from '../../../components/Toast';
@@ -6,7 +7,11 @@ import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
-const fmt = (n) => n ? Number(n).toLocaleString('fr-FR') + ' FCFA' : '—';
+const fmt = (n) => {
+  const raw = n?.$numberDecimal ?? n;
+  const v = parseFloat(raw);
+  return (!raw || isNaN(v) || v === 0) ? '—' : v.toLocaleString('fr-FR') + ' FCFA';
+};
 
 const EMPTY = {
   nomReference: '', type: 'OUMRA', statut: 'OUVERT',
@@ -33,6 +38,19 @@ export default function PackagesPage() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [confirmId, setConfirmId] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const packagesFiltres = useMemo(() => {
+    if (!search.trim()) return packages;
+    const q = search.toLowerCase();
+    return packages.filter(p =>
+      (p.nomReference || '').toLowerCase().includes(q) ||
+      (p.type || '').toLowerCase().includes(q) ||
+      (p.compagnieAerienne || '').toLowerCase().includes(q) ||
+      (p.villeDepart || '').toLowerCase().includes(q) ||
+      (p.villeArrivee || '').toLowerCase().includes(q)
+    );
+  }, [packages, search]);
 
   const fetchPackages = async () => {
     setLoading(true);
@@ -104,8 +122,21 @@ export default function PackagesPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{packages.length} départ(s)</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{packagesFiltres.length} départ(s)</p>
+          {/* Barre de recherche */}
+          <div style={{ position: 'relative' }}>
+            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher par référence, type, compagnie..."
+              className="premium-input"
+              style={{ paddingLeft: 36, width: 320 }}
+            />
+          </div>
+        </div>
         {canEdit && (
           <button onClick={() => { setEditId(null); setForm(EMPTY); setShowModal(true); }} className="btn-primary">
             + Nouveau départ
@@ -124,7 +155,7 @@ export default function PackagesPage() {
                 <th>Départ</th>
                 <th>Retour</th>
                 <th>Places</th>
-                <th>Prix Éco</th>
+                <th>Prix (Éco / Confort / VIP)</th>
                 <th>Compagnie</th>
                 {canEdit && <th>Actions</th>}
               </tr>
@@ -134,7 +165,7 @@ export default function PackagesPage() {
                 <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Chargement...</td></tr>
               ) : packages.length === 0 ? (
                 <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Aucun départ</td></tr>
-              ) : packages.map(p => {
+              ) : packagesFiltres.map(p => {
                 const s = STATUT_COLORS[p.statut] || { bg: '#F3F4F6', color: '#6B7280' };
                 return (
                   <tr key={p._id}>
@@ -149,7 +180,19 @@ export default function PackagesPage() {
                       <span style={{ fontWeight: 600 }}>{p.placesReservees || 0}</span>
                       <span style={{ color: 'var(--text-muted)' }}>/{p.quotaMax}</span>
                     </td>
-                    <td style={{ fontSize: 12 }}>{fmt(p.prixEco)}</td>
+                    <td style={{ fontSize: 12 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {[['Éco', p.prixEco], ['Confort', p.prixCont], ['VIP', p.prixVip]].map(([label, prix]) =>
+                          prix && parseFloat(prix) > 0 ? (
+                            <span key={label} style={{ whiteSpace: 'nowrap' }}>
+                              <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }}>{label}: </span>
+                              <span style={{ fontWeight: 700 }}>{fmt(prix)}</span>
+                            </span>
+                          ) : null
+                        )}
+                        {!p.prixEco && !p.prixCont && !p.prixVip && <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                      </div>
+                    </td>
                     <td style={{ fontSize: 12 }}>{p.compagnieAerienne || '—'}</td>
                     {canEdit && (
                       <td>

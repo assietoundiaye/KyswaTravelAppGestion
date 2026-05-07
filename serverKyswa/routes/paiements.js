@@ -30,6 +30,15 @@ router.post('/reservations/:id/paiements', paiementValidation, async (req, res) 
 
     const { montant, dateReglement, mode, reference } = req.body;
 
+    // Vérifier que le montant ne dépasse pas le reste à payer
+    const dejaRecu = reservation.paiements.reduce((s, p) => s + (p.montant ? parseFloat(p.montant.toString()) : 0), 0);
+    const resteAPayer = (reservation.montantTotalDu || 0) - dejaRecu;
+    if (Number(montant) > resteAPayer) {
+      return res.status(400).json({
+        message: `Le montant (${Number(montant).toLocaleString('fr-FR')} FCFA) dépasse le reste à payer (${resteAPayer.toLocaleString('fr-FR')} FCFA).`,
+      });
+    }
+
     const paiement = new Paiement({
       idPaiement: Date.now(),
       montant,
@@ -70,6 +79,15 @@ router.post('/billets/:id/paiements', paiementValidation, async (req, res) => {
 
     const { montant, dateReglement, mode, reference } = req.body;
 
+    // Vérifier que le montant ne dépasse pas le reste à payer
+    const dejaRecuB = billet.paiements.reduce((s, p) => s + (p.montant ? parseFloat(p.montant.toString()) : 0), 0);
+    const resteAPayerB = (billet.prix || 0) - dejaRecuB;
+    if (Number(montant) > resteAPayerB) {
+      return res.status(400).json({
+        message: `Le montant (${Number(montant).toLocaleString('fr-FR')} FCFA) dépasse le reste à payer (${resteAPayerB.toLocaleString('fr-FR')} FCFA).`,
+      });
+    }
+
     const paiement = new Paiement({
       idPaiement: Date.now(),
       montant,
@@ -103,7 +121,7 @@ router.post('/billets/:id/paiements', paiementValidation, async (req, res) => {
  * GET /api/paiements
  * Liste tous les paiements
  */
-router.get('/', async (req, res) => {
+router.get('/paiements', async (req, res) => {
   try {
     const paiements = await Paiement.find()
       .populate('reservationId', 'idReservation')
@@ -116,9 +134,50 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * PATCH /api/paiements/:id
+ * Modifier un paiement (montant, date, mode, référence)
+ */
+router.patch('/paiements/:id', [
+  body('montant').optional().isFloat({ min: 0.01 }).withMessage('Montant invalide'),
+  body('dateReglement').optional().isISO8601().withMessage('Date invalide'),
+  body('mode').optional().isIn(['CARTE_BANCAIRE','VIREMENT','CHEQUE','ORANGE_MONEY','WAVE','MONEY','ESPECES','AUTRE']).withMessage('Mode invalide'),
+  body('reference').optional().trim(),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const paiement = await Paiement.findById(req.params.id);
+    if (!paiement) return res.status(404).json({ message: 'Paiement non trouvé' });
+
+    const { montant, dateReglement, mode, reference } = req.body;
+    if (montant !== undefined) paiement.montant = montant;
+    if (dateReglement !== undefined) paiement.dateReglement = dateReglement;
+    if (mode !== undefined) paiement.mode = mode;
+    if (reference !== undefined) paiement.reference = reference || undefined;
+
+    await paiement.save();
+
+    // Recalculer statut paiement de la réservation liée
+    if (paiement.reservationId) {
+      const resa = await Reservation.findById(paiement.reservationId).populate('paiements');
+      if (resa) await resa.mettreAJourStatutPaiement();
+    }
+
+    return res.status(200).json({ message: 'Paiement modifié', paiement });
+  } catch (err) {
+    console.error('Erreur modification paiement:', err);
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ message: Object.values(err.errors).map(e => e.message).join(', ') });
+    }
+    return res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+/**
  * DELETE /api/paiements/:id
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/paiements/:id', async (req, res) => {
   try {
     const paiement = await Paiement.findById(req.params.id);
     if (!paiement) return res.status(404).json({ message: 'Paiement non trouvé' });

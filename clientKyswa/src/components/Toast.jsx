@@ -34,7 +34,7 @@ export function ToastContainer() {
           minWidth: 260, maxWidth: 380,
         }}>
           <span style={{ fontSize: 18 }}>
-            {t.type === 'error' ? '❌' : t.type === 'warning' ? '⚠️' : '✅'}
+            {t.type === 'error' ? 'Erreur' : t.type === 'warning' ? 'Attention' : 'OK'}
           </span>
           {t.message}
         </div>

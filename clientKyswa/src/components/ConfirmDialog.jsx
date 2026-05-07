@@ -9,7 +9,7 @@ export default function ConfirmDialog({ open, onConfirm, onCancel, message = 'Co
         boxShadow: 'var(--shadow-premium)', border: '1px solid var(--border-light)',
         padding: '28px 28px 24px', maxWidth: 380, width: '100%', textAlign: 'center',
       }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+        <div style={{ marginBottom: 12 }}></div>
         <p style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 600, color: 'var(--text-main)', marginBottom: 20 }}>
           {message}
         </p>

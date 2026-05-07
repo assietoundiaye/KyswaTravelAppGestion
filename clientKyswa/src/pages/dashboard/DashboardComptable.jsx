@@ -69,10 +69,10 @@ export default function DashboardComptable() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-        <KpiCard label="Encaissé ce mois" value={fmt(totalCeMois)} icon="📅" color="var(--primary)" />
-        <KpiCard label="Total encaissé" value={fmt(totalEncaisse)} icon="✅" color="#16A34A" />
-        <KpiCard label="Reste à payer global" value={fmt(resteGlobal)} icon="⏳" color="#DC2626" sub={`${reservations.filter(r => r.resteAPayer > 0).length} dossiers ouverts`} />
-        <KpiCard label="Paiements enregistrés" value={allPaiements.length} icon="💳" color="#2563EB" />
+        <KpiCard label="Encaissé ce mois" value={fmt(totalCeMois)} icon="" color="var(--primary)" />
+        <KpiCard label="Total encaissé" value={fmt(totalEncaisse)} icon="" color="#16A34A" />
+        <KpiCard label="Reste à payer global" value={fmt(resteGlobal)} icon="" color="#DC2626" sub={`${reservations.filter(r => r.resteAPayer > 0).length} dossiers ouverts`} />
+        <KpiCard label="Paiements enregistrés" value={allPaiements.length} icon="" color="#2563EB" />
       </div>
 
       {/* Actions rapides */}
@@ -86,7 +86,7 @@ export default function DashboardComptable() {
       <div className="premium-card" style={{ padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700 }}>Paiements récents</h2>
-          <button onClick={() => navigate('/dashboard/paiements')} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Voir tout →</button>
+          <button onClick={() => navigate('/dashboard/paiements')} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Voir tout</button>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table className="premium-table">

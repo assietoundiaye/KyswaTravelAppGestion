@@ -80,13 +80,13 @@ router.patch('/:id', async (req, res) => {
       return res.status(400).json({ message: 'Rapport non modifiable après 7 jours' });
     }
 
-    const { activites, problemes, objectifsDemain, appelsClients, inscriptionsCreees, paiementsEncaisses } = req.body;
-    if (activites) rapport.activites = activites;
-    if (problemes !== undefined) rapport.problemes = problemes;
-    if (objectifsDemain !== undefined) rapport.objectifsDemain = objectifsDemain;
-    if (appelsClients !== undefined) rapport.appelsClients = appelsClients;
-    if (inscriptionsCreees !== undefined) rapport.inscriptionsCreees = inscriptionsCreees;
-    if (paiementsEncaisses !== undefined) rapport.paiementsEncaisses = paiementsEncaisses;
+    const allowed = [
+      'activites', 'problemes', 'objectifsDemain',
+      'appelsClients', 'inscriptionsCreees', 'paiementsEncaisses', 'suiviCommercial', 'constats', 'appelsDetail',
+      'plateformes', 'publications', 'vues', 'abonnesGagnes', 'likes', 'campagnesActives', 'budgetCampagne',
+      'articlesPub', 'packagesMAJ', 'etatSite', 'problemesRegles',
+    ];
+    allowed.forEach(k => { if (req.body[k] !== undefined) rapport[k] = req.body[k]; });
 
     await rapport.save();
     return res.status(200).json({ message: 'Rapport mis à jour', rapport });

@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import api from '../../../api/axios';
 
-const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
+const fmt = (n) => {
+  const raw = n?.$numberDecimal ?? n;
+  const v = parseFloat(raw);
+  return (!raw || isNaN(v) || v === 0) ? '—' : v.toLocaleString('fr-FR') + ' FCFA';
+};
 
 export default function SimulateurPage() {
   const [packages, setPackages] = useState([]);
@@ -23,7 +27,8 @@ export default function SimulateurPage() {
   const getPrixClasse = () => {
     if (!selectedPkg) return 0;
     const map = { ECO: selectedPkg.prixEco, CONFORT: selectedPkg.prixCont, VIP: selectedPkg.prixVip };
-    return parseFloat(map[form.classeVol] || 0);
+    const raw = map[form.classeVol];
+    return parseFloat(raw?.$numberDecimal ?? raw ?? 0);
   };
 
   const simuler = () => {

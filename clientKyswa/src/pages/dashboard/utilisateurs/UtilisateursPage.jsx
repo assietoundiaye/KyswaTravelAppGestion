@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Eye, EyeOff, UserPlus, Edit2, Power, Trash2 } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Eye, EyeOff, UserPlus, Edit2, Power, Trash2, Search } from 'lucide-react';
 import api from '../../../api/axios';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
@@ -29,6 +29,18 @@ export default function UtilisateursPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const utilisateursFiltres = useMemo(() => {
+    if (!search.trim()) return utilisateurs;
+    const q = search.toLowerCase();
+    return utilisateurs.filter(u =>
+      `${u.nom || ''} ${u.prenom || ''}`.toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.role || '').toLowerCase().includes(q) ||
+      (ROLE_LABELS[u.role] || '').toLowerCase().includes(q)
+    );
+  }, [utilisateurs, search]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -81,8 +93,21 @@ export default function UtilisateursPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{utilisateurs.length} compte(s)</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{utilisateursFiltres.length} compte(s)</p>
+          {/* Barre de recherche */}
+          <div style={{ position: 'relative' }}>
+            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher par nom, email, rôle..."
+              className="premium-input"
+              style={{ paddingLeft: 36, width: 280 }}
+            />
+          </div>
+        </div>
         <button onClick={openCreate} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <UserPlus size={15} /> Créer un compte
         </button>
@@ -104,7 +129,7 @@ export default function UtilisateursPage() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Chargement...</td></tr>
-              ) : utilisateurs.map(u => {
+              ) : utilisateursFiltres.map(u => {
                 const uid = u._id || u.id;
                 const roleColor = ROLE_COLORS[u.role] || '#6B7280';
                 return (

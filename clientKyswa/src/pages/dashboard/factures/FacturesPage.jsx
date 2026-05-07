@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import api from '../../../api/axios';
 import DataTable from '../../../components/DataTable';
 
@@ -10,6 +11,27 @@ export default function FacturesPage() {
   const [billets, setBillets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('reservations');
+  const [search, setSearch] = useState('');
+
+  const reservationsFiltrees = useMemo(() => {
+    if (!search.trim()) return reservations;
+    const q = search.toLowerCase();
+    return reservations.filter(r =>
+      (r.idReservation || '').toLowerCase().includes(q) ||
+      (r.numero || '').toLowerCase().includes(q) ||
+      (r.clients || []).some(c => `${c.nom} ${c.prenom}`.toLowerCase().includes(q))
+    );
+  }, [reservations, search]);
+
+  const billetsFiltres = useMemo(() => {
+    if (!search.trim()) return billets;
+    const q = search.toLowerCase();
+    return billets.filter(b =>
+      (b.numeroBillet || '').toLowerCase().includes(q) ||
+      `${b.clientId?.nom || ''} ${b.clientId?.prenom || ''}`.toLowerCase().includes(q) ||
+      (b.destination || '').toLowerCase().includes(q)
+    );
+  }, [billets, search]);
 
   useEffect(() => {
     Promise.all([api.get('/reservations'), api.get('/billets')])
@@ -69,20 +91,33 @@ export default function FacturesPage() {
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-gray-900">Factures</h1>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        {['reservations', 'billets'].map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${tab === t ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            {t === 'reservations' ? 'Réservations' : 'Billets'}
-          </button>
-        ))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div className="flex gap-2 border-b border-gray-200" style={{ flex: 1 }}>
+          {['reservations', 'billets'].map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${tab === t ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              {t === 'reservations' ? 'Réservations' : 'Billets'}
+            </button>
+          ))}
+        </div>
+        {/* Barre de recherche */}
+        <div style={{ position: 'relative', minWidth: 280 }}>
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={tab === 'reservations' ? 'Rechercher par N°, client...' : 'Rechercher par N° billet, client...'}
+            className="premium-input"
+            style={{ paddingLeft: 36 }}
+          />
+        </div>
       </div>
 
       <div className="premium-card">
         {tab === 'reservations' ? (
-          <DataTable columns={colsResa} data={reservations} loading={loading} />
+          <DataTable columns={colsResa} data={reservationsFiltrees} loading={loading} />
         ) : (
-          <DataTable columns={colsBillets} data={billets} loading={loading} />
+          <DataTable columns={colsBillets} data={billetsFiltres} loading={loading} />
         )}
       </div>
     </div>

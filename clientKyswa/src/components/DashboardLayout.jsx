@@ -57,8 +57,11 @@ export default function DashboardLayout() {
       <Sidebar onCollapseChange={setSidebarCollapsed} />
 
       <main
-        className="md:transition-all"
-        style={{ paddingLeft: `${sidebarWidth}px` }}
+        style={{
+          paddingLeft: `${sidebarWidth}px`,
+          transition: 'padding-left 0.2s ease',
+        }}
+        className="max-md:!pl-0"
       >
         {/* Top header */}
         <header style={{
@@ -66,11 +69,11 @@ export default function DashboardLayout() {
           background: 'rgba(255,255,255,0.85)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid rgba(0,103,79,0.08)',
-          padding: '0 24px',
+          padding: '0 24px 0 72px',
           height: 60,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           boxShadow: '0 1px 12px rgba(0,0,0,0.06)',
-        }}>
+        }} className="md:pl-6">
           <h1 style={{
             fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800,
             color: 'var(--text-main)', letterSpacing: '-0.02em',
