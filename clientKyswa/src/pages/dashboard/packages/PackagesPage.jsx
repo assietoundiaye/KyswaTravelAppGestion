@@ -62,6 +62,7 @@ export default function PackagesPage() {
   useEffect(() => { fetchPackages(); }, []);
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const setUpper = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }));
 
   const openEdit = (pkg) => {
     setEditId(pkg._id);
@@ -224,7 +225,8 @@ export default function PackagesPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="input-label">Nom de référence *</label>
-              <input value={form.nomReference} onChange={set('nomReference')} className="premium-input" required placeholder="Ex: OUMRA-JAN-2026" />
+              <input value={form.nomReference} onChange={setUpper('nomReference')} className="premium-input" required
+                placeholder="Ex: OUMRA-JAN-2026" style={{ textTransform: 'uppercase' }} />
             </div>
             <div>
               <label className="input-label">Type *</label>

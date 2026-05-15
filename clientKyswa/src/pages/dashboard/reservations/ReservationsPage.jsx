@@ -699,12 +699,12 @@ export default function ReservationsPage() {
               })()}
             </div>
             <div>
-              <label className="input-label">Date départ *</label>
-              <input type="date" value={form.dateDepart} onChange={set('dateDepart')} className="premium-input" required />
+              <label className="input-label">Date départ</label>
+              <input type="date" value={form.dateDepart} onChange={set('dateDepart')} className="premium-input" />
             </div>
             <div>
-              <label className="input-label">Date retour *</label>
-              <input type="date" value={form.dateRetour} onChange={set('dateRetour')} className="premium-input" required />
+              <label className="input-label">Date retour</label>
+              <input type="date" value={form.dateRetour} onChange={set('dateRetour')} className="premium-input" />
             </div>
           </div>
 

@@ -56,18 +56,44 @@ router.delete('/depenses/:id', async (req, res) => {
 
 /**
  * GET /api/comptabilite/solde
- * Solde général : encaissements - dépenses
+ * Solde général ou par mois : encaissements - dépenses
+ * Query: ?mois=2026-05
  */
 router.get('/solde', async (req, res) => {
   try {
-    const paiements = await Paiement.find();
+    let paiementFilter = {};
+    let depenseFilter = {};
+
+    if (req.query.mois) {
+      const d = new Date(req.query.mois);
+      const debut = new Date(d.getFullYear(), d.getMonth(), 1);
+      const fin   = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      paiementFilter.dateReglement = { $gte: debut, $lt: fin };
+      depenseFilter.dateDepense    = { $gte: debut, $lt: fin };
+    }
+
+    const paiements = await Paiement.find(paiementFilter);
     const totalEncaisse = paiements.reduce((s, p) => s + (p.montant ? parseFloat(p.montant.toString()) : 0), 0);
-    const depenses = await Depense.find();
+
+    const depenses = await Depense.find(depenseFilter);
     const totalDepenses = depenses.reduce((s, d) => s + d.montant, 0);
+
+    const beneficeNet = totalEncaisse - totalDepenses;
+    const marge = totalEncaisse > 0 ? Math.round((beneficeNet / totalEncaisse) * 100) : 0;
+
+    // Répartition des dépenses par catégorie
+    const parCategorie = {};
+    depenses.forEach(d => {
+      parCategorie[d.categorie] = (parCategorie[d.categorie] || 0) + d.montant;
+    });
+
     return res.status(200).json({
       totalEncaisse,
       totalDepenses,
-      solde: totalEncaisse - totalDepenses,
+      solde: beneficeNet,
+      beneficeNet,
+      marge,
+      parCategorie,
     });
   } catch (err) { return res.status(500).json({ message: 'Erreur serveur' }); }
 });

@@ -4,58 +4,77 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const router = express.Router();
 const Client = require('../models/Client');
-const Document = require('../models/Document');
-const { protect } = require('../middleware/auth');
+const { protect, requirePermission } = require('../middleware/auth');
+const { PERMISSIONS } = require('../config/permissions');
+const { scanPassport, scanCNI, initWorkers } = require('../services/ocrService');
+const clientService = require('../services/clientService');
+
+// Pré-chauffer les workers OCR dès le chargement de la route
+initWorkers().catch(() => {});
 
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    if (['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Format non accepté (jpg, png, webp uniquement)'));
+    if (['image/jpeg', 'image/png', 'image/webp', 'image/tiff'].includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Format non accepté (jpg, png, webp, tiff uniquement)'));
   },
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB pour les scans de documents
 });
 
-/**
- * Neutralise les caractères spéciaux pour éviter les attaques ReDoS
- */
-const escapeRegExp = (str) => str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-
 router.use(protect);
+router.use(requirePermission(PERMISSIONS.CLIENTS_READ));
+
+/**
+ * POST /api/clients/scan-document
+ * Scan OCR d'un passeport ou CNI — 100% local, gratuit, illimité
+ * Tesseract.js + parseur MRZ ICAO 9303 (tous passeports du monde)
+ */
+router.post(
+  '/scan-document',
+  requirePermission(PERMISSIONS.CLIENTS_SCAN_DOCUMENT),
+  upload.single('document'),
+  async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Aucun fichier fourni' });
+
+    const docType = req.body.type || 'passport'; // 'passport' | 'id_card'
+
+    let result;
+    if (docType === 'passport') {
+      result = await scanPassport(req.file.buffer);
+    } else {
+      result = await scanCNI(req.file.buffer);
+    }
+
+    // Toujours retourner 200 — même si partiel, l'agent peut compléter manuellement
+    return res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    console.error('Erreur OCR:', err.message);
+    // En cas d'erreur technique (image corrompue, etc.), retourner un résultat vide
+    return res.status(200).json({
+      success: false,
+      data: {
+        type: req.body?.type || 'passport',
+        nom: '', prenom: '', numeroPasseport: '', numeroCNI: '',
+        dateNaissance: '', dateExpirationPasseport: '',
+        mrzDetectee: false,
+        avertissement: 'Erreur de lecture. Vérifiez la qualité de l\'image ou saisissez manuellement.',
+      },
+    });
+  }
+  }
+);
 
 /**
  * GET /api/clients
  */
 router.get('/', async (req, res) => {
   try {
-    const { search, passeport } = req.query;
-    const filter = {};
-
-    if (passeport) {
-      filter.numeroPasseport = typeof passeport === 'string' ? passeport : String(passeport);
-    }
-
-    if (search && typeof search === 'string') {
-      const regex = new RegExp(escapeRegExp(search), 'i');
-      filter.$or = [
-        { nom: regex },
-        { prenom: regex },
-        { telephone: regex },
-        { email: regex },
-      ];
-    } else if (search) {
-      return res.status(400).json({ message: 'Le format de recherche est invalide.' });
-    }
-
-    const clients = await Client.find(filter)
-      .select('numeroPasseport nom prenom telephone email dateCreation')
-      .sort({ dateCreation: -1 })
-      .limit(100);
-
+    const clients = await clientService.listerClients(req.query);
     return res.status(200).json({ count: clients.length, clients });
   } catch (err) {
     console.error('Erreur récupération clients:', err);
-    return res.status(500).json({ message: 'Erreur serveur interne' });
+    return res.status(err.status || 500).json({ message: err.message || 'Erreur serveur interne' });
   }
 });
 
@@ -64,6 +83,7 @@ router.get('/', async (req, res) => {
  */
 router.post(
   '/',
+  requirePermission(PERMISSIONS.CLIENTS_CREATE),
   [
     body('nomComplet').optional().trim().isLength({ min: 3 }).withMessage('nomComplet doit contenir au moins 3 caractères'),
     body('nom').optional().trim().isLength({ min: 2 }).withMessage('nom doit contenir au moins 2 caractères'),
@@ -79,45 +99,21 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      let { nomComplet, nom, prenom, telephone, email, numeroPasseport } = req.body;
-
-      if (nomComplet && !nom && !prenom) {
-        const parts = nomComplet.trim().split(/\s+/);
-        if (parts.length >= 2) {
-          nom = parts[0];
-          prenom = parts.slice(1).join(' ');
-        } else {
-          prenom = parts[0];
-          nom = 'Client';
-        }
-      }
-
-      if (!numeroPasseport) {
-        numeroPasseport = `PP-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-      }
-
-      const client = new Client({
-        numeroPasseport,
-        nom,
-        prenom,
-        telephone: telephone || undefined,
-        email: email || undefined,
-        creeParUtilisateurId: req.user.id,
-      });
-
-      await client.save();
-
+      const client = await clientService.creerClient(req.body, req.user.id);
       return res.status(201).json({ message: 'Client créé', data: client });
     } catch (err) {
       console.error('Erreur création client:', err);
       if (err.code === 11000) {
+        const field = Object.keys(err.keyPattern || {})[0];
+        if (field === 'telephone') return res.status(409).json({ message: 'Ce numéro de téléphone est déjà utilisé par un autre client' });
+        if (field === 'numeroCNI') return res.status(409).json({ message: 'Ce numéro de CNI est déjà utilisé par un autre client' });
         return res.status(409).json({ message: 'Ce numéro de passeport existe déjà' });
       }
       if (err.name === 'ValidationError') {
         const messages = Object.values(err.errors).map(e => e.message).join(', ');
         return res.status(400).json({ message: messages });
       }
-      return res.status(500).json({ message: 'Erreur serveur interne' });
+      return res.status(err.status || 500).json({ message: err.message || 'Erreur serveur interne' });
     }
   }
 );
@@ -128,18 +124,11 @@ router.post(
  */
 router.get('/:id', async (req, res) => {
   try {
-    const client = await Client.findById(req.params.id);
-
-    if (!client) {
-      return res.status(404).json({ message: 'Client non trouvé' });
-    }
-
-    const documents = await Document.find({ clientId: req.params.id });
-
+    const { client, documents } = await clientService.getClientAvecDocuments(req.params.id);
     return res.status(200).json({ client, documents });
   } catch (err) {
     console.error('Erreur récupération client:', err);
-    return res.status(500).json({ message: 'Erreur lors de la récupération du client' });
+    return res.status(err.status || 500).json({ message: err.message || 'Erreur lors de la récupération du client' });
   }
 });
 
@@ -147,32 +136,22 @@ router.get('/:id', async (req, res) => {
  * PATCH /api/clients/:id
  * Modifier un client
  */
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', requirePermission(PERMISSIONS.CLIENTS_UPDATE), async (req, res) => {
   try {
-    const { nom, prenom, telephone, email, adresse, dateNaissance, lieuNaissance, numeroCNI } = req.body;
-    const client = await Client.findById(req.params.id);
-    if (!client) return res.status(404).json({ message: 'Client non trouvé' });
-
-    if (nom) client.nom = nom;
-    if (prenom) client.prenom = prenom;
-    if (telephone !== undefined) client.telephone = telephone || undefined;
-    if (email !== undefined) client.email = email || undefined;
-    if (adresse !== undefined) client.adresse = adresse;
-    if (dateNaissance !== undefined) client.dateNaissance = dateNaissance;
-    if (lieuNaissance !== undefined) client.lieuNaissance = lieuNaissance;
-    if (numeroCNI !== undefined) client.numeroCNI = numeroCNI || undefined;
-    if (req.body.niveauFidelite) client.niveauFidelite = req.body.niveauFidelite;
-    if (req.body.referentId !== undefined) client.referentId = req.body.referentId || undefined;
-    if (req.body.dateExpirationPasseport !== undefined) client.dateExpirationPasseport = req.body.dateExpirationPasseport;
-
-    await client.save();
+    const client = await clientService.modifierClient(req.params.id, req.body);
     return res.status(200).json({ message: 'Client modifié', client });
   } catch (err) {
     console.error('Erreur modification client:', err);
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern || {})[0];
+      if (field === 'telephone') return res.status(409).json({ message: 'Ce numéro de téléphone est déjà utilisé par un autre client' });
+      if (field === 'numeroCNI') return res.status(409).json({ message: 'Ce numéro de CNI est déjà utilisé par un autre client' });
+      return res.status(409).json({ message: 'Ce numéro de passeport existe déjà' });
+    }
     if (err.name === 'ValidationError') {
       return res.status(400).json({ message: Object.values(err.errors).map(e => e.message).join(', ') });
     }
-    return res.status(500).json({ message: 'Erreur serveur' });
+    return res.status(err.status || 500).json({ message: err.message || 'Erreur serveur' });
   }
 });
 
@@ -180,37 +159,13 @@ router.patch('/:id', async (req, res) => {
  * DELETE /api/clients/:id
  * Supprimer un client (uniquement s'il n'a aucune réservation ni billet actif)
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission(PERMISSIONS.CLIENTS_DELETE), async (req, res) => {
   try {
-    const client = await Client.findById(req.params.id);
-    if (!client) return res.status(404).json({ message: 'Client non trouvé' });
-
-    // Vérifier qu'il n'est lié à aucune réservation
-    const Reservation = require('../models/Reservation');
-    const Billet = require('../models/Billet');
-
-    const nbReservations = await Reservation.countDocuments({ clients: client._id });
-    if (nbReservations > 0) {
-      return res.status(400).json({
-        message: `Impossible de supprimer : ce client est lié à ${nbReservations} réservation(s). Retirez-le d'abord des réservations.`,
-      });
-    }
-
-    const nbBillets = await Billet.countDocuments({ clientId: client._id });
-    if (nbBillets > 0) {
-      return res.status(400).json({
-        message: `Impossible de supprimer : ce client a ${nbBillets} billet(s) associé(s). Supprimez-les d'abord.`,
-      });
-    }
-
-    // Supprimer les documents liés
-    await Document.deleteMany({ clientId: client._id });
-
-    await Client.findByIdAndDelete(req.params.id);
+    await clientService.supprimerClient(req.params.id);
     return res.status(200).json({ message: 'Client supprimé' });
   } catch (err) {
     console.error('Erreur suppression client:', err);
-    return res.status(500).json({ message: 'Erreur serveur' });
+    return res.status(err.status || 500).json({ message: err.message || 'Erreur serveur' });
   }
 });
 
@@ -218,7 +173,7 @@ router.delete('/:id', async (req, res) => {
  * POST /api/clients/:id/photo
  * Upload photo de profil du client
  */
-router.post('/:id/photo', upload.single('photo'), async (req, res) => {
+router.post('/:id/photo', requirePermission(PERMISSIONS.CLIENTS_UPLOAD_PHOTO), upload.single('photo'), async (req, res) => {
   try {
     const client = await Client.findById(req.params.id);
     if (!client) return res.status(404).json({ message: 'Client non trouvé' });

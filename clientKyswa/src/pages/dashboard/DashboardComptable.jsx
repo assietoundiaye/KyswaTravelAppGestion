@@ -6,21 +6,17 @@ import DashboardShared from '../../components/DashboardShared';
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
 
-function KpiCard({ label, value, sub, color, icon }) {
+function KpiCard({ label, value, sub, color }) {
   return (
     <div style={{
-      background: 'white', borderRadius: 'var(--radius-xl)', padding: '20px 24px',
-      boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
+      background: 'white', borderRadius: 'var(--radius-lg)', padding: '28px 24px',
+      boxShadow: 'var(--shadow-sm)', border: `1.5px solid ${color}30`,
       borderLeft: `4px solid ${color}`,
+      flex: '1 1 200px',
     }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 6 }}>{label}</p>
-          <p style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 900, color: 'var(--text-main)', lineHeight: 1 }}>{value}</p>
-          {sub && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>{sub}</p>}
-        </div>
-        <span style={{ fontSize: 26 }}>{icon}</span>
-      </div>
+      <p style={{ fontSize: 10, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{label}</p>
+      <p style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 900, color, lineHeight: 1 }}>{value}</p>
+      {sub && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>{sub}</p>}
     </div>
   );
 }
@@ -68,11 +64,11 @@ export default function DashboardComptable() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-        <KpiCard label="Encaissé ce mois" value={fmt(totalCeMois)} icon="" color="var(--primary)" />
-        <KpiCard label="Total encaissé" value={fmt(totalEncaisse)} icon="" color="#16A34A" />
-        <KpiCard label="Reste à payer global" value={fmt(resteGlobal)} icon="" color="#DC2626" sub={`${reservations.filter(r => r.resteAPayer > 0).length} dossiers ouverts`} />
-        <KpiCard label="Paiements enregistrés" value={allPaiements.length} icon="" color="#2563EB" />
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <KpiCard label="Encaissé ce mois" value={fmt(totalCeMois)} color="var(--primary)" />
+        <KpiCard label="Total encaissé" value={fmt(totalEncaisse)} color="#16A34A" />
+        <KpiCard label="Reste à payer global" value={fmt(resteGlobal)} color="#DC2626" sub={`${reservations.filter(r => r.resteAPayer > 0).length} dossiers ouverts`} />
+        <KpiCard label="Paiements enregistrés" value={allPaiements.length} color="#2563EB" />
       </div>
 
       {/* Actions rapides */}

@@ -43,12 +43,13 @@ router.post(
       .optional()
       .trim(),
     body('dateDepart')
-      .notEmpty().withMessage('dateDepart est requis')
+      .optional()
       .isISO8601().withMessage('dateDepart doit être une date valide (ISO 8601)'),
     body('dateRetour')
-      .notEmpty().withMessage('dateRetour est requis')
+      .optional()
       .isISO8601().withMessage('dateRetour doit être une date valide (ISO 8601)')
       .custom((value, { req }) => {
+        if (!req.body.dateDepart || !value) return true;
         const dateDepart = new Date(req.body.dateDepart);
         const dateRetour = new Date(value);
         if (dateRetour <= dateDepart) {

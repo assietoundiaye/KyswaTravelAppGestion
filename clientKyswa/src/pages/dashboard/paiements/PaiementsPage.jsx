@@ -379,21 +379,24 @@ export default function PaiementsPage() {
 
       {/* Résumé global */}
       {!loading && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          <div style={{ background: 'rgba(29,78,216,0.07)', borderRadius: 12, padding: '14px 18px', borderLeft: '4px solid #1D4ED8' }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#1D4ED8', textTransform: 'uppercase', marginBottom: 4 }}>Total dû</p>
-            <p style={{ fontSize: 20, fontWeight: 800, color: '#1D4ED8' }}>{fmt(grandTotalDu)}</p>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 200px', background: 'white', borderRadius: 'var(--radius-lg)', padding: '28px 24px', borderLeft: '4px solid #1D4ED8', border: '1.5px solid #BFDBFE', boxShadow: 'var(--shadow-sm)' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: '#1D4ED8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Total dû</p>
+            <p style={{ fontSize: 22, fontWeight: 800, color: '#1D4ED8', fontFamily: 'var(--font-display)', lineHeight: 1 }}>{fmt(grandTotalDu)}</p>
           </div>
-          <div style={{ background: 'rgba(8,145,178,0.07)', borderRadius: 12, padding: '14px 18px', borderLeft: '4px solid #0891B2' }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#0891B2', textTransform: 'uppercase', marginBottom: 4 }}>Total reçu</p>
-            <p style={{ fontSize: 20, fontWeight: 800, color: '#0891B2' }}>{fmt(grandTotalRecu)}</p>
+          <div style={{ flex: '1 1 200px', background: 'white', borderRadius: 'var(--radius-lg)', padding: '28px 24px', borderLeft: '4px solid #0891B2', border: '1.5px solid #BAE6FD', boxShadow: 'var(--shadow-sm)' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: '#0891B2', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Total reçu</p>
+            <p style={{ fontSize: 22, fontWeight: 800, color: '#0891B2', fontFamily: 'var(--font-display)', lineHeight: 1 }}>{fmt(grandTotalRecu)}</p>
           </div>
-          <div style={{ background: grandReste <= 0 ? 'rgba(22,163,74,0.07)' : 'rgba(220,38,38,0.07)', borderRadius: 12, padding: '14px 18px', borderLeft: `4px solid ${grandReste <= 0 ? '#16A34A' : '#DC2626'}` }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: grandReste <= 0 ? '#16A34A' : '#DC2626', textTransform: 'uppercase', marginBottom: 4 }}>Reste à payer</p>
-            <p style={{ fontSize: 20, fontWeight: 800, color: grandReste <= 0 ? '#16A34A' : '#DC2626', display: 'flex', alignItems: 'center', gap: 6 }}>{grandReste <= 0 ? <><CheckCircle size={18} /> Tout soldé</> : fmt(grandReste)}</p>
+          <div style={{ flex: '1 1 200px', background: 'white', borderRadius: 'var(--radius-lg)', padding: '28px 24px', borderLeft: `4px solid ${grandReste <= 0 ? '#16A34A' : '#DC2626'}`, border: `1.5px solid ${grandReste <= 0 ? '#BBF7D0' : '#FECACA'}`, boxShadow: 'var(--shadow-sm)' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: grandReste <= 0 ? '#16A34A' : '#DC2626', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Reste à payer</p>
+            <p style={{ fontSize: 22, fontWeight: 800, color: grandReste <= 0 ? '#16A34A' : '#DC2626', fontFamily: 'var(--font-display)', lineHeight: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {grandReste <= 0 ? <><CheckCircle size={20} /> Tout soldé</> : fmt(grandReste)}
+            </p>
           </div>
         </div>
       )}
+      
 
       {/* Formulaire ajout paiement */}
       {showForm && (

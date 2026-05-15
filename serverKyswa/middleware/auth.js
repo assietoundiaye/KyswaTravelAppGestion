@@ -1,5 +1,6 @@
 const { verifyToken } = require('../utils/jwt');
 const Utilisateur = require('../models/Utilisateur');
+const { normalizeRole, hasPermission } = require('../config/permissions');
 
 // Middleware: protège une route en exigeant un Bearer token JWT
 const protect = async (req, res, next) => {
@@ -44,12 +45,35 @@ const protect = async (req, res, next) => {
 
 // Middleware factory: restreint l'accès aux rôles fournis
 const requireRole = (...allowedRoles) => {
+  const normalizedAllowedRoles = allowedRoles.map(normalizeRole);
   return (req, res, next) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
+    if (!req.user || !normalizedAllowedRoles.includes(normalizeRole(req.user.role))) {
       return res.status(403).json({ message: 'Accès interdit' });
     }
     next();
   };
 };
 
-module.exports = { protect, requireRole };
+// Middleware factory: restreint l'accès aux permissions fournies
+const requirePermission = (...requiredPermissions) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Non authentifié' });
+    }
+
+    const missingPermission = requiredPermissions.find(
+      (permission) => !hasPermission(req.user.role, permission)
+    );
+
+    if (missingPermission) {
+      return res.status(403).json({
+        message: 'Accès interdit',
+        missingPermission,
+      });
+    }
+
+    return next();
+  };
+};
+
+module.exports = { protect, requireRole, requirePermission };

@@ -9,18 +9,21 @@ function KpiCard({ label, value, color, onClick }) {
     <div
       onClick={onClick}
       style={{
-        background: `${color}0F`,
-        borderRadius: 12,
-        padding: '14px 18px',
+        background: 'white',
+        borderRadius: 'var(--radius-lg)',
+        padding: '28px 24px',
         borderLeft: `4px solid ${color}`,
+        border: `1.5px solid ${color}30`,
+        boxShadow: 'var(--shadow-sm)',
         cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform 0.12s',
+        transition: 'transform 0.12s, box-shadow 0.12s',
+        flex: '1 1 160px',
       }}
-      onMouseEnter={e => { if (onClick) e.currentTarget.style.transform = 'translateY(-1px)'; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
+      onMouseEnter={e => { if (onClick) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; } }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
     >
-      <p style={{ fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', marginBottom: 4 }}>{label}</p>
-      <p style={{ fontSize: 22, fontWeight: 800, color, fontFamily: 'var(--font-display)', lineHeight: 1 }}>{value}</p>
+      <p style={{ fontSize: 10, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{label}</p>
+      <p style={{ fontSize: 26, fontWeight: 800, color, fontFamily: 'var(--font-display)', lineHeight: 1 }}>{value}</p>
     </div>
   );
 }
@@ -239,13 +242,11 @@ export default function StatistiquesPage() {
       </div>
 
       {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <KpiCard label="Total comptes" value={loading ? '…' : utilisateurs.length} color="#6B7280"
           onClick={() => navigate('/dashboard/utilisateurs')} />
         <KpiCard label="Comptes actifs" value={loading ? '…' : actifs} color="#16A34A" />
         <KpiCard label="Comptes inactifs" value={loading ? '…' : inactifs} color="#DC2626" />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
         <KpiCard label="Total départs" value={loading ? '…' : packages.length} color="var(--primary)"
           onClick={() => navigate('/dashboard/packages')} />
         <KpiCard label="Départs ouverts" value={loading ? '…' : departsOuverts} color="#2563EB" />

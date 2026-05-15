@@ -58,8 +58,8 @@ const reservationSchema = new mongoose.Schema(
       enum: ['ECO', 'CONFORT', 'VIP'],
     },
 
-    dateDepart: { type: Date, required: [true, 'La date de départ est requise'] },
-    dateRetour: { type: Date, required: [true, 'La date de retour est requise'] },
+    dateDepart: { type: Date },
+    dateRetour: { type: Date },
 
     montantTotalDu: {
       type: Number,

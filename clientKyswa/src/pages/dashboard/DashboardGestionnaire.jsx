@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
 import api from '../../api/axios';
-import StatCard from '../../components/StatCard';
 import DataTable from '../../components/DataTable';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-';
@@ -50,10 +49,21 @@ export default function DashboardGestionnaire() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Dashboard Gestionnaire</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Packages ouverts" value={ouverts} colorClass="grad-card-green" icon="" />
-        <StatCard label="Packages complets" value={complets} colorClass="grad-card-rose" icon="" />
-        <StatCard label="Places restantes" value={placesRestantes} colorClass="grad-card-blue" icon="" />
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Packages ouverts',  value: ouverts,          color: 'var(--primary)' },
+          { label: 'Packages complets', value: complets,         color: '#DC2626' },
+          { label: 'Places restantes',  value: placesRestantes,  color: '#2563EB' },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{
+            flex: '1 1 180px', background: 'white', borderRadius: 'var(--radius-lg)',
+            padding: '28px 24px', borderLeft: `4px solid ${color}`,
+            border: `1.5px solid ${color}30`, boxShadow: 'var(--shadow-sm)',
+          }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{label}</p>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 900, color, lineHeight: 1 }}>{value}</p>
+          </div>
+        ))}
       </div>
 
       <div className="premium-card">

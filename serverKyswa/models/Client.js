@@ -5,8 +5,8 @@ const clientSchema = new mongoose.Schema(
     // Identité
     numeroPasseport: {
       type: String,
-      required: [true, 'Le numéro de passeport est requis'],
       unique: true,
+      sparse: true,
       trim: true,
     },
     dateExpirationPasseport: {
@@ -22,16 +22,20 @@ const clientSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Le nom est requis'],
       trim: true,
+      set: (v) => v ? v.toUpperCase().trim() : v,
     },
     prenom: {
       type: String,
       required: [true, 'Le prénom est requis'],
       trim: true,
+      set: (v) => v ? v.toUpperCase().trim() : v,
     },
     dateNaissance: { type: Date },
     lieuNaissance: { type: String },
     telephone: {
       type: String,
+      unique: true,
+      sparse: true,
       validate: {
         validator: function (v) {
           if (!v) return true; // optionnel

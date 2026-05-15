@@ -27,16 +27,16 @@ const DAY_FR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
 function KpiCard({ label, value, icon: Icon, bg }) {
   return (
     <div style={{
-      background: bg, borderRadius: 'var(--radius-xl)', padding: '18px 22px', color: 'white',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-      display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0,
+      background: bg, borderRadius: 'var(--radius-xl)', padding: '28px 24px', color: 'white',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
+      display: 'flex', alignItems: 'center', gap: 18, flex: 1, minWidth: 0,
     }}>
-      <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <Icon size={20} color="white" />
+      <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon size={26} color="white" />
       </div>
       <div>
-        <p style={{ fontSize: 10, fontWeight: 700, opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{label}</p>
-        <p style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, lineHeight: 1 }}>{value}</p>
+        <p style={{ fontSize: 11, fontWeight: 700, opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{label}</p>
+        <p style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 900, lineHeight: 1 }}>{value}</p>
       </div>
     </div>
   );

@@ -2,8 +2,8 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const Desistement = require('../models/Desistement');
-const Reservation = require('../models/Reservation');
 const { protect, requireRole } = require('../middleware/auth');
+const desistementService = require('../services/desistementService');
 
 router.use(protect);
 router.use(requireRole('commercial', 'secretaire', 'oumra', 'comptable', 'administrateur', 'dg'));
@@ -13,15 +13,7 @@ router.use(requireRole('commercial', 'secretaire', 'oumra', 'comptable', 'admini
  */
 router.get('/', async (req, res) => {
   try {
-    const filter = {};
-    if (req.query.reservationId) filter.reservationId = req.query.reservationId;
-    if (req.query.statut) filter.statut = req.query.statut;
-
-    const desistements = await Desistement.find(filter)
-      .populate('clientId', 'nom prenom numeroPasseport telephone')
-      .populate('reservationId', 'numero idReservation statut statutClient montantTotalDu nombrePlaces')
-      .sort({ createdAt: -1 });
-
+    const desistements = await desistementService.listerDesistements(req.query);
     return res.status(200).json({ count: desistements.length, desistements });
   } catch (err) {
     return res.status(500).json({ message: 'Erreur serveur' });
@@ -30,9 +22,9 @@ router.get('/', async (req, res) => {
 
 /**
  * POST /api/desistements
- * Créer un désistement — calcul automatique du remboursement
  */
-router.post('/',
+router.post(
+  '/',
   [
     body('reservationId').isMongoId().withMessage('reservationId invalide'),
     body('clientId').isMongoId().withMessage('clientId invalide'),
@@ -40,171 +32,76 @@ router.post('/',
     body('dateDepart').optional().isISO8601().withMessage('dateDepart invalide'),
   ],
   async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
-      const { reservationId, clientId, motif, dateDepart } = req.body;
-
-      const reservation = await Reservation.findById(reservationId).populate('paiements');
-      if (!reservation) return res.status(404).json({ message: 'Réservation non trouvée' });
-      if (['DESISTE', 'ANNULEE'].includes(reservation.statut)) {
-        return res.status(400).json({ message: 'Cette réservation est déjà annulée ou désistée' });
-      }
-
-      // Vérifier que le client appartient à la réservation
-      const clientIds = reservation.clients.map(c => c.toString());
-      if (!clientIds.includes(clientId.toString())) {
-        return res.status(400).json({ message: 'Ce client n\'appartient pas à cette réservation' });
-      }
-
-      // Utiliser la date de départ fournie ou celle de la réservation
-      const dateDepartEffective = dateDepart ? new Date(dateDepart) : reservation.dateDepart;
-
-      // ── Calcul du montant payé par ce client ──────────────────────────────
-      // Si plusieurs clients sur la réservation, on divise proportionnellement
-      const totalPaye = (reservation.paiements || []).reduce((s, p) => {
-        return s + (p.montant ? parseFloat(p.montant.toString()) : 0);
-      }, 0);
-
-      const nbClients = reservation.clients.length || 1;
-      // Part du client qui se désiste = total payé / nombre de clients
-      const montantPayeClient = Math.round(totalPaye / nbClients);
-
-      const desistement = await Desistement.create({
-        reservationId,
-        clientId,
-        dateAnnulation: new Date(),
-        dateDepart: dateDepartEffective,
-        montantPaye: montantPayeClient,
-        motif,
-        creeParUtilisateurId: req.user.id,
-      });
-
-      // ── Mise à jour des statuts de la réservation ─────────────────────────
-      // Si c'est le seul client ou tous se désistent → DESISTE
-      // Sinon → on garde INSCRIT mais on note le désistement partiel
-      const autresDesistements = await Desistement.countDocuments({
-        reservationId,
-        statut: { $ne: 'ANNULE' },
-      });
-
-      if (autresDesistements >= nbClients) {
-        // Tous les clients se sont désistés
-        reservation.statut = 'DESISTE';
-        reservation.statutClient = 'DESISTE';
-      } else if (nbClients === 1) {
-        reservation.statut = 'DESISTE';
-        reservation.statutClient = 'DESISTE';
-      }
-      // Sinon on laisse la réservation active pour les autres clients
-
-      await reservation.save();
-
-      return res.status(201).json({
-        message: 'Désistement créé',
-        desistement,
-        tauxRemboursement: desistement.tauxRemboursement,
-        montantRembourse: desistement.montantRembourse,
-        montantPayeClient,
-        nbClients,
-      });
+      const result = await desistementService.creerDesistement(req.body, req.user.id);
+      return res.status(201).json({ message: 'Désistement créé', ...result });
     } catch (err) {
       console.error(err);
-      return res.status(500).json({ message: 'Erreur serveur' });
+      return res.status(err.status || 500).json({ message: err.message || 'Erreur serveur' });
     }
   }
 );
 
 /**
  * PATCH /api/desistements/:id/rembourser
- * Marquer un désistement comme remboursé
  */
 router.patch('/:id/rembourser', requireRole('comptable', 'administrateur', 'dg'), async (req, res) => {
   try {
-    const desistement = await Desistement.findById(req.params.id);
-    if (!desistement) return res.status(404).json({ message: 'Désistement non trouvé' });
-    if (desistement.statut === 'REMBOURSE') {
-      return res.status(400).json({ message: 'Ce désistement est déjà remboursé' });
-    }
-
-    desistement.statut = 'REMBOURSE';
-    desistement.dateRemboursement = new Date();
-    await desistement.save();
-
+    const desistement = await desistementService.rembourserDesistement(req.params.id);
     return res.status(200).json({ message: 'Remboursement enregistré', desistement });
   } catch (err) {
-    return res.status(500).json({ message: 'Erreur serveur' });
+    return res.status(err.status || 500).json({ message: err.message || 'Erreur serveur' });
   }
 });
 
 /**
  * PATCH /api/desistements/:id
- * Corriger la date de départ et recalculer le remboursement
  */
-router.patch('/:id', [
-  body('dateDepart').optional().isISO8601().withMessage('dateDepart invalide'),
-  body('motif').optional().trim(),
-], async (req, res) => {
-  try {
-    console.log('[PATCH desistement] id:', req.params.id, 'body:', req.body);
+router.patch(
+  '/:id',
+  [
+    body('dateDepart').optional().isISO8601().withMessage('dateDepart invalide'),
+    body('motif').optional().trim(),
+  ],
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const desistement = await Desistement.findById(req.params.id);
-    if (!desistement) return res.status(404).json({ message: 'Désistement non trouvé' });
-    if (desistement.statut === 'REMBOURSE') {
-      return res.status(400).json({ message: 'Impossible de modifier un désistement déjà remboursé' });
+    try {
+      const desistement = await desistementService.modifierDesistement(req.params.id, req.body);
+      return res.status(200).json({
+        message: 'Désistement mis à jour',
+        desistement,
+        joursAvantDepart: desistement.joursAvantDepart,
+        tauxRemboursement: desistement.tauxRemboursement,
+        montantRembourse: desistement.montantRembourse,
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(err.status || 500).json({ message: err.message || 'Erreur serveur' });
     }
-
-    if (req.body.dateDepart) desistement.dateDepart = new Date(req.body.dateDepart);
-    if (req.body.motif !== undefined) desistement.motif = req.body.motif;
-
-    // Le hook pre('save') recalcule automatiquement joursAvantDepart, taux et montantRembourse
-    await desistement.save();
-
-    return res.status(200).json({
-      message: 'Désistement mis à jour',
-      desistement,
-      joursAvantDepart: desistement.joursAvantDepart,
-      tauxRemboursement: desistement.tauxRemboursement,
-      montantRembourse: desistement.montantRembourse,
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: 'Erreur serveur' });
   }
-});
+);
 
 /**
  * DELETE /api/desistements/:id
- * Supprimer un désistement et remettre la réservation en INSCRIT
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const desistement = await Desistement.findById(req.params.id);
-    if (!desistement) return res.status(404).json({ message: 'Désistement non trouvé' });
-
-    if (desistement.reservationId) {
-      const reservation = await Reservation.findById(desistement.reservationId);
-      if (reservation && ['DESISTE', 'ANNULEE'].includes(reservation.statut)) {
-        reservation.statut = 'INSCRIT';
-        reservation.statutClient = 'INSCRIT';
-        await reservation.save();
-      }
-    }
-
-    await Desistement.findByIdAndDelete(req.params.id);
+    await desistementService.supprimerDesistement(req.params.id);
     return res.status(200).json({ message: 'Désistement supprimé' });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Erreur serveur' });
+    return res.status(err.status || 500).json({ message: err.message || 'Erreur serveur' });
   }
 });
 
 /**
  * GET /api/desistements/:id/recu
- * Générer un reçu PDF de désistement/remboursement
+ * Génération PDF — logique de présentation conservée dans la route
  */
 router.get('/:id/recu', async (req, res) => {
   try {
@@ -226,7 +123,7 @@ router.get('/:id/recu', async (req, res) => {
     const BLACK = [30, 30, 30];
     const WHITE = [255, 255, 255];
 
-    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
+    const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('fr-FR') : '—');
     const fmtMoney = (n) => {
       const num = Number(n) || 0;
       return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA';
@@ -237,11 +134,9 @@ router.get('/:id/recu', async (req, res) => {
     const pkg = r.packageKId || {};
     const refNum = `DES-${desistement._id.toString().slice(-6).toUpperCase()}`;
 
-    // Bande verte
     doc.setFillColor(...GREEN);
     doc.rect(0, 0, W, 2, 'F');
 
-    // En-tête
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
     doc.setTextColor(...GREEN);
@@ -267,7 +162,6 @@ router.get('/:id/recu', async (req, res) => {
 
     let y = 38;
 
-    // Titre
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(...GREEN);
@@ -277,7 +171,6 @@ router.get('/:id/recu', async (req, res) => {
     doc.line(55, y + 3, W - 55, y + 3);
     y += 14;
 
-    // Statut badge
     const isRembourse = desistement.statut === 'REMBOURSE';
     doc.setFillColor(...(isRembourse ? [22, 163, 74] : [217, 119, 6]));
     doc.roundedRect(W / 2 - 25, y - 5, 50, 8, 2, 2, 'F');
@@ -287,9 +180,9 @@ router.get('/:id/recu', async (req, res) => {
     doc.text(isRembourse ? 'REMBOURSÉ' : 'EN ATTENTE DE REMBOURSEMENT', W / 2, y, { align: 'center' });
     y += 12;
 
-    // Blocs CLIENT + RÉSERVATION
     const blockW = (W - 34) / 2;
-    const b1X = 14, b2X = 14 + blockW + 6;
+    const b1X = 14;
+    const b2X = 14 + blockW + 6;
 
     doc.setFillColor(245, 245, 245);
     doc.rect(b1X, y, blockW, 34, 'F');
@@ -327,7 +220,6 @@ router.get('/:id/recu', async (req, res) => {
 
     y += 42;
 
-    // Détails désistement
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...GREEN);
@@ -338,7 +230,7 @@ router.get('/:id/recu', async (req, res) => {
     y += 8;
 
     const details = [
-      ['Date d\'annulation', fmtDate(desistement.dateAnnulation)],
+      ["Date d'annulation", fmtDate(desistement.dateAnnulation)],
       ['Jours avant départ', `${desistement.joursAvantDepart} jour(s)`],
       ['Taux de remboursement', `${desistement.tauxRemboursement}%`],
       ['Motif', desistement.motif || '—'],
@@ -357,8 +249,7 @@ router.get('/:id/recu', async (req, res) => {
 
     y += 6;
 
-    // Tableau financier
-    const rows = [
+    const pdfRows = [
       ['Montant paye par le client', fmtMoney(desistement.montantPaye)],
       ['Montant a rembourser', fmtMoney(desistement.montantRembourse)],
     ];
@@ -368,7 +259,6 @@ router.get('/:id/recu', async (req, res) => {
     const col2W = tW * 0.35;
     const rowH = 8;
 
-    // En-tête
     doc.setFillColor(...GREEN);
     doc.rect(14, y, tW, rowH, 'F');
     doc.setFont('helvetica', 'bold');
@@ -378,11 +268,13 @@ router.get('/:id/recu', async (req, res) => {
     doc.text('Montant', 14 + col1W + col2W - 3, y + 5.5, { align: 'right' });
     y += rowH;
 
-    rows.forEach((row, i) => {
-      const isLast = i === rows.length - 1;
-      doc.setFillColor(isLast ? (isRembourse ? 240 : 255) : (i % 2 === 0 ? 255 : 248),
-                       isLast ? (isRembourse ? 253 : 251) : (i % 2 === 0 ? 255 : 250),
-                       isLast ? (isRembourse ? 244 : 235) : (i % 2 === 0 ? 255 : 248));
+    pdfRows.forEach((row, i) => {
+      const isLast = i === pdfRows.length - 1;
+      doc.setFillColor(
+        isLast ? (isRembourse ? 240 : 255) : i % 2 === 0 ? 255 : 248,
+        isLast ? (isRembourse ? 253 : 251) : i % 2 === 0 ? 255 : 250,
+        isLast ? (isRembourse ? 244 : 235) : i % 2 === 0 ? 255 : 248
+      );
       doc.rect(14, y, tW, rowH, 'F');
       doc.setFont('helvetica', isLast ? 'bold' : 'normal');
       doc.setFontSize(isLast ? 9.5 : 8.5);
@@ -397,7 +289,6 @@ router.get('/:id/recu', async (req, res) => {
 
     y += 12;
 
-    // Date de remboursement si effectué
     if (isRembourse && desistement.dateRemboursement) {
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(8.5);
@@ -406,7 +297,6 @@ router.get('/:id/recu', async (req, res) => {
       y += 10;
     }
 
-    // Zone signatures
     y += 10;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
@@ -423,7 +313,6 @@ router.get('/:id/recu', async (req, res) => {
     doc.setTextColor(...GRAY);
     doc.text(`${c.nom || ''} ${c.prenom || ''}`, b2X + blockW / 2, y + 34, { align: 'center' });
 
-    // Pied de page
     const H = doc.internal.pageSize.getHeight();
     doc.setFillColor(...GREEN);
     doc.rect(0, H - 10, W, 10, 'F');
@@ -436,7 +325,6 @@ router.get('/:id/recu', async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="recu-desistement-${refNum}.pdf"`);
     return res.send(buffer);
-
   } catch (err) {
     console.error('Erreur génération reçu désistement:', err);
     return res.status(500).json({ message: 'Erreur lors de la génération du reçu' });

@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const PackageK = require('../models/PackageK');
-const { protect, requireRole } = require('../middleware/auth');
+const { protect, requirePermission } = require('../middleware/auth');
+const { PERMISSIONS } = require('../config/permissions');
 
 // Protéger toutes les routes avec protect
 router.use(protect);
+router.use(requirePermission(PERMISSIONS.PACKAGES_READ));
 
 /**
  * GET /api/packages
@@ -26,7 +28,7 @@ router.get('/', async (req, res) => {
 /**
  * POST /api/packages
  */
-router.post('/', requireRole('dg', 'administrateur'), async (req, res) => {
+router.post('/', requirePermission(PERMISSIONS.PACKAGES_MANAGE), async (req, res) => {
   try {
     const { nomReference, type, statut, dateDepart, dateRetour, prixEco, prixCont, prixVip, hotel, quotaMax } = req.body;
 
@@ -41,7 +43,7 @@ router.post('/', requireRole('dg', 'administrateur'), async (req, res) => {
     }
 
     // Sécurisation du trim()
-    const cleanNom = nomReference.trim();
+    const cleanNom = nomReference.toUpperCase().trim();
     const existingByName = await PackageK.findOne({ nomReference: cleanNom });
     if (existingByName) {
       return res.status(400).json({ message: 'Ce nom de référence existe déjà' });
@@ -76,7 +78,7 @@ router.post('/', requireRole('dg', 'administrateur'), async (req, res) => {
 /**
  * PATCH /api/packages/:id
  */
-router.patch('/:id', requireRole('dg', 'administrateur'), async (req, res) => {
+router.patch('/:id', requirePermission(PERMISSIONS.PACKAGES_MANAGE), async (req, res) => {
   try {
     const { nomReference, type, statut, dateDepart, dateRetour, prixEco, prixCont, prixVip, hotel, quotaMax, compagnieAerienne, numeroVol, villeDepart, villeArrivee } = req.body;
     const packageK = await PackageK.findById(req.params.id);
@@ -86,7 +88,7 @@ router.patch('/:id', requireRole('dg', 'administrateur'), async (req, res) => {
     // Validation de type pour nomReference si fourni
     if (nomReference) {
       if (typeof nomReference !== 'string') return res.status(400).json({ message: 'Format nomReference invalide' });
-      const cleanNom = nomReference.trim();
+      const cleanNom = nomReference.toUpperCase().trim();
       if (cleanNom !== packageK.nomReference) {
         const existing = await PackageK.findOne({ nomReference: cleanNom });
         if (existing) return res.status(400).json({ message: 'Nom déjà utilisé' });
@@ -126,7 +128,7 @@ router.patch('/:id', requireRole('dg', 'administrateur'), async (req, res) => {
 /**
  * DELETE /api/packages/:id
  */
-router.delete('/:id', requireRole('dg', 'administrateur'), async (req, res) => {
+router.delete('/:id', requirePermission(PERMISSIONS.PACKAGES_MANAGE), async (req, res) => {
   try {
     const packageK = await PackageK.findById(req.params.id);
     if (!packageK) return res.status(404).json({ message: 'Package non trouvé' });
@@ -145,7 +147,7 @@ router.delete('/:id', requireRole('dg', 'administrateur'), async (req, res) => {
 /**
  * POST /api/packages/:id/supplements
  */
-router.post('/:id/supplements', requireRole('dg', 'administrateur'), async (req, res) => {
+router.post('/:id/supplements', requirePermission(PERMISSIONS.PACKAGES_MANAGE), async (req, res) => {
   try {
     const { supplementIds } = req.body;
     if (!Array.isArray(supplementIds)) return res.status(400).json({ message: 'Array supplementIds requis' });

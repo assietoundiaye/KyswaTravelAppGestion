@@ -51,3 +51,6 @@ coverage/
 # Misc
 .cache/
 .temp/
+
+# Tesseract training data
+*.traineddata

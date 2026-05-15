@@ -12,6 +12,7 @@ const packageKSchema = new mongoose.Schema(
       required: [true, 'Le nom de référence est requis'],
       trim: true,
       unique: true,
+      set: (v) => v ? v.toUpperCase().trim() : v,
     },
 
     // Type de service enrichi

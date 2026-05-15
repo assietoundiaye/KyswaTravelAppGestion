@@ -6,9 +6,11 @@ const Client = require('../models/Client');
 const PackageK = require('../models/PackageK');
 const Paiement = require('../models/Paiement');
 const Utilisateur = require('../models/Utilisateur');
-const { protect, requireRole } = require('../middleware/auth');
+const { protect, requirePermission } = require('../middleware/auth');
+const { PERMISSIONS } = require('../config/permissions');
 
 router.use(protect);
+router.use(requirePermission(PERMISSIONS.STATS_READ));
 
 /**
  * GET /api/stats

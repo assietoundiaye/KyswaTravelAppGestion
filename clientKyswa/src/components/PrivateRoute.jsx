@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { DEFAULT_REDIRECT } from '../utils/roles';
 
 // Protège une route : redirige vers /login si non authentifié
 export function PrivateRoute({ children, roles }) {
@@ -11,7 +12,7 @@ export function PrivateRoute({ children, roles }) {
 
   // Si des rôles sont spécifiés, vérifier l'accès
   if (roles && !roles.includes(role)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={DEFAULT_REDIRECT[role] || '/dashboard'} replace />;
   }
 
   return children;

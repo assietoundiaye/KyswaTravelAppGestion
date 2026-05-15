@@ -82,12 +82,17 @@ export default function ZiarraPage() {
       </div>
 
       {/* Stats par statut */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         {parStatut.map(({ statut, count }) => (
-          <div key={statut} className="premium-card" style={{ flex: '1 1 100px', textAlign: 'center', padding: '12px 16px', cursor: 'pointer', outline: filterStatut === statut ? '2px solid var(--primary)' : 'none' }}
+          <div key={statut} style={{
+            flex: '1 1 120px', background: 'white', borderRadius: 'var(--radius-lg)',
+            padding: '24px 20px', textAlign: 'center', cursor: 'pointer',
+            border: filterStatut === statut ? '2px solid var(--primary)' : '1.5px solid var(--border)',
+            boxShadow: 'var(--shadow-sm)', transition: 'all 0.15s',
+          }}
             onClick={() => setFilterStatut(f => f === statut ? '' : statut)}>
-            <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--primary)', fontFamily: 'var(--font-display)' }}>{count}</p>
-            <p style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{statut}</p>
+            <p style={{ fontSize: 32, fontWeight: 900, color: 'var(--primary)', fontFamily: 'var(--font-display)', lineHeight: 1, marginBottom: 8 }}>{count}</p>
+            <p style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em' }}>{statut}</p>
           </div>
         ))}
       </div>

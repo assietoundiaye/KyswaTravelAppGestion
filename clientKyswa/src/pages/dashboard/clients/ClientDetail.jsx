@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Download } from 'lucide-react';
+import { Download, ScanLine, CheckCircle, AlertCircle } from 'lucide-react';
 import api from '../../../api/axios';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
@@ -32,6 +32,9 @@ export default function ClientDetail() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // OCR sur document uploadé
+  const [ocrScanning, setOcrScanning] = useState(false);
+  const [ocrResult, setOcrResult] = useState(null);
 
   const fetchClient = async () => {
     try {
@@ -46,6 +49,7 @@ export default function ClientDetail() {
         email: c.email || '',
         adresse: c.adresse || '',
         numeroCNI: c.numeroCNI || '',
+        numeroPasseport: c.numeroPasseport || '',
         dateNaissance: c.dateNaissance ? c.dateNaissance.substring(0, 10) : '',
         lieuNaissance: c.lieuNaissance || '',
         dateExpirationPasseport: c.dateExpirationPasseport ? c.dateExpirationPasseport.substring(0, 10) : '',
@@ -83,10 +87,66 @@ export default function ClientDetail() {
       toast('Document ajouté');
       setShowDocModal(false);
       setDocForm({ type: 'PASSEPORT', file: null });
+      setOcrResult(null);
       fetchClient();
     } catch (err) {
       toast(err.response?.data?.message || 'Erreur upload', 'error');
     } finally { setUploading(false); }
+  };
+
+  // Lancer l'OCR quand un fichier image est sélectionné pour un passeport ou CNI
+  const handleDocFileChange = async (file) => {
+    setDocForm(f => ({ ...f, file }));
+    setOcrResult(null);
+
+    const isImage = file && ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+    const isPassport = docForm.type === 'PASSEPORT';
+    const isCNI = docForm.type === 'VISA'; // adapter si tu as un type CNI
+
+    if (!isImage || (!isPassport && !isCNI)) return;
+
+    setOcrScanning(true);
+    try {
+      const data = new FormData();
+      data.append('document', file);
+      data.append('type', isPassport ? 'passport' : 'id_card');
+      const res = await api.post('/clients/scan-document', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const extracted = res.data.data;
+      setOcrResult(extracted);
+
+      // Pré-remplir les champs du client avec les données extraites
+      if (extracted.nom || extracted.prenom || extracted.numeroPasseport) {
+        setForm(f => ({
+          ...f,
+          nom:    extracted.nom    || f.nom,
+          prenom: extracted.prenom || f.prenom,
+          dateNaissance: extracted.dateNaissance || f.dateNaissance,
+          lieuNaissance: extracted.lieuNaissance || f.lieuNaissance,
+          ...(isPassport ? {
+            numeroPasseport: extracted.numeroPasseport || f.numeroPasseport,
+            dateExpirationPasseport: extracted.dateExpirationPasseport || f.dateExpirationPasseport,
+          } : {
+            numeroCNI: extracted.numeroCNI || f.numeroCNI,
+          }),
+        }));
+
+        // Ouvrir automatiquement le modal de modification pour que l'agent valide
+        if (!showEdit) setShowEdit(true);
+
+        if (extracted.mrzDetectee) {
+          toast('Passeport lu — vérifiez les informations dans le formulaire');
+        } else {
+          toast(extracted.avertissement || 'Extraction partielle — vérifiez les champs', 'error');
+        }
+      }
+    } catch (err) {
+      // OCR échoué silencieusement — l'upload continue quand même
+      console.warn('OCR échoué:', err.message);
+    } finally {
+      setOcrScanning(false);
+    }
   };
 
   const updateDocStatut = async (docId, statut) => {
@@ -272,28 +332,75 @@ export default function ClientDetail() {
       </div>
 
       {/* Modal ajout document */}
-      <Modal open={showDocModal} onClose={() => setShowDocModal(false)} title="Ajouter un document">
+      <Modal open={showDocModal} onClose={() => { setShowDocModal(false); setOcrResult(null); }} title="Ajouter un document">
         <form onSubmit={handleDocUpload} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label className="input-label">Type de document *</label>
-            <select value={docForm.type} onChange={e => setDocForm(f => ({ ...f, type: e.target.value }))} className="premium-input">
+            <select value={docForm.type}
+              onChange={e => { setDocForm(f => ({ ...f, type: e.target.value, file: null })); setOcrResult(null); }}
+              className="premium-input">
               {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           <div>
-            <label className="input-label">Fichier * (PDF, image, Word — max 10 Mo)</label>
+            <label className="input-label">
+              Fichier * (PDF, image — max 10 Mo)
+              {docForm.type === 'PASSEPORT' && (
+                <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--primary)', fontWeight: 500 }}>
+                  — les images seront lues automatiquement
+                </span>
+              )}
+            </label>
             <input
               type="file"
               accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx"
-              onChange={e => setDocForm(f => ({ ...f, file: e.target.files[0] || null }))}
+              onChange={e => handleDocFileChange(e.target.files[0] || null)}
               className="premium-input"
               required
             />
           </div>
+
+          {/* Statut OCR */}
+          {ocrScanning && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#EFF6FF', borderRadius: 8, border: '1px solid #BFDBFE' }}>
+              <div style={{ width: 16, height: 16, border: '2px solid #2563EB', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+              <p style={{ fontSize: 13, color: '#2563EB', fontWeight: 600 }}>Lecture du document en cours...</p>
+            </div>
+          )}
+
+          {ocrResult && !ocrScanning && (
+            <div style={{
+              padding: '10px 14px', borderRadius: 8,
+              background: ocrResult.mrzDetectee ? '#F0FDF4' : '#FFFBEB',
+              border: `1px solid ${ocrResult.mrzDetectee ? '#BBF7D0' : '#FDE68A'}`,
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+            }}>
+              {ocrResult.mrzDetectee
+                ? <CheckCircle size={16} color="#16A34A" style={{ flexShrink: 0, marginTop: 2 }} />
+                : <AlertCircle size={16} color="#D97706" style={{ flexShrink: 0, marginTop: 2 }} />
+              }
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: ocrResult.mrzDetectee ? '#16A34A' : '#D97706' }}>
+                  {ocrResult.mrzDetectee ? 'Passeport lu automatiquement' : 'Lecture partielle'}
+                </p>
+                {ocrResult.nom && (
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+                    {ocrResult.nom} {ocrResult.prenom}
+                    {ocrResult.numeroPasseport && ` · ${ocrResult.numeroPasseport}`}
+                    {ocrResult.dateNaissance && ` · né(e) le ${ocrResult.dateNaissance}`}
+                  </p>
+                )}
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Les champs ont été pré-remplis — vérifiez et sauvegardez
+                </p>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button type="button" onClick={() => setShowDocModal(false)} className="btn-secondary">Annuler</button>
-            <button type="submit" disabled={uploading} className="btn-primary">
-              {uploading ? 'Upload...' : 'Ajouter'}
+            <button type="button" onClick={() => { setShowDocModal(false); setOcrResult(null); }} className="btn-secondary">Annuler</button>
+            <button type="submit" disabled={uploading || ocrScanning} className="btn-primary">
+              {uploading ? 'Upload...' : ocrScanning ? 'Lecture...' : 'Ajouter'}
             </button>
           </div>
         </form>
@@ -308,7 +415,13 @@ export default function ClientDetail() {
             {[['nom','Nom *'],['prenom','Prénom *']].map(([k,l]) => (
               <div key={k}>
                 <label className="input-label">{l}</label>
-                <input value={form[k] || ''} onChange={e => setForm(f => ({...f,[k]:e.target.value}))} className="premium-input" required />
+                <input
+                  value={form[k] || ''}
+                  onChange={e => setForm(f => ({...f, [k]: e.target.value.toUpperCase()}))}
+                  className="premium-input"
+                  style={{ textTransform: 'uppercase' }}
+                  required
+                />
               </div>
             ))}
             <div>
@@ -341,6 +454,10 @@ export default function ClientDetail() {
           {/* Documents */}
           <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Documents</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label className="input-label">N° Passeport</label>
+              <input value={form.numeroPasseport || ''} onChange={e => setForm(f => ({...f, numeroPasseport: e.target.value}))} className="premium-input" placeholder="Laisser vide si non disponible" />
+            </div>
             <div>
               <label className="input-label">Expiration passeport</label>
               <input type="date" value={form.dateExpirationPasseport || ''} onChange={e => setForm(f => ({...f, dateExpirationPasseport: e.target.value}))} className="premium-input" />

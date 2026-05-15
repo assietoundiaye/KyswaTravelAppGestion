@@ -25,12 +25,12 @@ const ACTIONS = ['tous', 'LOGIN', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE', 'VIEW'
 function CounterCard({ label, value, color }) {
   return (
     <div style={{
-      background: 'white', borderRadius: 12, padding: '18px 24px',
-      boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
-      minWidth: 120,
+      background: 'white', borderRadius: 'var(--radius-lg)', padding: '28px 24px',
+      boxShadow: 'var(--shadow-sm)', border: '1.5px solid var(--border)',
+      flex: '1 1 140px',
     }}>
       <p style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 900, color: color || 'var(--text-main)', lineHeight: 1 }}>{value}</p>
-      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6, fontWeight: 500 }}>{label}</p>
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
     </div>
   );
 }
@@ -99,7 +99,7 @@ export default function AuditPage() {
       </div>
 
       {/* Compteurs */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <CounterCard label="Total actions" value={counts.total} />
         <CounterCard label="Connexions" value={counts.connexions} color="#16A34A" />
         <CounterCard label="Créations" value={counts.creations} color="#2563EB" />
