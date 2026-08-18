@@ -1,0 +1,36 @@
+node_modules/
+
+# ── Variables d'environnement ──────────────────────────────────
+# Bloquer TOUS les .env sauf .env.example
+.env
+.env.*
+!.env.example
+
+# ── Fichiers generes ───────────────────────────────────────────
+/src/generated/prisma
+
+# ── Backups et fichiers temporaires ───────────────────────────
+*.backup
+*.bak
+
+# ── Fichiers de debug ─────────────────────────────────────────
+debug-*.js
+debug_*.js
+create_test_*.js
+test-*.js
+test_*.js
+
+# ── Donnees d'entrainement OCR (lourdes) ─────────────────────
+*.traineddata
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Build ─────────────────────────────────────────────────────
+dist/
+build/
+
+# ── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
