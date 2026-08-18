@@ -171,7 +171,7 @@ function createClientRoutes(dependencies) {
   // GET métriques OCR
   router.get('/ocr-metrics', protect, checkPermission('clients', 'view'), async (req, res) => {
     try {
-      const rates = ocrMetrics.getSuccessRates();
+      const rates = await ocrMetrics.getSuccessRates();
       const detailedReport = await ocrMetrics.generateDetailedReport();
       return res.status(200).json({
         success: true,

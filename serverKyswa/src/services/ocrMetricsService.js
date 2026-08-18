@@ -8,7 +8,7 @@ const path = require('path');
 
 class OCRMetricsService {
   constructor() {
-    this.metricsFile = path.join(__dirname, '../data/ocr-metrics.json');
+    this.metricsFile = path.join(__dirname, '../../data/ocr-metrics.json');
     this.sessionMetrics = {
       totalScans: 0,
       successfulMrz: 0,
@@ -165,7 +165,8 @@ class OCRMetricsService {
   /**
    * Calcule les taux de réussite globaux
    */
-  getSuccessRates() {
+  async getSuccessRates() {
+    await this.loadMetrics();
     const total = this.sessionMetrics.totalScans;
     if (total === 0) return null;
 
@@ -232,7 +233,7 @@ class OCRMetricsService {
    * Génère un rapport détaillé
    */
   async generateDetailedReport() {
-    const rates = this.getSuccessRates();
+    const rates = await this.getSuccessRates();
     if (!rates) return "Aucune donnée OCR disponible";
 
     const report = `
