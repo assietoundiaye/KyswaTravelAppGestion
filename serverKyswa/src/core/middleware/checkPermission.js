@@ -50,11 +50,17 @@ function checkPermission(module, action) {
 
       if (!dbField) return next(new Error(`Action inconnue: ${action}`));
 
-      // 2. Chercher une exception admin explicite en base
-      const record = await prismaClient.permissions_modules.findUnique({
-        where: { user_id_module: { user_id: userId, module } },
-        select: { [dbField]: true },
-      });
+      // 2. Chercher une exception admin explicite en base (avec fallback sécurisé)
+      let record = null;
+      try {
+        record = await prismaClient.permissions_modules.findUnique({
+          where: { user_id_module: { user_id: userId, module } },
+          select: { [dbField]: true },
+        });
+      } catch (dbErr) {
+        // En cas d'absence de la table ou erreur DB, continuer vers le défaut du rôle
+        record = null;
+      }
 
       if (record !== null) {
         // Exception admin trouvée → on l'utilise (peut autoriser ou refuser)

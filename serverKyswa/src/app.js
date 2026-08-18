@@ -16,6 +16,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const AppConfig = require('./core/config/AppConfig');
 const { errorHandler } = require('./core/middleware/errorHandler');
+const auditMiddleware = require('./core/middleware/auditMiddleware');
 
 // Global BigInt serializer for Express res.json()
 BigInt.prototype.toJSON = function () {
@@ -53,6 +54,9 @@ class App {
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ limit: '10mb', extended: true }));
     this.app.use(cookieParser());
+
+    // Audit automatique des actions (connexions & mutations)
+    this.app.use(auditMiddleware);
 
     // Health check
     this.app.get('/api/health', (req, res) => {
