@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { RefreshCw, Eye } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import Modal from '../../../components/Modal';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleString('fr-FR', {
@@ -8,28 +8,51 @@ const fmtDate = (d) => d ? new Date(d).toLocaleString('fr-FR', {
   hour: '2-digit', minute: '2-digit', second: '2-digit',
 }) : '—';
 
+// ── Valeurs réelles stockées en base (PostgreSQL) ──────────────────────────
 const ACTION_STYLES = {
-  LOGIN:      { bg: '#F0FDF4', color: '#16A34A', label: 'CONNEXION' },
-  LOGOUT:     { bg: '#F3F4F6', color: '#6B7280', label: 'DECONNEXION' },
-  CREATE:     { bg: '#EFF6FF', color: '#2563EB', label: 'CREATION' },
-  UPDATE:     { bg: '#FFFBEB', color: '#D97706', label: 'MODIFICATION' },
-  DELETE:     { bg: '#FEF2F2', color: '#DC2626', label: 'SUPPRESSION' },
-  VIEW:       { bg: '#F5F3FF', color: '#7C3AED', label: 'CONSULTATION' },
+  CONNEXION:     { bg: '#F0FDF4', color: '#16A34A',  label: 'Connexion'     },
+  DECONNEXION:   { bg: '#F3F4F6', color: '#6B7280',  label: 'Déconnexion'   },
+  CREATION:      { bg: '#EFF6FF', color: '#2563EB',  label: 'Création'      },
+  MODIFICATION:  { bg: '#FFFBEB', color: '#D97706',  label: 'Modification'  },
+  SUPPRESSION:   { bg: '#FEF2F2', color: '#DC2626',  label: 'Suppression'   },
+  IMPORT:        { bg: '#F5F3FF', color: '#7C3AED',  label: 'Import'        },
+  DESACTIVATION: { bg: '#FFF7ED', color: '#EA580C',  label: 'Désactivation' },
 };
 
-const MODULE_STYLE = { bg: '#F0FDF4', color: '#059669' };
+// Valeurs réelles des modules dans la DB
+const MODULES_DB = ['tous', 'auth', 'inscriptions', 'paiements', 'clients', 'departs', 'rapports', 'comptabilite', 'taches', 'utilisateurs', 'ziarra', 'visas', 'secretaire', 'reunion'];
+const ACTIONS_DB = ['tous', 'CONNEXION', 'DECONNEXION', 'CREATION', 'MODIFICATION', 'SUPPRESSION', 'IMPORT', 'DESACTIVATION'];
 
-const MODULES = ['tous', 'AUTH', 'CLIENT', 'RESERVATION', 'BILLET', 'PAIEMENT', 'PACKAGE', 'SUPPLEMENT', 'DOCUMENT', 'UTILISATEUR', 'RAPPORTS'];
-const ACTIONS = ['tous', 'LOGIN', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE', 'VIEW'];
+const MODULE_LABELS = {
+  auth: 'Authentification', AUTH: 'Authentification',
+  inscriptions: 'Inscriptions', RESERVATIONS: 'Inscriptions', reservations: 'Inscriptions',
+  paiements: 'Paiements', PAIEMENTS: 'Paiements',
+  clients: 'Clients', CLIENTS: 'Clients',
+  departs: 'Départs', PACKAGES: 'Départs', packages: 'Départs',
+  rapports: 'Rapports', RAPPORTS: 'Rapports',
+  comptabilite: 'Comptabilité', COMPTABILITE: 'Comptabilité',
+  taches: 'Tâches', TACHES: 'Tâches',
+  utilisateurs: 'Utilisateurs', UTILISATEURS: 'Utilisateurs', users: 'Utilisateurs',
+  ziarra: 'Ziarra', ZIARRA: 'Ziarra',
+  visas: 'Visas', VISAS: 'Visas',
+  secretaire: 'Secrétariat', documents: 'Documents', DOCUMENTS: 'Documents',
+  reunion: 'Réunions', REUNIONS: 'Réunions',
+  shop: 'Kyswa Shop', SHOP: 'Kyswa Shop',
+  billets: 'Billets', BILLETS: 'Billets',
+  supplements: 'Suppléments', SUPPLEMENTS: 'Suppléments',
+  recouvrement: 'Recouvrement', RECOUVREMENT: 'Recouvrement',
+  desistements: 'Désistements', DESISTEMENTS: 'Désistements',
+  systeme: 'Système', SYSTEME: 'Système', SYSTEM: 'Système',
+};
 
 function CounterCard({ label, value, color }) {
   return (
     <div style={{
-      background: 'white', borderRadius: 'var(--radius-lg)', padding: '28px 24px',
+      background: 'white', borderRadius: 'var(--radius-lg)', padding: '24px 20px',
       boxShadow: 'var(--shadow-sm)', border: '1.5px solid var(--border)',
-      flex: '1 1 140px',
+      flex: '1 1 130px', minWidth: 120,
     }}>
-      <p style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 900, color: color || 'var(--text-main)', lineHeight: 1 }}>{value}</p>
+      <p style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, color: color || 'var(--text-main)', lineHeight: 1 }}>{value}</p>
       <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
     </div>
   );
@@ -37,6 +60,7 @@ function CounterCard({ label, value, color }) {
 
 export default function AuditPage() {
   const [logs, setLogs] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterModule, setFilterModule] = useState('tous');
@@ -46,31 +70,39 @@ export default function AuditPage() {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const params = {};
-      if (search) params.search = search;
-      if (filterModule !== 'tous') params.module = filterModule;
-      if (filterAction !== 'tous') params.action = filterAction;
-      const r = await api.get('/messages/audit', { params });
-      setLogs(r.data.logs || []);
-    } catch (e) { console.error(e); }
+      const params = { limit: 500 };
+      if (search)                    params.search = search;
+      if (filterModule !== 'tous')   params.module = filterModule;
+      if (filterAction !== 'tous')   params.action = filterAction;
+      const r = await api.get('/audit', { params });
+      const data = r.data.logs || r.data.data || [];
+      setLogs(data);
+      setTotal(r.data.total ?? data.length);
+    } catch (e) { console.error('[AuditPage] Erreur fetch:', e); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { fetchLogs(); }, [filterModule, filterAction]);
 
-  // Debounce search
+  // Debounce recherche texte
   useEffect(() => {
     const t = setTimeout(() => fetchLogs(), 400);
     return () => clearTimeout(t);
   }, [search]);
 
-  const counts = useMemo(() => ({
-    total: logs.length,
-    connexions: logs.filter(l => l.action === 'LOGIN').length,
-    creations: logs.filter(l => l.action === 'CREATE').length,
-    modifications: logs.filter(l => l.action === 'UPDATE').length,
-    suppressions: logs.filter(l => l.action === 'DELETE').length,
-  }), [logs]);
+  // Compteurs par action (depuis les logs chargés)
+  const counts = useMemo(() => {
+    const map = {};
+    logs.forEach(l => { map[l.action] = (map[l.action] || 0) + 1; });
+    return {
+      total,
+      connexions:    map['CONNEXION']     || 0,
+      creations:     map['CREATION']      || 0,
+      modifications: map['MODIFICATION']  || 0,
+      suppressions:  map['SUPPRESSION']   || 0,
+      autres:        (map['IMPORT'] || 0) + (map['DESACTIVATION'] || 0) + (map['DECONNEXION'] || 0),
+    };
+  }, [logs, total]);
 
   const getDetails = (log) => {
     if (!log.details) return '—';
@@ -86,8 +118,11 @@ export default function AuditPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--text-main)' }}>Journal d'audit</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>
+            {total.toLocaleString('fr-FR')} actions enregistrées au total
+          </p>
         </div>
         <button onClick={fetchLogs} style={{
           display: 'flex', alignItems: 'center', gap: 6,
@@ -99,12 +134,13 @@ export default function AuditPage() {
       </div>
 
       {/* Compteurs */}
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        <CounterCard label="Total actions" value={counts.total} />
-        <CounterCard label="Connexions" value={counts.connexions} color="#16A34A" />
-        <CounterCard label="Créations" value={counts.creations} color="#2563EB" />
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+        <CounterCard label="Total affiché" value={logs.length} />
+        <CounterCard label="Connexions"    value={counts.connexions}    color="#16A34A" />
+        <CounterCard label="Créations"     value={counts.creations}     color="#2563EB" />
         <CounterCard label="Modifications" value={counts.modifications} color="#D97706" />
-        <CounterCard label="Suppressions" value={counts.suppressions} color="#DC2626" />
+        <CounterCard label="Suppressions"  value={counts.suppressions}  color="#DC2626" />
+        <CounterCard label="Autres"        value={counts.autres}        color="#7C3AED" />
       </div>
 
       {/* Filtres */}
@@ -112,16 +148,29 @@ export default function AuditPage() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher..."
+          placeholder="Rechercher utilisateur, module..."
           className="premium-input"
           style={{ width: 280 }}
         />
-        <select value={filterModule} onChange={e => setFilterModule(e.target.value)} className="premium-input" style={{ width: 180 }}>
-          {MODULES.map(m => <option key={m} value={m}>{m === 'tous' ? 'Tous les modules' : m}</option>)}
+        {/* Filtre Module */}
+        <select value={filterModule} onChange={e => setFilterModule(e.target.value)} className="premium-input" style={{ width: 200 }}>
+          {MODULES_DB.map(m => (
+            <option key={m} value={m}>{m === 'tous' ? 'Tous les modules' : (MODULE_LABELS[m] || m)}</option>
+          ))}
         </select>
+        {/* Filtre Action */}
         <select value={filterAction} onChange={e => setFilterAction(e.target.value)} className="premium-input" style={{ width: 180 }}>
-          {ACTIONS.map(a => <option key={a} value={a}>{a === 'tous' ? 'Toutes les actions' : ACTION_STYLES[a]?.label || a}</option>)}
+          {ACTIONS_DB.map(a => (
+            <option key={a} value={a}>{a === 'tous' ? 'Toutes les actions' : (ACTION_STYLES[a]?.label || a)}</option>
+          ))}
         </select>
+        {/* Reset */}
+        {(filterModule !== 'tous' || filterAction !== 'tous' || search) && (
+          <button onClick={() => { setSearch(''); setFilterModule('tous'); setFilterAction('tous'); }}
+            style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'white', fontSize: 12, cursor: 'pointer', color: 'var(--text-muted)', fontWeight: 600 }}>
+            Réinitialiser
+          </button>
+        )}
       </div>
 
       {/* Tableau */}
@@ -130,7 +179,7 @@ export default function AuditPage() {
           <table className="premium-table">
             <thead>
               <tr>
-                <th>Date & Heure</th>
+                <th>Date &amp; Heure</th>
                 <th>Utilisateur</th>
                 <th>Rôle</th>
                 <th>Action</th>
@@ -146,29 +195,29 @@ export default function AuditPage() {
                 <tr><td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Aucune action enregistrée</td></tr>
               ) : logs.map(l => {
                 const actionStyle = ACTION_STYLES[l.action] || { bg: '#F3F4F6', color: '#6B7280', label: l.action };
-                const user = l.userId || {};
-                const nom = user.nom ? `${user.prenom || ''} ${user.nom}`.trim() : (l.userNom || '—');
-                const role = user.role || '—';
+                const nomUser = l.user_nom || l.userNom || (l.userId?.nom ? `${l.userId.prenom || ''} ${l.userId.nom}`.trim() : '—');
+                const roleUser = l.user_role || l.userRole || l.userId?.role || '—';
+                const moduleLabel = MODULE_LABELS[l.module] || l.module || '—';
                 return (
-                  <tr key={l._id}>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmtDate(l.createdAt)}</td>
-                    <td style={{ fontWeight: 600, fontSize: 13 }}>{nom}</td>
+                  <tr key={l.id || l._id}>
+                    <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmtDate(l.created_at || l.createdAt)}</td>
+                    <td style={{ fontWeight: 600, fontSize: 13 }}>{nomUser}</td>
                     <td>
                       <span style={{ background: '#F3F4F6', color: '#374151', borderRadius: 20, padding: '2px 10px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>
-                        {role}
+                        {roleUser}
                       </span>
                     </td>
                     <td>
-                      <span style={{ background: actionStyle.bg, color: actionStyle.color, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
+                      <span style={{ background: actionStyle.bg, color: actionStyle.color, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
                         {actionStyle.label}
                       </span>
                     </td>
                     <td>
-                      <span style={{ background: MODULE_STYLE.bg, color: MODULE_STYLE.color, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
-                        {l.module}
+                      <span style={{ background: '#F0FDF4', color: '#059669', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
+                        {moduleLabel}
                       </span>
                     </td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {getDetails(l)}
                     </td>
                     <td>
@@ -192,11 +241,11 @@ export default function AuditPage() {
         {selectedLog && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {[
-              ['Date & Heure', fmtDate(selectedLog.createdAt)],
-              ['Utilisateur', selectedLog.userId ? `${selectedLog.userId.prenom || ''} ${selectedLog.userId.nom || ''}`.trim() : (selectedLog.userNom || '—')],
-              ['Rôle', selectedLog.userId?.role || '—'],
-              ['Action', ACTION_STYLES[selectedLog.action]?.label || selectedLog.action],
-              ['Module', selectedLog.module],
+              ['Date & Heure',  fmtDate(selectedLog.created_at || selectedLog.createdAt)],
+              ['Utilisateur',   selectedLog.user_nom || selectedLog.userNom || (selectedLog.userId?.nom ? `${selectedLog.userId.prenom || ''} ${selectedLog.userId.nom}`.trim() : '—')],
+              ['Rôle',          selectedLog.user_role || selectedLog.userRole || selectedLog.userId?.role || '—'],
+              ['Action',        ACTION_STYLES[selectedLog.action]?.label || selectedLog.action],
+              ['Module',        MODULE_LABELS[selectedLog.module] || selectedLog.module || '—'],
             ].map(([label, value]) => (
               <div key={label} style={{ display: 'flex', gap: 12 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', minWidth: 120, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
@@ -207,7 +256,7 @@ export default function AuditPage() {
               <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Données concernées</p>
               <pre style={{
                 background: '#F8FAFC', borderRadius: 8, padding: '12px 14px',
-                fontSize: 12, color: '#374151', overflow: 'auto', maxHeight: 200,
+                fontSize: 12, color: '#374151', overflow: 'auto', maxHeight: 240,
                 border: '1px solid var(--border)', fontFamily: 'monospace',
               }}>
                 {selectedLog.details ? JSON.stringify(selectedLog.details, null, 2) : '—'}

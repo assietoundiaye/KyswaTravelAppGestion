@@ -1,6 +1,6 @@
 /**
  * @fileoverview Middleware Audit — Enregistre automatiquement toutes les mutations (POST, PUT, PATCH, DELETE)
- * et les connexions (LOGIN) dans la table `audit_logs`
+ * et les connexions (LOGIN) dans la table `audit_logs` avec les noms de modules canoniques.
  */
 
 const prisma = require('../../database/client');
@@ -15,27 +15,27 @@ function getActionName(method, path) {
   return 'CONSULTATION';
 }
 
-// Mapper les chemins d'URL vers les noms de modules
+// Mapper les chemins d'URL vers les clés de modules exactes attendues par le frontend
 function getModuleName(path) {
   const p = path.toLowerCase();
-  if (p.includes('/auth')) return 'AUTH';
-  if (p.includes('/clients')) return 'CLIENTS';
-  if (p.includes('/reservations')) return 'RESERVATIONS';
-  if (p.includes('/paiements')) return 'PAIEMENTS';
-  if (p.includes('/packages') || p.includes('/departs')) return 'PACKAGES';
-  if (p.includes('/visas')) return 'VISAS';
-  if (p.includes('/billets')) return 'BILLETS';
-  if (p.includes('/comptabilite')) return 'COMPTABILITE';
-  if (p.includes('/desistements')) return 'DESISTEMENTS';
-  if (p.includes('/recouvrement')) return 'RECOUVREMENT';
-  if (p.includes('/documents')) return 'DOCUMENTS';
-  if (p.includes('/rapports')) return 'RAPPORTS';
-  if (p.includes('/reunions')) return 'REUNIONS';
-  if (p.includes('/shop')) return 'SHOP';
-  if (p.includes('/users') || p.includes('/profile')) return 'UTILISATEURS';
-  if (p.includes('/supplements')) return 'SUPPLEMENTS';
-  if (p.includes('/ziarra')) return 'ZIARRA';
-  return 'SYSTEME';
+  if (p.includes('/auth')) return 'auth';
+  if (p.includes('/clients')) return 'clients';
+  if (p.includes('/reservations')) return 'inscriptions';
+  if (p.includes('/paiements')) return 'paiements';
+  if (p.includes('/packages') || p.includes('/departs')) return 'departs';
+  if (p.includes('/visas')) return 'visas';
+  if (p.includes('/billets')) return 'billets';
+  if (p.includes('/comptabilite')) return 'comptabilite';
+  if (p.includes('/desistements')) return 'desistements';
+  if (p.includes('/recouvrement')) return 'recouvrement';
+  if (p.includes('/documents')) return 'documents';
+  if (p.includes('/rapports')) return 'rapports';
+  if (p.includes('/reunions')) return 'reunion';
+  if (p.includes('/shop')) return 'shop';
+  if (p.includes('/users') || p.includes('/profile')) return 'utilisateurs';
+  if (p.includes('/supplements')) return 'supplements';
+  if (p.includes('/ziarra')) return 'ziarra';
+  return 'auth';
 }
 
 /**
@@ -61,9 +61,16 @@ function auditMiddleware(req, res, next) {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       const user = req.user;
       const userId = user?.id || body?.user?.id || body?.data?.id || null;
-      const userNom = user
-        ? `${user.prenom || ''} ${user.nom || ''}`.trim() || user.email
-        : (body?.user?.email || req.body?.email || 'Visiteur');
+      
+      let userNom = 'Visiteur';
+      if (user) {
+        userNom = `${user.prenom || ''} ${user.nom || ''}`.trim() || user.email;
+      } else if (body?.user) {
+        userNom = `${body.user.prenom || ''} ${body.user.nom || ''}`.trim() || body.user.email;
+      } else if (req.body?.email) {
+        userNom = req.body.email;
+      }
+
       const userRole = user?.role || body?.user?.role || 'visiteur';
 
       const action = getActionName(req.method, req.path);
