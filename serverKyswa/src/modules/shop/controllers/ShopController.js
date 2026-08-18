@@ -21,7 +21,7 @@ class ShopController {
         search: req.query.search,
         categorie: req.query.categorie,
         statut: req.query.statut,
-        sortBy: req.query.sortBy || 'createdAt',
+        sortBy: req.query.sortBy || 'created_at',
         sortOrder: req.query.sortOrder || 'desc'
       };
 

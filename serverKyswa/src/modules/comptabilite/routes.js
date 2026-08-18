@@ -108,6 +108,34 @@ function createComptabiliteRoutes() {
     }
   });
 
+  router.get('/stats', protect, async (req, res, next) => {
+    try {
+      const [depensesAgg, paiementsAgg, nbDepenses, nbPaiements] = await Promise.all([
+        prismaClient.depenses.aggregate({ _sum: { montant: true } }),
+        prismaClient.paiements.aggregate({ _sum: { montant: true } }),
+        prismaClient.depenses.count(),
+        prismaClient.paiements.count()
+      ]);
+
+      const totalDepenses = depensesAgg._sum.montant || 0;
+      const totalEncaisse = Number(paiementsAgg._sum.montant || 0n);
+      const beneficeNet = totalEncaisse - totalDepenses;
+      const marge = totalEncaisse > 0 ? Math.round((beneficeNet / totalEncaisse) * 100 * 10) / 10 : 0;
+
+      res.status(200).json({
+        success: true,
+        totalEncaisse,
+        totalDepenses,
+        beneficeNet,
+        marge,
+        nbDepenses,
+        nbPaiements
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   // ─────────────────────────────────────────────────────
   // POST /api/comptabilite/depenses
   // Créer une nouvelle dépense

@@ -56,9 +56,15 @@ class ShopPrismaRepository extends BaseRepository {
       }
     }
 
-    // Construction du sort
-    const orderBy = {};
-    orderBy[sortBy] = sortOrder === 'desc' ? 'desc' : 'asc';
+    // Construction du sort (mapping camelCase -> snake_case)
+    const sortFieldMap = {
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      prixPromo: 'prix_promo',
+      stockMin: 'stock_min',
+    };
+    const validSortField = sortFieldMap[sortBy] || sortBy || 'created_at';
+    const orderBy = { [validSortField]: sortOrder === 'desc' ? 'desc' : 'asc' };
 
     const [produits, total] = await Promise.all([
       this.produitsModel.findMany({
