@@ -86,7 +86,7 @@ class ShopService {
 
     const updatedProduit = await this.repository.updateProduit(id, {
       ...validatedData,
-      updatedAt: new Date()
+      updated_at: new Date()
     });
 
     // Audit
@@ -348,17 +348,35 @@ class ShopService {
       throw new ValidationException(errors.join(', '));
     }
 
-    // Nettoyer et valider les données
+    // Nettoyer et valider les données — noms de champs snake_case pour Prisma
     const validated = {};
     if (data.nom) validated.nom = data.nom.trim();
     if (data.description !== undefined) validated.description = data.description?.trim() || null;
     if (data.reference !== undefined) validated.reference = data.reference?.trim() || null;
+    if (data.marque !== undefined) validated.marque = data.marque?.trim() || null;
+    if (data.code_barres !== undefined) validated.code_barres = data.code_barres?.trim() || null;
+    if (data.codeBarre !== undefined) validated.code_barres = data.codeBarre?.trim() || null;
     if (data.categorie) validated.categorie = data.categorie;
-    if (data.prix !== undefined) validated.prix = parseFloat(data.prix);
-    if (data.prixPromo !== undefined) validated.prixPromo = data.prixPromo ? parseFloat(data.prixPromo) : null;
-    if (data.stock !== undefined) validated.stock = parseInt(data.stock);
-    if (data.stockMin !== undefined) validated.stockMin = parseInt(data.stockMin);
     if (data.statut) validated.statut = data.statut;
+    if (data.notes !== undefined) validated.notes = data.notes?.trim() || null;
+    if (data.slug !== undefined) validated.slug = data.slug?.trim() || null;
+    if (data.meta_description !== undefined) validated.meta_description = data.meta_description?.trim() || null;
+    if (data.metaDescription !== undefined) validated.meta_description = data.metaDescription?.trim() || null;
+    if (data.visible !== undefined) validated.visible = Boolean(data.visible);
+    if (data.tags !== undefined) validated.tags = Array.isArray(data.tags) ? data.tags : [];
+    if (data.poids !== undefined) validated.poids = data.poids ? parseFloat(data.poids) : null;
+
+    // Prix (snake_case pour Prisma)
+    if (data.prix !== undefined) validated.prix = parseFloat(data.prix);
+    // Prix promo : accepter les deux formes camelCase et snake_case
+    const rawPrixPromo = data.prix_promo !== undefined ? data.prix_promo : data.prixPromo;
+    if (rawPrixPromo !== undefined) validated.prix_promo = rawPrixPromo ? parseFloat(rawPrixPromo) : null;
+
+    // Stock (snake_case pour Prisma)
+    if (data.stock !== undefined) validated.stock = parseInt(data.stock);
+    // Stock minimum : accepter les deux formes
+    const rawStockMin = data.stock_min !== undefined ? data.stock_min : data.stockMin;
+    if (rawStockMin !== undefined) validated.stock_min = parseInt(rawStockMin) || 5;
 
     return validated;
   }
