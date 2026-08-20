@@ -1,11 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Search, AlertTriangle, CheckCircle } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Modal from '../../../components/Modal';
 import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
+import { usePermissions } from '../../../hooks/usePermissions';
+import PermissionGuard from '../../../components/PermissionGuard';
 
 const MODES = ['ESPECES','VIREMENT','CHEQUE','CARTE_BANCAIRE','ORANGE_MONEY','WAVE','MONEY','AUTRE'];
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
@@ -20,6 +22,14 @@ const parseMontant = (m) => {
 };
 
 export default function PaiementsPage() {
+  return (
+    <PermissionGuard module="paiements" action="view">
+      <PaiementsPageContent />
+    </PermissionGuard>
+  );
+}
+
+function PaiementsPageContent() {
   const [reservations, setReservations] = useState([]);
   const [billets, setBillets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +54,10 @@ export default function PaiementsPage() {
   const [editForm, setEditForm] = useState({ montant: '', dateReglement: '', mode: 'ESPECES', reference: '' });
   const [editSaving, setEditSaving] = useState(false);
   const { role } = useAuth();
-  const canDelete = ['comptable', 'COMPTABLE'].includes(role);
+  const { canDelete: checkCanDelete, canCreate, canUpdate } = usePermissions();
+  const canDelete = checkCanDelete('paiements');
+  const canCreatePaiement = canCreate('paiements');
+  const canEditPaiement = canUpdate('paiements');
   const [searchPaiements, setSearchPaiements] = useState('');
 
   const fetchAll = async () => {
@@ -297,18 +310,22 @@ export default function PaiementsPage() {
       header: 'Actions', id: 'actions',
       cell: ({ row }) => (
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => openEdit(row.original)}
-            style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '3px 10px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            Modifier
-          </button>
+          {canEditPaiement && (
+            <button onClick={() => openEdit(row.original)}
+              style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '3px 10px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              Modifier
+            </button>
+          )}
           <button onClick={() => downloadFacture(row.original)}
             style={{ background: 'rgba(37,99,235,0.08)', border: 'none', borderRadius: 6, padding: '3px 10px', color: '#2563EB', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
             Facture
           </button>
-          <button onClick={() => setConfirmId(row.original._id)}
-            style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, padding: '3px 10px', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            Supprimer
-          </button>
+          {canDelete && (
+            <button onClick={() => setConfirmId(row.original._id)}
+              style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, padding: '3px 10px', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              Supprimer
+            </button>
+          )}
         </div>
       ),
     },
@@ -371,7 +388,7 @@ export default function PaiementsPage() {
               style={{ paddingLeft: 36, width: 300 }}
             />
           </div>
-          <button onClick={() => { setShowForm(true); resetForm(); }} className="btn-primary">
+          <button onClick={() => { setShowForm(true); resetForm(); }} className="btn-primary" disabled={!canCreatePaiement}>
             + Ajouter paiement
           </button>
         </div>

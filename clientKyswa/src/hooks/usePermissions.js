@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import api from '../core/api/axios';
 
@@ -16,16 +16,19 @@ export const usePermissions = () => {
 
   const isSuper = SUPER_ROLES.includes(user?.role?.toLowerCase());
 
-  useEffect(() => {
-    if (user?.id) {
-      loadPermissions();
-    } else {
+  const loadPermissions = useCallback(async () => {
+    if (!user?.id) {
       setPermissions({});
       setLoading(false);
+      return;
     }
-  }, [user?.id, user?.role]);
 
-  const loadPermissions = async () => {
+    if (isSuper) {
+      setPermissions({});
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await api.get('/permissions/me');
@@ -37,20 +40,20 @@ export const usePermissions = () => {
           // Format objet : { module: { canView, canCreate, ... } }
           for (const [mod, val] of Object.entries(response.data.permissions)) {
             permissionsMap[mod] = {
-              view: val.canView ?? val.can_view ?? true,
-              create: val.canCreate ?? val.can_create ?? true,
-              edit: val.canEdit ?? val.can_edit ?? true,
-              delete: val.canDelete ?? val.can_delete ?? true,
+              view: val.canView ?? val.can_view ?? val.view ?? false,
+              create: val.canCreate ?? val.can_create ?? val.create ?? false,
+              edit: val.canEdit ?? val.can_edit ?? val.edit ?? false,
+              delete: val.canDelete ?? val.can_delete ?? val.delete ?? false,
             };
           }
         } else if (Array.isArray(response.data.data)) {
           // Format tableau legacy
           response.data.data.forEach(perm => {
             permissionsMap[perm.module] = {
-              view: perm.can_view,
-              create: perm.can_create,
-              edit: perm.can_edit,
-              delete: perm.can_delete
+              view: perm.can_view ?? perm.view ?? false,
+              create: perm.can_create ?? perm.create ?? false,
+              edit: perm.can_edit ?? perm.edit ?? false,
+              delete: perm.can_delete ?? perm.delete ?? false,
             };
           });
         }
@@ -61,32 +64,46 @@ export const usePermissions = () => {
         throw new Error(response.data?.message || 'Erreur lors du chargement des permissions');
       }
     } catch (err) {
-      console.error('Erreur permissions:', err);
+      console.error('Erreur chargement permissions:', err);
       setError(err.message);
       setPermissions({});
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, user?.role, isSuper]);
+
+  useEffect(() => {
+    loadPermissions();
+  }, [loadPermissions]);
 
   /**
-   * Vérifier si l'utilisateur a une permission spécifique
+   * Vérifier si l'utilisateur a une permission spécifique (tolérant aux alias read/view, update/edit)
    */
   const hasPermission = (module, action = 'view') => {
     if (isSuper) {
       return true;
     }
-    const actionKey = action === 'canView' ? 'view' : action;
+    const act = (action || '').toLowerCase();
+    const actionKey = (act === 'canview' || act === 'read' || act === 'view')
+      ? 'view'
+      : (act === 'cancreate' || act === 'create'
+        ? 'create'
+        : (act === 'canedit' || act === 'edit' || act === 'update' || act === 'canupdate'
+          ? 'edit'
+          : (act === 'candelete' || act === 'delete' ? 'delete' : act)));
+
     return permissions[module]?.[actionKey] === true || permissions[module]?.[action] === true;
   };
 
   /**
-   * Vérifier si l'utilisateur peut voir un module
+   * Helpers
    */
-  const canViewModule = (module) => {
-    if (isSuper) return true;
-    return hasPermission(module, 'view');
-  };
+  const canViewModule = (module) => hasPermission(module, 'view');
+  const canView = (module) => hasPermission(module, 'view');
+  const canCreate = (module) => hasPermission(module, 'create');
+  const canEdit = (module) => hasPermission(module, 'edit');
+  const canUpdate = (module) => hasPermission(module, 'edit');
+  const canDelete = (module) => hasPermission(module, 'delete');
 
   /**
    * Obtenir toutes les permissions pour un module
@@ -100,7 +117,12 @@ export const usePermissions = () => {
         delete: true
       };
     }
-    return permissions[module] || null;
+    return permissions[module] || {
+      view: false,
+      create: false,
+      edit: false,
+      delete: false
+    };
   };
 
   /**
@@ -119,9 +141,9 @@ export const usePermissions = () => {
     if (isSuper) {
       return [
         'clients', 'packages', 'reservations', 'paiements', 'billets',
-        'visas', 'desistements', 'rapports', 'comptabilite', 'reunions',
+        'billets-groupe', 'visas', 'desistements', 'rapports', 'comptabilite', 'reunions',
         'recouvrement', 'messages', 'users', 'supplements', 'shop',
-        'audit', 'ziarra', 'documents', 'factures', 'statistiques'
+        'audit', 'ziarra', 'documents', 'factures', 'statistiques', 'simulateur'
       ];
     }
 
@@ -132,8 +154,14 @@ export const usePermissions = () => {
     permissions,
     loading,
     error,
+    isSuperAdmin: isSuper,
     hasPermission,
     canViewModule,
+    canView,
+    canCreate,
+    canEdit,
+    canUpdate,
+    canDelete,
     getModulePermissions,
     hasAnyPermission,
     getAccessibleModules,
