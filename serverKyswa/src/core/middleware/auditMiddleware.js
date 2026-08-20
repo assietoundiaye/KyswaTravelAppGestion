@@ -38,12 +38,9 @@ function getModuleName(path) {
   return 'auth';
 }
 
-/**
- * Middleware Express d'audit automatique
- */
 function auditMiddleware(req, res, next) {
-  // Ne pas enregister l'audit de la consultation du journal d'audit lui-même pour éviter les boucles
-  if (req.path.startsWith('/api/audit')) {
+  // Ne pas enregister l'audit de la consultation du journal d'audit ni des scans OCR
+  if (req.path.startsWith('/api/audit') || req.path.includes('/scan-document')) {
     return next();
   }
 

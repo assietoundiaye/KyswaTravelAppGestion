@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
+    "dev": "nodemon --watch src src/index.js",
     "start": "node src/index.js",
     "seed": "node scripts/seed-postgresql.js",
     "seed:shop": "node seeds/shopSeed.js",

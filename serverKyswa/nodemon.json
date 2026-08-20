@@ -1,0 +1,13 @@
+{
+  "watch": ["src/"],
+  "ext": "js,mjs,cjs,json",
+  "ignore": [
+    "data/*",
+    "data/ocr-metrics.json",
+    "_archive/*",
+    "docs/*",
+    "node_modules/*",
+    "*.log"
+  ],
+  "delay": "1000"
+}
