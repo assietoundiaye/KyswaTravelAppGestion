@@ -5,22 +5,53 @@ import {
   Calculator, TrendingDown, Briefcase, Send,
   CheckCircle, XCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import api from '../api/axios';
+import api from '../core/api/axios';
 import { useAuth } from '../context/AuthContext';
 import { MENU_BY_ROLE } from '../utils/roles';
+import usePermissions from '../hooks/usePermissions';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const todayStr = () => {
   const d = new Date();
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 };
-const isSameDay = (a, b) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
+const isSameDay = (a, b) => {
+  if (!a || !b) return false;
+  const dateA = new Date(a);
+  const dateB = new Date(b);
+  return dateA.getFullYear() === dateB.getFullYear() &&
+    dateA.getMonth() === dateB.getMonth() &&
+    dateA.getDate() === dateB.getDate();
+};
 
 const MONTH_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DAY_FR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
+
+// Helper functions pour les couleurs et badges
+const getRoleBadgeColor = (role) => {
+  const colors = {
+    commercial: { bg: '#EBF8FF', text: '#2563EB' },
+    social: { bg: '#F3E8FF', text: '#7C3AED' },
+    administrateur: { bg: '#FEF3C7', text: '#D97706' },
+    comptable: { bg: '#ECFDF5', text: '#059669' },
+    secretaire: { bg: '#FEE2E2', text: '#DC2626' },
+    billets: { bg: '#F0F9FF', text: '#0891B2' },
+    ziara: { bg: '#FEFCE8', text: '#CA8A04' },
+    oumra: { bg: '#F0FDF4', text: '#16A34A' }
+  };
+  return colors[role] || { bg: '#F3F4F6', text: '#6B7280' };
+};
+
+const getStatutColor = (statut) => {
+  const colors = {
+    PRODUCTIF: { bg: '#DCFCE7', text: '#166534' },
+    NORMAL: { bg: '#E0F2FE', text: '#075985' },
+    DIFFICILE: { bg: '#FED7D7', text: '#C53030' },
+    TELETRAVAIL: { bg: '#E0E7FF', text: '#5B21B6' },
+    ABSENT: { bg: '#F3F4F6', text: '#6B7280' }
+  };
+  return colors[statut] || { bg: '#F3F4F6', text: '#6B7280' };
+};
 
 // ── Quick button ──────────────────────────────────────────────────────────────
 function QuickBtn({ label, icon: Icon, color, onClick }) {
@@ -131,30 +162,90 @@ export default function DashboardShared() {
   const [rapports, setRapports]   = useState([]);
   const [loading, setLoading]     = useState(true);
 
+  const [dashboardData, setDashboardData] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
   useEffect(() => {
-    Promise.all([
-      api.get('/reunions').catch(() => ({ data: {} })),
-      api.get('/packages').catch(() => ({ data: {} })),
-      api.get('/rapports').catch(() => ({ data: {} })),
-      api.get('/users').catch(() => ({ data: {} })),
-    ]).then(([reu, pkg, rap, usr]) => {
-      const pkgArr = pkg.data.packages || [];
-      setReunions(reu.data.reunions || []);
-      setPackages(pkgArr.filter(p => p.statut === 'OUVERT'));
-      setRapports(rap.data.rapports || []);
-      setUsers(usr.data.utilisateurs || []);
-    }).finally(() => setLoading(false));
-  }, []);
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        console.log('=== FETCH DASHBOARD DATA ===');
+        
+        // Utiliser la nouvelle route dashboard optimisée
+        const [reunionsRes, packagesRes, dashboardRes] = await Promise.all([
+          api.get('/reunions').catch(() => ({ data: { reunions: [] } })),
+          api.get('/packages').catch(() => ({ data: { packages: [] } })),
+          api.get('/rapports/dashboard').catch(err => {
+            console.error('Erreur dashboard route:', err);
+            return { data: null };
+          })
+        ]);
 
-  // Filter quick links to only those accessible by this role
-  const menuPaths = new Set((MENU_BY_ROLE[role] || []).map(m => m.to));
-  const quickLinks = ALL_QUICK.filter(l => menuPaths.has(l.path));
+        const pkgArr = packagesRes.data.packages || [];
+        setReunions(reunionsRes.data.reunions || []);
+        setPackages(pkgArr.filter(p => p.statut === 'OUVERT'));
+        
+        console.log('Dashboard data received:', dashboardRes.data);
+        setDashboardData(dashboardRes.data);
+        
+        // Pour compatibilité avec l'ancien code
+        if (dashboardRes.data) {
+          setRapports(dashboardRes.data.employes
+            .filter(e => e.rapport)
+            .map(e => ({...e.rapport, agentId: e.employe}))
+          );
+          setUsers(dashboardRes.data.employes.map(e => e.employe));
+          
+          console.log('Employés traités:', dashboardRes.data.employes.map(e => ({
+            nom: `${e.employe.prenom} ${e.employe.nom}`,
+            statut: e.statut,
+            aRapport: !!e.rapport
+          })));
+        }
 
-  // Today's rapports
-  const today = new Date();
-  const rapportsToday = rapports.filter(r => isSameDay(new Date(r.date || r.createdAt), today));
-  const submittedIds  = new Set(rapportsToday.map(r => String(r.agentId?._id || r.agentId || r.userId)));
-  const staffUsers    = users.filter(u => u.role && u.role !== 'administrateur');
+      } catch (error) {
+        console.error('Erreur lors du chargement du dashboard:', error);
+        setDashboardData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+
+    // Actualisation automatique toutes les 2 minutes
+    const interval = setInterval(() => {
+      console.log('=== AUTO REFRESH DASHBOARD ===');
+      setRefreshKey(prev => prev + 1);
+    }, 2 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [refreshKey]);
+
+  // Accès rapide filtré par permissions dynamiques
+  const { canViewModule } = usePermissions();
+  const isSuper = ['dg', 'administrateur', 'informatique', 'admin'].includes(role?.toLowerCase());
+  const quickLinks = ALL_QUICK.filter(l => {
+    if (isSuper) return true;
+    if (l.module) return canViewModule(l.module);
+    return true;
+  });
+
+  // Debug simplifié
+  console.log('=== DEBUG DASHBOARD SHARED ===');
+  console.log('Date aujourd\'hui:', todayStr);
+  console.log('Dashboard data:', dashboardData);
+  if (dashboardData) {
+    console.log('Stats:', dashboardData.stats);
+    console.log('Employés avec statuts:', dashboardData.employes.map(e => ({
+      nom: `${e.employe.prenom} ${e.employe.nom}`,
+      role: e.employe.role,
+      statut: e.statut,
+      aRapport: !!e.rapport
+    })));
+  }
+  console.log('=====================================');
 
   return (
     <>
@@ -182,39 +273,177 @@ export default function DashboardShared() {
         </div>
 
         <div className="premium-card" style={{ padding: 24 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color: 'var(--text-main)', marginBottom: 18 }}>
-            Suivi des Rapports du {todayStr()}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color: 'var(--text-main)' }}>
+              Suivi des Rapports du {todayStr()}
+            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                Actualisé: {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <button 
+                onClick={() => {
+                  console.log('=== MANUAL REFRESH DASHBOARD ===');
+                  setRefreshKey(prev => prev + 1);
+                }}
+                style={{
+                  background: 'var(--primary)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  color: 'white',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                ↻ Actualiser
+              </button>
+            </div>
+          </div>
+
+          {/* Statistiques globales */}
+          {dashboardData?.stats && (
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', 
+              gap: 8, 
+              marginBottom: 16,
+              padding: 12,
+              background: 'var(--bg-main)',
+              borderRadius: 'var(--radius-md)'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>
+                  {dashboardData.stats.rapportsRendus}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Rendus</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--secondary)' }}>
+                  {dashboardData.stats.totalEmployes}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Total</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: dashboardData.stats.tauxCompletion >= 80 ? '#16A34A' : '#FB923C' }}>
+                  {dashboardData.stats.tauxCompletion}%
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Taux</div>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Chargement…</p>
-          ) : staffUsers.length === 0 ? (
+          ) : !dashboardData ? (
+            <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: 13 }}>Impossible de charger les données des rapports.</p>
+              <button 
+                onClick={() => setRefreshKey(prev => prev + 1)}
+                style={{
+                  background: 'var(--primary)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  color: 'white',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  marginTop: 8
+                }}
+              >
+                Réessayer
+              </button>
+            </div>
+          ) : dashboardData.employes.length === 0 ? (
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Aucun employé trouvé.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {staffUsers.map(u => {
-                const uid = String(u._id || u.id);
-                const submitted = submittedIds.has(uid);
-                const initials = `${(u.prenom||'')[0]||''}${(u.nom||'')[0]||''}`.toUpperCase() || '?';
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {dashboardData.employes.map(employeData => {
+                const { employe, rapport, statut } = employeData;
+                const submitted = statut === 'RENDU';
+                const initials = `${(employe.prenom||'')[0]||''}${(employe.nom||'')[0]||''}`.toUpperCase() || '?';
+                
                 return (
-                  <div key={uid} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 14px', borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border)',
-                    background: submitted ? '#F0FDF4' : '#FFF9F9',
-                  }}>
+                  <div 
+                    key={employe.id} 
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 14px', borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border)',
+                      background: submitted ? '#F0FDF4' : '#FFF7ED',
+                      borderColor: submitted ? '#16A34A' : '#FB923C',
+                      cursor: submitted ? 'pointer' : 'default'
+                    }}
+                    onClick={submitted ? () => {
+                      // TODO: Ouvrir modale de détail du rapport
+                      console.log('Ouvrir détails rapport:', rapport);
+                    } : undefined}
+                  >
                     <div style={{
                       width: 36, height: 36, borderRadius: '50%',
-                      background: submitted ? '#16A34A' : '#DC2626',
+                      background: submitted ? '#16A34A' : '#FB923C',
                       color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 13, flexShrink: 0,
                     }}>{initials}</div>
+                    
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {u.prenom} {u.nom}
-                      </p>
-                      {!submitted && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Aucun rapport soumis pour le moment.</p>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                        <p style={{ 
+                          fontWeight: 700, fontSize: 13, color: 'var(--text-main)', 
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' 
+                        }}>
+                          {employe.prenom} {employe.nom}
+                        </p>
+                        <span style={{
+                          fontSize: 10, padding: '2px 6px', borderRadius: 4,
+                          background: getRoleBadgeColor(employe.role).bg,
+                          color: getRoleBadgeColor(employe.role).text,
+                          fontWeight: 600
+                        }}>
+                          {employe.role.toUpperCase()}
+                        </span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          {submitted ? '✅ Rapport rendu' : '⏳ En attente'}
+                        </p>
+                        
+                        {rapport?.statutJournee && (
+                          <span style={{
+                            fontSize: 10, padding: '1px 4px', borderRadius: 3,
+                            background: getStatutColor(rapport.statutJournee).bg,
+                            color: getStatutColor(rapport.statutJournee).text
+                          }}>
+                            {rapport.statutJournee}
+                          </span>
+                        )}
+                        
+                        {rapport?.metriques && Object.keys(rapport.metriques).length > 0 && (
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {Object.entries(rapport.metriques).slice(0, 2).map(([key, value]) => (
+                              <span key={key} style={{ fontSize: 10, color: 'var(--primary)' }}>
+                                {value} {key}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {rapport?.activites && (
+                        <p style={{ 
+                          fontSize: 11, color: 'var(--text-muted)', marginTop: 4,
+                          fontStyle: 'italic', lineHeight: 1.3
+                        }}>
+                          "{rapport.activites}"
+                        </p>
+                      )}
                     </div>
-                    {submitted ? <CheckCircle size={20} color="#16A34A" /> : <XCircle size={20} color="#DC2626" />}
+                    
+                    {submitted ? <CheckCircle size={20} color="#16A34A" /> : <XCircle size={20} color="#FB923C" />}
                   </div>
                 );
               })}

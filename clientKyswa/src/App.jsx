@@ -4,6 +4,7 @@ import { DEFAULT_REDIRECT, ALL_ROLES, MENU_BY_ROLE } from './utils/roles';
 
 // Layouts
 import DashboardLayout from './components/DashboardLayout';
+import AppInitializer from './components/AppInitializer';
 
 // Public pages
 import Login from './pages/Login';
@@ -41,6 +42,8 @@ import ZiarraPage from './pages/dashboard/ziarra/ZiarraPage';
 import ComptabilitePage from './pages/dashboard/comptabilite/ComptabilitePage';
 import RapportsPage from './pages/dashboard/rapports/RapportsPage';
 import BilanPage from './pages/dashboard/bilan/BilanPage';
+import OCRMetricsPage from './pages/dashboard/ocr/OCRMetricsPage';
+import ShopPage from './pages/dashboard/shop/ShopPage';
 
 // Route guards
 import { PrivateRoute, PublicOnlyRoute } from './components/PrivateRoute';
@@ -73,7 +76,10 @@ const EXPLICIT_ROUTE_ROLES = {
   'clients/:id': PATH_ROLES.clients ? Array.from(PATH_ROLES.clients) : ALL_ROLES,
   recherche: PATH_ROLES.clients ? Array.from(PATH_ROLES.clients) : ALL_ROLES,
   'reservations/:id': PATH_ROLES.reservations ? Array.from(PATH_ROLES.reservations) : ALL_ROLES,
-  'reste-a-payer': PATH_ROLES.paiements ? Array.from(PATH_ROLES.paiements) : ALL_ROLES,
+  'reste-a-payer': ['dg', 'comptable'], // Seuls DG et comptable
+  paiements: ['dg', 'comptable'], // Seuls DG et comptable
+  comptabilite: ['dg', 'comptable'], // Seuls DG et comptable
+  shop: PATH_ROLES.shop ? Array.from(PATH_ROLES.shop) : ['commercial', 'oumra', 'billets', 'ziara'],
 };
 
 const rolesFor = (path) => {
@@ -87,8 +93,8 @@ const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Redirect racine vers login */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Page d'initialisation - gère le chargement intelligemment */}
+        <Route path="/" element={<AppInitializer />} />
 
         {/* Pages publiques — sans Navbar */}
         <Route path="/suivi/reservation" element={<SuiviReservation />} />
@@ -110,47 +116,53 @@ const App = () => {
           <Route path="admin" element={<PrivateRoute roles={rolesFor('dashboard/admin')}><DashboardAdmin /></PrivateRoute>} />
 
           {/* Clients */}
-          <Route path="clients" element={<PrivateRoute roles={rolesFor('clients')}><ClientsPage /></PrivateRoute>} />
-          <Route path="clients/:id" element={<PrivateRoute roles={rolesFor('clients/:id')}><ClientDetail /></PrivateRoute>} />
-          <Route path="recherche" element={<PrivateRoute roles={rolesFor('recherche')}><RechercheAvancee /></PrivateRoute>} />
+          <Route path="clients" element={<PrivateRoute module="clients" roles={rolesFor('clients')}><ClientsPage /></PrivateRoute>} />
+          <Route path="clients/:id" element={<PrivateRoute module="clients" roles={rolesFor('clients/:id')}><ClientDetail /></PrivateRoute>} />
+          <Route path="recherche" element={<PrivateRoute module="clients" roles={rolesFor('recherche')}><RechercheAvancee /></PrivateRoute>} />
 
           {/* Inscriptions / Réservations */}
-          <Route path="reservations" element={<PrivateRoute roles={rolesFor('reservations')}><ReservationsPage /></PrivateRoute>} />
-          <Route path="reservations/:id" element={<PrivateRoute roles={rolesFor('reservations/:id')}><ReservationDetail /></PrivateRoute>} />
+          <Route path="reservations" element={<PrivateRoute module="reservations" roles={rolesFor('reservations')}><ReservationsPage /></PrivateRoute>} />
+          <Route path="reservations/:id" element={<PrivateRoute module="reservations" roles={rolesFor('reservations/:id')}><ReservationDetail /></PrivateRoute>} />
 
           {/* Billets */}
-          <Route path="billets" element={<PrivateRoute roles={rolesFor('billets')}><BilletsPage /></PrivateRoute>} />
+          <Route path="billets" element={<PrivateRoute module="billets" roles={rolesFor('billets')}><BilletsPage /></PrivateRoute>} />
+          <Route path="billets-groupe" element={<PrivateRoute module="billets-groupe" roles={rolesFor('billets-groupe')}><BilletsGroupePage /></PrivateRoute>} />
 
           {/* Paiements */}
-          <Route path="paiements" element={<PrivateRoute roles={rolesFor('paiements')}><PaiementsPage /></PrivateRoute>} />
-          <Route path="reste-a-payer" element={<PrivateRoute roles={rolesFor('reste-a-payer')}><PaiementsPage /></PrivateRoute>} />
+          <Route path="paiements" element={<PrivateRoute module="paiements" roles={rolesFor('paiements')}><PaiementsPage /></PrivateRoute>} />
+          <Route path="reste-a-payer" element={<PrivateRoute module="paiements" roles={rolesFor('reste-a-payer')}><PaiementsPage /></PrivateRoute>} />
 
           {/* Packages / Départs */}
-          <Route path="packages" element={<PrivateRoute roles={rolesFor('packages')}><PackagesPage /></PrivateRoute>} />
-          <Route path="supplements" element={<PrivateRoute roles={rolesFor('supplements')}><SupplementsPage /></PrivateRoute>} />
+          <Route path="packages" element={<PrivateRoute module="packages" roles={rolesFor('packages')}><PackagesPage /></PrivateRoute>} />
+          <Route path="supplements" element={<PrivateRoute module="supplements" roles={rolesFor('supplements')}><SupplementsPage /></PrivateRoute>} />
 
           {/* Documents */}
-          <Route path="documents" element={<PrivateRoute roles={rolesFor('documents')}><DocumentsPage /></PrivateRoute>} />
+          <Route path="documents" element={<PrivateRoute module="documents" roles={rolesFor('documents')}><DocumentsPage /></PrivateRoute>} />
 
           {/* Factures */}
-          <Route path="factures" element={<PrivateRoute roles={rolesFor('factures')}><FacturesPage /></PrivateRoute>} />
+          <Route path="factures" element={<PrivateRoute module="factures" roles={rolesFor('factures')}><FacturesPage /></PrivateRoute>} />
 
           {/* Nouveaux modules métier */}
-          <Route path="visas" element={<PrivateRoute roles={rolesFor('visas')}><VisasPage /></PrivateRoute>} />
-          <Route path="desistements" element={<PrivateRoute roles={rolesFor('desistements')}><DesistementsPage /></PrivateRoute>} />
-          <Route path="recouvrement" element={<PrivateRoute roles={rolesFor('recouvrement')}><RecouvrementPage /></PrivateRoute>} />
-          <Route path="reunions" element={<PrivateRoute roles={rolesFor('reunions')}><ReunionsPage /></PrivateRoute>} />
-          <Route path="billets-groupe" element={<PrivateRoute roles={rolesFor('billets-groupe')}><BilletsGroupePage /></PrivateRoute>} />
-          <Route path="simulateur" element={<PrivateRoute roles={rolesFor('simulateur')}><SimulateurPage /></PrivateRoute>} />
-          <Route path="ziarra" element={<PrivateRoute roles={rolesFor('ziarra')}><ZiarraPage /></PrivateRoute>} />
-          <Route path="comptabilite" element={<PrivateRoute roles={rolesFor('comptabilite')}><ComptabilitePage /></PrivateRoute>} />
-          <Route path="rapports" element={<PrivateRoute roles={rolesFor('rapports')}><RapportsPage /></PrivateRoute>} />
-          <Route path="bilan" element={<PrivateRoute roles={rolesFor('bilan')}><BilanPage /></PrivateRoute>} />
+          <Route path="visas" element={<PrivateRoute module="visas" roles={rolesFor('visas')}><VisasPage /></PrivateRoute>} />
+          <Route path="desistements" element={<PrivateRoute module="desistements" roles={rolesFor('desistements')}><DesistementsPage /></PrivateRoute>} />
+          <Route path="recouvrement" element={<PrivateRoute module="recouvrement" roles={rolesFor('recouvrement')}><RecouvrementPage /></PrivateRoute>} />
+          <Route path="reunions" element={<PrivateRoute module="reunions" roles={rolesFor('reunions')}><ReunionsPage /></PrivateRoute>} />
+          <Route path="simulateur" element={<PrivateRoute module="simulateur" roles={rolesFor('simulateur')}><SimulateurPage /></PrivateRoute>} />
+          <Route path="ziarra" element={<PrivateRoute module="ziarra" roles={rolesFor('ziarra')}><ZiarraPage /></PrivateRoute>} />
+          <Route path="comptabilite" element={<PrivateRoute module="comptabilite" roles={rolesFor('comptabilite')}><ComptabilitePage /></PrivateRoute>} />
+          <Route path="rapports" element={<PrivateRoute module="rapports" roles={rolesFor('rapports')}><RapportsPage /></PrivateRoute>} />
+          <Route path="bilan" element={<PrivateRoute module="rapports" roles={rolesFor('bilan')}><BilanPage /></PrivateRoute>} />
+          
+          {/* Kyswa Shop */}
+          <Route path="shop" element={<PrivateRoute module="shop" roles={rolesFor('shop')}><ShopPage /></PrivateRoute>} />
+          
+          {/* Métriques OCR */}
+          <Route path="ocr-metrics" element={<PrivateRoute module="audit" roles={rolesFor('admin')}><OCRMetricsPage /></PrivateRoute>} />
 
           {/* Admin / Informatique */}
-          <Route path="utilisateurs" element={<PrivateRoute roles={rolesFor('utilisateurs')}><UtilisateursPage /></PrivateRoute>} />
-          <Route path="statistiques" element={<PrivateRoute roles={rolesFor('statistiques')}><StatistiquesPage /></PrivateRoute>} />
-          <Route path="audit" element={<PrivateRoute roles={rolesFor('audit')}><AuditPage /></PrivateRoute>} />
+          <Route path="utilisateurs" element={<PrivateRoute module="utilisateurs" roles={rolesFor('utilisateurs')}><UtilisateursPage /></PrivateRoute>} />
+          <Route path="statistiques" element={<PrivateRoute module="statistiques" roles={rolesFor('statistiques')}><StatistiquesPage /></PrivateRoute>} />
+          <Route path="audit" element={<PrivateRoute module="audit" roles={rolesFor('audit')}><AuditPage /></PrivateRoute>} />
         </Route>
 
         {/* Fallback */}

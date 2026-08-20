@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   CalendarCheck, CreditCard, Users, Plane, FileText,
   Calculator, TrendingDown, Briefcase, Send,
-  CheckCircle, XCircle, ChevronLeft, ChevronRight, BarChart2,
+  CheckCircle, XCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import api from '../../api/axios';
+import api from '../../core/api/axios';
 import { useAuth } from '../../context/AuthContext';
 import { MENU_BY_ROLE } from '../../utils/roles';
+import usePermissions from '../../hooks/usePermissions';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const todayStr = () => {
@@ -20,116 +21,61 @@ const isSameDay = (a, b) =>
   a.getDate() === b.getDate();
 
 const MONTH_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-const MONTH_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 const DAY_FR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
 
 // ── KPI card ──────────────────────────────────────────────────────────────────
 function KpiCard({ label, value, icon: Icon, bg }) {
   return (
     <div style={{
-      background: bg, borderRadius: 'var(--radius-xl)', padding: '28px 24px', color: 'white',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
-      display: 'flex', alignItems: 'center', gap: 18, flex: 1, minWidth: 0,
-    }}>
-      <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <Icon size={26} color="white" />
+      background: bg, 
+      borderRadius: 'var(--radius-xl)', 
+      padding: '32px 28px', 
+      color: 'white',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.08)',
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: 20, 
+      flex: 1, 
+      minWidth: 0,
+      transition: 'all 0.2s ease',
+    }}
+    onMouseEnter={e => {
+      e.currentTarget.style.transform = 'translateY(-2px)';
+      e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.16), 0 6px 12px rgba(0,0,0,0.1)';
+    }}
+    onMouseLeave={e => {
+      e.currentTarget.style.transform = 'translateY(0px)';
+      e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.08)';
+    }}
+    >
+      <div style={{ 
+        width: 56, 
+        height: 56, 
+        borderRadius: 16, 
+        background: 'rgba(255,255,255,0.2)', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        flexShrink: 0,
+        backdropFilter: 'blur(10px)'
+      }}>
+        <Icon size={28} color="white" />
       </div>
       <div>
-        <p style={{ fontSize: 11, fontWeight: 700, opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{label}</p>
-        <p style={{ fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 900, lineHeight: 1 }}>{value}</p>
-      </div>
-    </div>
-  );
-}
-
-// ── Line chart multi-séries ───────────────────────────────────────────────────
-const SERIES_COLORS = {
-  Clients: '#2563EB',
-  Départs: '#EA580C',
-  Inscriptions: '#7C3AED',
-  Paiements: '#D97706',
-};
-
-function LineChart({ seriesData }) {
-  const W = 800, H = 180, PAD = { top: 20, right: 20, bottom: 40, left: 36 };
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
-
-  const months = MONTH_SHORT;
-  const n = 12;
-
-  // Normaliser les données par mois (index 0=Jan … 11=Dec)
-  const normalize = (raw) => {
-    const arr = Array(12).fill(0);
-    (raw || []).forEach(d => {
-      const idx = (d._id?.mois || d.mois || 1) - 1;
-      if (idx >= 0 && idx < 12) arr[idx] = d.count || 0;
-    });
-    return arr;
-  };
-
-  const series = Object.entries(seriesData).map(([name, raw]) => ({
-    name,
-    values: normalize(raw),
-    color: SERIES_COLORS[name] || '#6B7280',
-  }));
-
-  const allVals = series.flatMap(s => s.values);
-  const maxVal = Math.max(...allVals, 1);
-
-  const xPos = (i) => PAD.left + (i / (n - 1)) * innerW;
-  const yPos = (v) => PAD.top + innerH - (v / maxVal) * innerH;
-
-  const pathD = (values) => values.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xPos(i)} ${yPos(v)}`).join(' ');
-
-  // Y axis ticks
-  const yTicks = [0, Math.round(maxVal / 2), maxVal];
-
-  return (
-    <div className="premium-card" style={{ padding: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <BarChart2 size={16} color="var(--primary)" />
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>
-          Évolution mensuelle — {new Date().getFullYear()}
-        </h2>
-      </div>
-      <div style={{ overflowX: 'auto' }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', minWidth: 400, height: 'auto' }}>
-          {/* Grid lines */}
-          {yTicks.map(v => (
-            <g key={v}>
-              <line x1={PAD.left} y1={yPos(v)} x2={W - PAD.right} y2={yPos(v)}
-                stroke="#E5E7EB" strokeWidth="1" strokeDasharray="4 4" />
-              <text x={PAD.left - 6} y={yPos(v) + 4} textAnchor="end" fontSize="10" fill="#9CA3AF">{v}</text>
-            </g>
-          ))}
-
-          {/* X axis labels */}
-          {months.map((m, i) => (
-            <text key={m} x={xPos(i)} y={H - 8} textAnchor="middle" fontSize="10" fill="#9CA3AF">{m}</text>
-          ))}
-
-          {/* Lines + dots */}
-          {series.map(s => (
-            <g key={s.name}>
-              <path d={pathD(s.values)} fill="none" stroke={s.color} strokeWidth="2.5"
-                strokeLinejoin="round" strokeLinecap="round" />
-              {s.values.map((v, i) => (
-                <circle key={i} cx={xPos(i)} cy={yPos(v)} r="4" fill={s.color} stroke="white" strokeWidth="1.5" />
-              ))}
-            </g>
-          ))}
-        </svg>
-      </div>
-
-      {/* Legend */}
-      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-        {series.map(s => (
-          <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 24, height: 3, background: s.color, borderRadius: 2 }} />
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{s.name}</span>
-          </div>
-        ))}
+        <p style={{ 
+          fontSize: 12, 
+          fontWeight: 700, 
+          opacity: 0.9, 
+          textTransform: 'uppercase', 
+          letterSpacing: '0.08em', 
+          marginBottom: 8 
+        }}>{label}</p>
+        <p style={{ 
+          fontFamily: 'var(--font-display)', 
+          fontSize: 38, 
+          fontWeight: 900, 
+          lineHeight: 1 
+        }}>{value}</p>
       </div>
     </div>
   );
@@ -172,7 +118,7 @@ function MiniCalendar({ reunions, packages }) {
 
   const key = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
   const reunionDates = new Set(reunions.map(r => { const d = new Date(r.date || r.dateReunion || r.createdAt); return key(d); }));
-  const departDates  = new Set(packages.map(p => { const d = new Date(p.dateDepart); return key(d); }));
+  const departDates  = new Set(packages.map(p => { const d = new Date(p.date_depart || p.dateDepart); return key(d); }));
 
   return (
     <div>
@@ -223,25 +169,25 @@ function MiniCalendar({ reunions, packages }) {
 
 // ── Quick links config ────────────────────────────────────────────────────────
 const ALL_QUICK = [
-  { label: 'Inscriptions',    icon: CalendarCheck, color: '#2563EB', path: '/dashboard/reservations' },
-  { label: 'Paiements',       icon: CreditCard,    color: '#00674F', path: '/dashboard/paiements' },
-  { label: 'Comptabilité',    icon: Calculator,    color: '#7C3AED', path: '/dashboard/comptabilite' },
-  { label: 'Bilan Départs',   icon: Briefcase,     color: '#EA580C', path: '/dashboard/bilan' },
-  { label: 'Clients CRM',     icon: Users,         color: '#0891B2', path: '/dashboard/clients' },
-  { label: 'Recouvrement',    icon: TrendingDown,  color: '#DC2626', path: '/dashboard/recouvrement' },
-  { label: 'Secrétariat',     icon: FileText,      color: '#6B7280', path: '/dashboard/documents' },
-  { label: 'Messages Groupés',icon: Send,          color: '#D97706', path: '/dashboard/messages' },
+  { label: 'Inscriptions',    icon: CalendarCheck, color: '#2563EB', path: '/dashboard/reservations', module: 'reservations' },
+  { label: 'Paiements',       icon: CreditCard,    color: '#00674F', path: '/dashboard/paiements', module: 'paiements' },
+  { label: 'Comptabilité',    icon: Calculator,    color: '#7C3AED', path: '/dashboard/comptabilite', module: 'comptabilite' },
+  { label: 'Bilan Départs',   icon: Briefcase,     color: '#EA580C', path: '/dashboard/bilan', module: 'rapports' },
+  { label: 'Clients CRM',     icon: Users,         color: '#0891B2', path: '/dashboard/clients', module: 'clients' },
+  { label: 'Recouvrement',    icon: TrendingDown,  color: '#DC2626', path: '/dashboard/recouvrement', module: 'recouvrement' },
+  { label: 'Secrétariat',     icon: FileText,      color: '#6B7280', path: '/dashboard/documents', module: 'documents' },
+  { label: 'Messages Groupés',icon: Send,          color: '#D97706', path: '/dashboard/messages', module: null }, // Messages accessible à tous
 ];
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function DashboardCommercial() {
   const navigate = useNavigate();
   const { role, user } = useAuth();
+  const { canViewModule } = usePermissions();
   // dg et secretaire voient tous les rapports, les autres voient seulement le leur
   const canSeeAllRapports = ['dg', 'secretaire'].includes(role);
 
   const [counts, setCounts] = useState({ inscriptions: 0, paiements: 0, clients: 0, departs: 0 });
-  const [chartData, setChartData] = useState({});
   const [reunions, setReunions] = useState([]);
   const [packages, setPackages] = useState([]);
   const [users, setUsers] = useState([]);
@@ -255,74 +201,122 @@ export default function DashboardCommercial() {
       api.get('/clients').catch(() => ({ data: {} })),
       api.get('/packages').catch(() => ({ data: {} })),
       api.get('/reunions').catch(() => ({ data: {} })),
-      api.get('/rapports').catch(() => ({ data: {} })),
+      api.get('/rapports/dashboard').catch(() => ({ data: { employes: [], stats: {} } })),
       api.get('/users').catch(() => ({ data: {} })),
-      api.get('/stats').catch(() => ({ data: {} })),
-    ]).then(([res, pai, cli, pkg, reu, rap, usr, stats]) => {
-      const pkgArr = pkg.data.packages || [];
-      const ouvert = pkgArr.filter(p => p.statut === 'OUVERT');
+    ]).then(([res, pai, cli, pkg, reu, rap, usr]) => {
+      const pkgArr = pkg.data.packages || pkg.data.data || [];
+      const departures = pkgArr.filter(p => p.statut === 'OUVERT' || p.actif !== false);
       setCounts({
-        inscriptions: (res.data.reservations || []).length,
-        paiements: (pai.data.paiements || []).length,
-        clients: (cli.data.clients || []).length,
-        departs: ouvert.length,
+        inscriptions: res.data.total !== undefined ? res.data.total : (res.data.reservations || res.data.data || []).length,
+        paiements: pai.data.total !== undefined ? pai.data.total : (pai.data.paiements || pai.data.data || []).length,
+        clients: cli.data.total !== undefined ? cli.data.total : (cli.data.clients || cli.data.data || []).length,
+        departs: pkg.data.total !== undefined ? pkg.data.total : departures.length,
       });
-      setReunions(reu.data.reunions || []);
-      setPackages(ouvert);
-      setRapports(rap.data.rapports || []);
+      setReunions(reu.data.reunions || reu.data.data || []);
+      setPackages(departures);
+      
+      // Traitement des données de rapports depuis la nouvelle route dashboard
+      if (rap.data && rap.data.employes) {
+        if (canSeeAllRapports) {
+          // Pour les admins: afficher tous les employés avec leur statut de rapport
+          setRapports(rap.data.employes);
+        } else {
+          // Pour les utilisateurs normaux: afficher seulement leurs données
+          const userEmploye = rap.data.employes.find(e => 
+            (e.employe && (e.employe.id === user?.id || e.employe._id === user?.id)) ||
+            (e.agentId && (e.agentId.id === user?.id || e.agentId._id === user?.id)) ||
+            e.id === user?.id || e._id === user?.id
+          ) || (rap.data.employes.length > 0 ? rap.data.employes[0] : null);
+          setRapports(userEmploye ? [userEmploye] : []);
+        }
+      } else {
+        setRapports([]);
+      }
+      
       setUsers(usr.data.utilisateurs || []);
-
-      // Données pour le graphique en courbes
-      const s = stats.data || {};
-      setChartData({
-        Clients: s.clientsParMois || [],
-        Départs: s.departsParMois || [],
-        Inscriptions: s.resaParMois || [],
-        Paiements: s.paiementsParMois || [],
-      });
     }).finally(() => setLoading(false));
   }, []);
 
-  // Accès rapide filtré par rôle
-  const menuPaths = new Set((MENU_BY_ROLE[role] || []).map(m => m.to));
-  const quickLinks = ALL_QUICK.filter(l => menuPaths.has(l.path));
+  // Accès rapide filtré par permissions dynamiques
+  const isSuper = ['dg', 'administrateur', 'informatique', 'admin'].includes(role?.toLowerCase());
+  const quickLinks = ALL_QUICK.filter(l => {
+    if (isSuper) return true;
+    if (l.module) return canViewModule(l.module);
+    return true;
+  });
 
-  // Suivi rapports du jour
-  const today = new Date();
-  const rapportsToday = rapports.filter(r => isSameDay(new Date(r.date || r.createdAt), today));
-  const submittedIds  = new Set(rapportsToday.map(r => String(r.agentId?._id || r.agentId || r.userId)));
+  // KPI filtrés selon les permissions
+  const kpiData = [
+    { module: 'reservations', label: 'Inscriptions', value: counts.inscriptions, icon: CalendarCheck, bg: '#2563EB' },
+    { module: 'paiements', label: 'Paiements', value: counts.paiements, icon: CreditCard, bg: '#00674F' },
+    { module: 'clients', label: 'Clients CRM', value: counts.clients, icon: Users, bg: '#7C3AED' },
+    { module: 'packages', label: 'Départs', value: counts.departs, icon: Plane, bg: '#EA580C' }
+  ].filter(kpi => canViewModule(kpi.module));
 
-  // Mon propre rapport (pour les rôles non-superviseurs)
-  const myRapportToday = rapportsToday.find(r =>
-    String(r.agentId?._id || r.agentId || r.userId) === String(user?.id)
-  );
-  // dg/secretaire : liste de tous les employés
-  const staffUsers = canSeeAllRapports
-    ? users.filter(u => u.role && u.role !== 'administrateur')
-    : [];
+  // Suivi rapports du jour - Logique résiliente
+  const rapportsToday = canSeeAllRapports ? rapports : rapports.filter(r => (r.employe?.id === user?.id || r.agentId?._id === user?.id || r.id === user?.id));
+  const myRapportToday = canSeeAllRapports ? null : (rapports.length > 0 ? rapports[0] : null);
+  // Pour les admins: utiliser les données du serveur
+  const staffUsers = canSeeAllRapports ? rapports : [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28, paddingTop: 24 }}>
 
-      {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
-        <KpiCard label="Inscriptions" value={loading ? '…' : counts.inscriptions} icon={CalendarCheck} bg="#2563EB" />
-        <KpiCard label="Paiements" value={loading ? '…' : counts.paiements} icon={CreditCard} bg="#00674F" />
-        <KpiCard label="Clients CRM" value={loading ? '…' : counts.clients} icon={Users} bg="#7C3AED" />
-        <KpiCard label="Départs" value={loading ? '…' : counts.departs} icon={Plane} bg="#EA580C" />
+      {/* Section "Vue d'ensemble" avec titre */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+          <div style={{ 
+            width: 40, height: 40, borderRadius: '50%', 
+            background: 'var(--primary)', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,103,79,0.2)'
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
+          <h2 style={{ 
+            fontFamily: 'var(--font-display)', 
+            fontSize: 20, 
+            fontWeight: 800, 
+            color: 'var(--text-main)',
+            margin: 0,
+            letterSpacing: '-0.01em'
+          }}>
+            Vue d'ensemble
+          </h2>
+        </div>
+
+        {/* KPI */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 32 }}>
+          {kpiData.map(kpi => (
+            <KpiCard 
+              key={kpi.module}
+              label={kpi.label} 
+              value={loading ? '…' : kpi.value} 
+              icon={kpi.icon} 
+              bg={kpi.bg} 
+            />
+          ))}
+        </div>
       </div>
-
-      {/* Graphique en courbes */}
-      <LineChart seriesData={chartData} />
 
       {/* Accès Rapide */}
       {quickLinks.length > 0 && (
         <section>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <Send size={15} color="var(--primary)" />
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color: 'var(--text-main)' }}>Accès Rapide</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+            <div style={{ 
+              width: 40, height: 40, borderRadius: '50%', 
+              background: 'var(--primary)', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,103,79,0.2)'
+            }}>
+              <Send size={20} color="white" />
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--text-main)', margin: 0, letterSpacing: '-0.01em' }}>Accès Rapide</h2>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14 }}>
             {quickLinks.map(l => (
               <QuickBtn key={l.label} label={l.label} icon={l.icon} color={l.color} onClick={() => navigate(l.path)} />
             ))}
@@ -331,33 +325,51 @@ export default function DashboardCommercial() {
       )}
 
       {/* Calendrier + Rapports */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
-        <div className="premium-card" style={{ padding: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-            <CalendarCheck size={15} color="var(--primary)" />
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color: 'var(--text-main)' }}>Calendrier des Réunions</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'start' }}>
+        <div className="premium-card" style={{ padding: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+            <div style={{ 
+              width: 40, height: 40, borderRadius: '50%', 
+              background: 'var(--primary)', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,103,79,0.2)'
+            }}>
+              <CalendarCheck size={20} color="white" />
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--text-main)', margin: 0, letterSpacing: '-0.01em' }}>Calendrier des Réunions</h2>
           </div>
           <MiniCalendar reunions={reunions} packages={packages} />
         </div>
 
-        <div className="premium-card" style={{ padding: 24 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color: 'var(--text-main)', marginBottom: 18 }}>
-            {canSeeAllRapports ? `Suivi des Rapports du ${todayStr()}` : 'Mon rapport du jour'}
-          </h2>
+        <div className="premium-card" style={{ padding: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+            <div style={{ 
+              width: 40, height: 40, borderRadius: '50%', 
+              background: 'var(--primary)', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,103,79,0.2)'
+            }}>
+              <FileText size={20} color="white" />
+            </div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--text-main)', margin: 0, letterSpacing: '-0.01em' }}>
+              {canSeeAllRapports ? `Suivi des Rapports du ${todayStr()}` : 'Mon rapport du jour'}
+            </h2>
+          </div>
           {loading ? (
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Chargement…</p>
           ) : canSeeAllRapports ? (
             // dg / secrétaire : liste de tous les employés
             staffUsers.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Aucun employé trouvé.</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                Aucun employé trouvé pour aujourd'hui.
+              </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {staffUsers.map(u => {
-                  const uid = String(u._id || u.id);
-                  const submitted = submittedIds.has(uid);
-                  const initials = `${(u.prenom||'')[0]||''}${(u.nom||'')[0]||''}`.toUpperCase() || '?';
+                {staffUsers.map(employe => {
+                  const submitted = employe.statut === 'RENDU';
+                  const initials = `${(employe.employe.prenom||'')[0]||''}${(employe.employe.nom||'')[0]||''}`.toUpperCase() || '?';
                   return (
-                    <div key={uid} style={{
+                    <div key={employe.employe.id} style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '10px 14px', borderRadius: 'var(--radius-md)',
                       border: '1px solid var(--border)',
@@ -371,9 +383,11 @@ export default function DashboardCommercial() {
                       }}>{initials}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {u.prenom} {u.nom}
+                          {employe.employe.prenom} {employe.employe.nom}
                         </p>
-                        {!submitted && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Aucun rapport soumis pour le moment.</p>}
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                          {employe.employe.role} - {submitted ? 'Rapport soumis' : 'Aucun rapport soumis'}
+                        </p>
                       </div>
                       {submitted ? <CheckCircle size={20} color="#16A34A" /> : <XCircle size={20} color="#DC2626" />}
                     </div>
@@ -384,13 +398,15 @@ export default function DashboardCommercial() {
           ) : (
             // Autres rôles : seulement leur propre rapport
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {myRapportToday ? (
+              {myRapportToday && myRapportToday.statut === 'RENDU' ? (
                 <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-md)', background: '#F0FDF4', border: '1px solid rgba(22,163,74,0.2)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <CheckCircle size={18} color="#16A34A" />
                     <span style={{ fontWeight: 700, fontSize: 13, color: '#16A34A' }}>Rapport soumis aujourd'hui</span>
                   </div>
-                  <p style={{ fontSize: 13, color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>{myRapportToday.activites}</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>
+                    {myRapportToday.rapport?.activites || 'Activités du jour...'}
+                  </p>
                 </div>
               ) : (
                 <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-md)', background: '#FFF9F9', border: '1px solid rgba(220,38,38,0.2)', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -405,7 +421,7 @@ export default function DashboardCommercial() {
                 onClick={() => navigate('/dashboard/rapports')}
                 style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 8, padding: '10px 16px', color: 'var(--primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
               >
-                {myRapportToday ? 'Voir / Modifier mon rapport' : '+ Soumettre mon rapport'}
+                {myRapportToday && myRapportToday.statut === 'RENDU' ? 'Voir / Modifier mon rapport' : '+ Soumettre mon rapport'}
               </button>
             </div>
           )}
