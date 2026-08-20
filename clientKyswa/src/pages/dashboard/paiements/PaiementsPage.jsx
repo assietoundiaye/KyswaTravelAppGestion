@@ -4,6 +4,7 @@ import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Modal from '../../../components/Modal';
+import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
 import { usePermissions } from '../../../hooks/usePermissions';
@@ -363,6 +364,15 @@ function PaiementsPageContent() {
     );
   }, [allPaiements, searchPaiements]);
 
+  const [pagePaiements, setPagePaiements] = useState(1);
+  const [limitPaiements, setLimitPaiements] = useState(25);
+
+  const paginatedPaiements = useMemo(() => {
+    return allPaiementsFiltres.slice((pagePaiements - 1) * limitPaiements, pagePaiements * limitPaiements);
+  }, [allPaiementsFiltres, pagePaiements, limitPaiements]);
+
+  const totalPagesPaiements = Math.ceil(allPaiementsFiltres.length / limitPaiements) || 1;
+
   const soldesEnAttenteFiltres = useMemo(() => {
     if (!searchPaiements.trim()) return soldesEnAttente;
     const q = searchPaiements.toLowerCase();
@@ -714,7 +724,16 @@ function PaiementsPageContent() {
             )}
           </h2>
         </div>
-        <DataTable columns={cols} data={allPaiementsFiltres} loading={loading} />
+        <DataTable columns={cols} data={paginatedPaiements} loading={loading} />
+        <Pagination
+          currentPage={pagePaiements}
+          totalPages={totalPagesPaiements}
+          totalItems={allPaiementsFiltres.length}
+          itemsPerPage={limitPaiements}
+          onPageChange={setPagePaiements}
+          onLimitChange={(l) => { setLimitPaiements(l); setPagePaiements(1); }}
+          limitOptions={[10, 25, 50, 100]}
+        />
       </div>
 
       <ConfirmDialog

@@ -1,16 +1,17 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ScanLine, Upload, CheckCircle, AlertCircle, X } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
 
 const EMPTY = {
   nom: '', prenom: '', telephone: '', email: '',
   numeroPasseport: '', dateExpirationPasseport: '',
   numeroCNI: '', dateNaissance: '', lieuNaissance: '',
-  adresse: '', niveauFidelite: 'BRONZE',
+  adresse: '', sexe: '', niveauFidelite: 'BRONZE',
 };
 
 export default function ClientsPage() {
@@ -18,6 +19,10 @@ export default function ClientsPage() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
@@ -25,12 +30,6 @@ export default function ClientsPage() {
   const [deleting, setDeleting] = useState(false);
 
   // ── OCR scan state ──────────────────────────────────────────────────────────
-  // 'ask'     → demander si document disponible
-  // 'choose'  → choisir le type (passeport / CNI)
-  // 'upload'  → uploader l'image
-  // 'scanning'→ en cours d'analyse
-  // 'done'    → formulaire pré-rempli
-  // 'manual'  → saisie manuelle directe
   const [scanStep, setScanStep] = useState('ask');
   const [scanDocType, setScanDocType] = useState('passport');
   const [scanPreview, setScanPreview] = useState(null);
@@ -43,26 +42,58 @@ export default function ClientsPage() {
     try {
       await api.delete(`/clients/${confirmDeleteId}`);
       toast('Client supprimé');
-      fetchClients();
+      fetchClients(search, page, limit);
     } catch (err) {
       toast(err.response?.data?.message || 'Erreur lors de la suppression', 'error');
     } finally { setDeleting(false); setConfirmDeleteId(null); }
   };
 
-  const fetchClients = async (q = '') => {
+  const fetchClients = async (q = search, p = page, l = limit) => {
     setLoading(true);
     try {
-      const res = await api.get('/clients', { params: q ? { search: q } : {} });
-      setClients(res.data.clients || []);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      const res = await api.get('/clients', {
+        params: {
+          search: q,
+          page: p,
+          limit: l,
+        },
+      });
+      setClients(res.data.clients || res.data.data || []);
+      if (res.data.pagination) {
+        setTotal(res.data.pagination.total || 0);
+        setTotalPages(res.data.pagination.totalPages || res.data.pagination.pages || 1);
+        setPage(res.data.pagination.page || p);
+      } else {
+        setTotal((res.data.clients || res.data.data || []).length);
+        setTotalPages(1);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchClients(); }, []);
+  useEffect(() => {
+    fetchClients('', 1, limit);
+  }, []);
 
   const handleSearch = (e) => {
-    setSearch(e.target.value);
-    fetchClients(e.target.value);
+    const val = e.target.value;
+    setSearch(val);
+    setPage(1);
+    fetchClients(val, 1, limit);
+  };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    fetchClients(search, newPage, limit);
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
+    fetchClients(search, 1, newLimit);
   };
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -107,10 +138,19 @@ export default function ClientsPage() {
         nom:    extracted.nom    || f.nom,
         prenom: extracted.prenom || f.prenom,
         dateNaissance: extracted.dateNaissance || f.dateNaissance,
+        dateExpirationPasseport: extracted.dateExpirationPasseport || f.dateExpirationPasseport,
         lieuNaissance: extracted.lieuNaissance || f.lieuNaissance,
+        sexe: extracted.sexe || f.sexe,
+        adresse: extracted.adresse || f.adresse,
         ...(extracted.type === 'passport' ? {
           numeroPasseport: extracted.numeroPasseport || f.numeroPasseport,
-          dateExpirationPasseport: extracted.dateExpirationPasseport || f.dateExpirationPasseport,
+          // Photo de profil (zone photo seule)
+          photoUrl: extracted.photoUrl || f.photoUrl,
+          photoPublicId: extracted.photoPublicId || f.photoPublicId,
+          // Document photo (passeport complet)
+          documentPhotoUrl: extracted.documentPhotoUrl || f.documentPhotoUrl,
+          documentPhotoPublicId: extracted.documentPhotoPublicId || f.documentPhotoPublicId,
+          extractedAt: extracted.extractedAt || f.extractedAt,
         } : {
           numeroCNI: extracted.numeroCNI || f.numeroCNI,
         }),
@@ -118,7 +158,11 @@ export default function ClientsPage() {
       setScanStep('done');
 
       if (extracted.mrzDetectee) {
-        toast('Document lu avec succès — vérifiez les informations');
+        let successMessage = 'Document lu avec succès — vérifiez les informations';
+        if (extracted.photoUrl) {
+          successMessage += '. Photo de profil et document sauvegardés.';
+        }
+        toast(successMessage);
       } else if (extracted.avertissement) {
         toast(extracted.avertissement, 'error');
       }
@@ -148,7 +192,7 @@ export default function ClientsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{clients.length} client(s)</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{total} client(s) enregistré(s)</p>
         <div style={{ display: 'flex', gap: 10 }}>
           <input value={search} onChange={handleSearch} placeholder="Nom, téléphone, passeport..."
             className="premium-input" style={{ width: 260 }} />
@@ -204,6 +248,14 @@ export default function ClientsPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          itemsPerPage={limit}
+          onPageChange={handlePageChange}
+          onLimitChange={handleLimitChange}
+        />
       </div>
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Nouveau client">
@@ -315,7 +367,7 @@ export default function ClientsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '24px 0' }}>
             <div style={{ width: 48, height: 48, border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>Lecture du document en cours...</p>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Mindee analyse votre document</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Analyse votre document</p>
           </div>
         )}
 
@@ -328,24 +380,27 @@ export default function ClientsPage() {
               <div style={{
                 background: scanFields.mrzDetectee ? '#F0FDF4' : '#FFFBEB',
                 border: `1px solid ${scanFields.mrzDetectee ? '#BBF7D0' : '#FDE68A'}`,
-                borderRadius: 10, padding: '10px 14px',
-                display: 'flex', alignItems: 'flex-start', gap: 10,
+                borderRadius: 10, padding: '12px 16px',
+                display: 'flex', alignItems: 'flex-start', gap: 12,
+                width: '100%',
+                boxSizing: 'border-box',
               }}>
                 {scanFields.mrzDetectee
-                  ? <CheckCircle size={16} color="#16A34A" style={{ flexShrink: 0, marginTop: 2 }} />
-                  : <AlertCircle size={16} color="#D97706" style={{ flexShrink: 0, marginTop: 2 }} />
+                  ? <CheckCircle size={18} color="#16A34A" style={{ flexShrink: 0, marginTop: 2 }} />
+                  : <AlertCircle size={18} color="#D97706" style={{ flexShrink: 0, marginTop: 2 }} />
                 }
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: scanFields.mrzDetectee ? '#16A34A' : '#D97706' }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: scanFields.mrzDetectee ? '#16A34A' : '#D97706' }}>
                     {scanFields.mrzDetectee ? 'Document lu automatiquement' : 'Lecture partielle'}
                   </p>
-                  <p style={{ fontSize: 11, color: scanFields.mrzDetectee ? '#15803D' : '#92400E', marginTop: 2 }}>
+                  <p style={{ fontSize: 12, color: scanFields.mrzDetectee ? '#15803D' : '#92400E', marginTop: 2 }}>
                     {scanFields.avertissement || `${scanDocType === 'passport' ? 'Passeport' : 'CNI'} — vérifiez et complétez les informations`}
                   </p>
                 </div>
                 <button type="button" onClick={() => { setScanFields(null); setScanStep('ask'); setForm(EMPTY); }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0 }}>
-                  <X size={14} />
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0, padding: 2 }}
+                >
+                  <X size={16} />
                 </button>
               </div>
             )}
@@ -368,6 +423,14 @@ export default function ClientsPage() {
                 <input type="date" value={form.dateNaissance} onChange={set('dateNaissance')} className="premium-input" />
               </div>
               <div>
+                <label className="input-label">Sexe</label>
+                <select value={form.sexe || ''} onChange={set('sexe')} className="premium-input">
+                  <option value="">Non spécifié</option>
+                  <option value="M">Masculin</option>
+                  <option value="F">Féminin</option>
+                </select>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
                 <label className="input-label">Lieu de naissance</label>
                 <input value={form.lieuNaissance} onChange={set('lieuNaissance')} className="premium-input" />
               </div>
@@ -386,12 +449,95 @@ export default function ClientsPage() {
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="input-label">Adresse</label>
-                <input value={form.adresse} onChange={set('adresse')} className="premium-input" />
+                <input value={form.adresse || ''} onChange={set('adresse')} className="premium-input" placeholder="Adresse complète" />
               </div>
             </div>
 
             {/* Documents */}
             <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Documents</p>
+            
+{/* Affichage de la photo extraite si disponible */}
+             {form.photoUrl && (
+               <div style={{ 
+                 marginBottom: 12, 
+                 padding: 14, 
+                 background: 'rgba(0,103,79,0.04)', 
+                 borderRadius: 8,
+                 border: '1px solid rgba(0,103,79,0.12)',
+                 display: 'flex', 
+                 alignItems: 'flex-start', 
+                 gap: 14,
+                 width: '100%',
+                 boxSizing: 'border-box',
+               }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {/* Photo de profil (zone photo seule) */}
+                  <div style={{ textAlign: 'center' }}>
+                    <img 
+                      src={form.photoUrl} 
+                      alt="Photo de profil extraite"
+                      style={{ 
+                        width: 60, 
+                        height: 60, 
+                        objectFit: 'cover', 
+                        borderRadius: 6,
+                        border: '2px solid var(--primary)'
+                      }}
+                    />
+                    <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>Photo profil</p>
+                  </div>
+                  
+                  {/* Document photo (si disponible) */}
+                  {form.documentPhotoUrl && (
+                    <div style={{ textAlign: 'center' }}>
+                      <img 
+                        src={form.documentPhotoUrl} 
+                        alt="Document passeport"
+                        style={{ 
+                          width: 60, 
+                          height: 40, 
+                          objectFit: 'cover', 
+                          borderRadius: 4,
+                          border: '1px solid var(--border)'
+                        }}
+                      />
+                      <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>Document</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)', marginBottom: 2 }}>
+                    Photo extraite automatiquement
+                  </p>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    • Photo complète du passeport (profil + document)<br/>
+                    {form.documentPhotoUrl && '• Document de référence sauvegardé'}
+                  </p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setForm(f => ({ 
+                    ...f, 
+                    photoUrl: '', 
+                    photoPublicId: '',
+                    documentPhotoUrl: '',
+                    documentPhotoPublicId: ''
+                  }))}
+                  style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    color: 'var(--text-muted)', 
+                    cursor: 'pointer',
+                    padding: 4
+                  }}
+                  title="Supprimer les photos"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <label className="input-label">N° Passeport</label>

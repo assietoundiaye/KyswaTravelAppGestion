@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronLeft, Users, Calendar, Plane, Download, FileText } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
 
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
@@ -101,9 +102,9 @@ function PackageBlock({ pkg, count, onClick }) {
           <div style={{
             height: '100%',
             width: `${Math.min(pct, 100)}%`,
-            background: pct >= 90 ? '#DC2626' : pct >= 70 ? '#D97706' : '#16A34A',
+            background: pct >= 90 ? '#DC2626' : pct >= 70 ? '#EA580C' : 'var(--primary)',
             borderRadius: 4,
-            transition: 'width 0.4s ease',
+            transition: 'width 0.3s ease',
           }} />
         </div>
       )}
@@ -116,12 +117,27 @@ function Badge({ val, map }) {
   return <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, background: s.bg, color: s.color, fontSize: 11, fontWeight: 700 }}>{val}</span>;
 }
 
-const PAGE_SIZE = 20;
-
 const EMPTY_FORM = {
   packageKId: '', niveauConfort: 'ECO',
   dateDepart: '', dateRetour: '', montantTotalDu: '', notes: '',
   statutClient: 'INSCRIT', clients: [],
+};
+
+const buildPackageForm = (pkg, base = EMPTY_FORM) => {
+  if (!pkg) return EMPTY_FORM;
+
+  const prixMap = { ECO: pkg.prixEco, CONFORT: pkg.prixCont, VIP: pkg.prixVip };
+  const defaultNiveau = ['ECO', 'CONFORT', 'VIP'].find(n => prixMap[n]) || 'ECO';
+  const suggestedPrice = prixMap[defaultNiveau] || '';
+
+  return {
+    ...base,
+    packageKId: pkg._id,
+    niveauConfort: defaultNiveau,
+    dateDepart: pkg.dateDepart ? pkg.dateDepart.slice(0, 10) : base.dateDepart,
+    dateRetour: pkg.dateRetour ? pkg.dateRetour.slice(0, 10) : base.dateRetour,
+    montantTotalDu: suggestedPrice ? String(Math.round(Number(suggestedPrice))) : base.montantTotalDu,
+  };
 };
 
 export default function ReservationsPage() {
@@ -132,6 +148,7 @@ export default function ReservationsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState(EMPTY_FORM);
   const [clientSearch, setClientSearch] = useState('');
@@ -157,13 +174,26 @@ export default function ReservationsPage() {
     setLoading(true);
     try {
       const [r, p, c] = await Promise.all([
-        api.get('/reservations'),
-        api.get('/packages'),
-        api.get('/clients'),
+        api.get('/reservations', { params: { limit: 2000 } }),
+        api.get('/packages', { params: { limit: 200 } }),
+        api.get('/clients', { params: { limit: 2000 } }),
       ]);
-      setReservations(r.data.reservations || []);
-      setPackages(p.data.packages || []);
-      setClients(c.data.clients || []);
+      const allReservations = r.data.reservations || r.data.data || [];
+      // Calcul du nombre d'inscriptions par départ
+      const countMap = {};
+      allReservations.forEach(insc => {
+        const departId = insc.depart_id || insc.depart?.id || insc.packageKId?._id || insc.packageKId;
+        if (departId) countMap[departId] = (countMap[departId] || 0) + 1;
+      });
+      const pkgsRaw = p.data.packages || p.data.data || [];
+      // Injecter le nombre réel d'inscriptions dans chaque départ
+      const pkgsWithCount = pkgsRaw.map(pkg => ({
+        ...pkg,
+        placesReservees: countMap[pkg.id || pkg._id] || pkg.placesReservees || 0,
+      }));
+      setReservations(allReservations);
+      setPackages(pkgsWithCount);
+      setClients(c.data.clients || c.data.data || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -173,18 +203,13 @@ export default function ReservationsPage() {
   // Auto-fill dates AND prix when package is selected
   const handlePackageChange = (pkgId) => {
     const pkg = packages.find(p => p._id === pkgId);
-    const prixMap = { ECO: pkg?.prixEco, CONFORT: pkg?.prixCont, VIP: pkg?.prixVip };
-    // Choisir le premier niveau disponible par défaut
-    const defaultNiveau = ['ECO', 'CONFORT', 'VIP'].find(n => prixMap[n]) || 'ECO';
-    const suggestedPrice = prixMap[defaultNiveau] || '';
-    setForm(f => ({
-      ...f,
-      packageKId: pkgId,
-      niveauConfort: defaultNiveau,
-      dateDepart: pkg?.dateDepart ? pkg.dateDepart.slice(0, 10) : f.dateDepart,
-      dateRetour: pkg?.dateRetour ? pkg.dateRetour.slice(0, 10) : f.dateRetour,
-      montantTotalDu: suggestedPrice ? String(Math.round(Number(suggestedPrice))) : f.montantTotalDu,
-    }));
+    setForm(buildPackageForm(pkg));
+  };
+
+  const openForm = (pkg = selectedPkg) => {
+    setForm(buildPackageForm(pkg));
+    setClientSearch('');
+    setShowForm(true);
   };
 
   // Recalculate price when niveau confort changes
@@ -204,23 +229,28 @@ export default function ReservationsPage() {
   };
 
   const filtered = useMemo(() => {
-    // Filtrer par départ sélectionné
+    // Filtrer par départ sélectionné — support depart_id (PostgreSQL) et packageKId (legacy Mongo)
     let base = reservations;
     if (selectedPkg) {
-      base = reservations.filter(r =>
-        (r.packageKId?._id || r.packageKId) === selectedPkg._id
-      );
+      const pkgId = selectedPkg.id || selectedPkg._id;
+      base = reservations.filter(r => {
+        const rDepartId = r.depart_id || r.departs?.id;
+        const rPkgId = r.packageKId?._id || r.packageKId;
+        return rDepartId === pkgId || rPkgId === pkgId;
+      });
     }
     if (!search) return base;
     const q = search.toLowerCase();
     return base.filter(r =>
       r.numero?.toLowerCase().includes(q) ||
-      r.clients?.some(c => `${c.nom} ${c.prenom}`.toLowerCase().includes(q) || c.telephone?.includes(q))
+      (r.clients || []).some(c => `${c.nom || ''} ${c.prenom || ''}`.toLowerCase().includes(q) || (c.telephone || '').includes(q)) ||
+      // fallback si clients est un objet (relation 1-1)
+      (r.client && `${r.client.nom || ''} ${r.client.prenom || ''}`.toLowerCase().includes(q))
     );
   }, [reservations, search, selectedPkg]);
 
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
 
   const toggleClient = (id) => {
     setForm(f => ({
@@ -420,11 +450,15 @@ export default function ReservationsPage() {
     }
   };
 
-  // Compter les inscriptions par package
+  // Compter les inscriptions par départ (support depart_id PostgreSQL + packageKId legacy)
   const countByPkg = useMemo(() => {
     const map = {};
     reservations.forEach(r => {
-      const id = r.packageKId?._id || r.packageKId;
+      // PostgreSQL : depart_id ou departs.id
+      const departId = r.depart_id || r.departs?.id;
+      // Legacy Mongo : packageKId
+      const pkgId = r.packageKId?._id || r.packageKId;
+      const id = departId || pkgId;
       if (id) map[id] = (map[id] || 0) + 1;
     });
     return map;
@@ -455,7 +489,7 @@ export default function ReservationsPage() {
                 Sélectionnez un départ pour voir les inscriptions
               </p>
             </div>
-            <button onClick={() => setShowForm(true)} className="btn-primary">+ Nouvelle inscription</button>
+            <button onClick={() => openForm()} className="btn-primary">+ Nouvelle inscription</button>
           </div>
 
           {loading ? (
@@ -472,9 +506,9 @@ export default function ReservationsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
               {packagesTries.map(pkg => (
                 <PackageBlock
-                  key={pkg._id}
+                  key={pkg.id || pkg._id}
                   pkg={pkg}
-                  count={countByPkg[pkg._id] || 0}
+                  count={countByPkg[pkg.id] || countByPkg[pkg._id] || 0}
                   onClick={() => { setSelectedPkg(pkg); setSearch(''); setPage(1); }}
                 />
               ))}
@@ -562,7 +596,7 @@ export default function ReservationsPage() {
               >
                 <FileText size={14} /> PDF
               </button>
-              <button onClick={() => setShowForm(true)} className="btn-primary">+ Nouvelle inscription</button>
+              <button onClick={() => openForm(selectedPkg)} className="btn-primary">+ Nouvelle inscription</button>
             </div>
           </div>
 
@@ -612,12 +646,17 @@ export default function ReservationsPage() {
                     <tr><td colSpan={10} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Aucune inscription pour ce départ</td></tr>
                   ) : paginated.map(r => {
                     const recu = (r.montantTotalDu || 0) - (r.resteAPayer || 0);
+                    // clients peut être un tableau (legacy) ou un objet (PostgreSQL 1-1)
+                    const clientsList = Array.isArray(r.clients) ? r.clients : (r.clients ? [r.clients] : r.client ? [r.client] : []);
+                    const nomClients = clientsList.map(c => `${c.nom || ''} ${c.prenom || ''}`.trim()).filter(Boolean).join(', ') || '—';
+                    const tel = clientsList[0]?.telephone || '—';
+                    const typeChambre = r.type_chambre || r.typeChambre || r.niveauConfort || '—';
                     return (
-                      <tr key={r._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/dashboard/reservations/${r._id}`)}>
+                      <tr key={r.id || r._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/dashboard/reservations/${r.id || r._id}`)}>
                         <td><span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: 'var(--primary)' }}>{r.numero || r.idReservation}</span></td>
-                        <td style={{ fontWeight: 600 }}>{r.clients?.map(c => `${c.nom} ${c.prenom}`).join(', ') || '—'}</td>
-                        <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{r.clients?.[0]?.telephone || '—'}</td>
-                        <td style={{ fontSize: 12 }}>{r.niveauConfort || r.typeChambre || '—'}</td>
+                        <td style={{ fontWeight: 600 }}>{nomClients}</td>
+                        <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{tel}</td>
+                        <td style={{ fontSize: 12 }}>{typeChambre}</td>
                         <td style={{ fontWeight: 600 }}>{fmt(r.montantTotalDu)}</td>
                         <td style={{ color: '#16A34A', fontWeight: 600 }}>{fmt(recu)}</td>
                         <td style={{ color: r.resteAPayer > 0 ? '#DC2626' : '#16A34A', fontWeight: 700 }}>{fmt(r.resteAPayer)}</td>
@@ -642,15 +681,15 @@ export default function ReservationsPage() {
               </table>
             </div>
 
-            {totalPages > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                  style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: 13 }}>Préc</button>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Page {page} / {totalPages}</span>
-                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1, fontSize: 13 }}>Suiv</button>
-              </div>
-            )}
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              itemsPerPage={pageSize}
+              onPageChange={setPage}
+              onLimitChange={(newL) => { setPageSize(newL); setPage(1); }}
+              limitOptions={[10, 20, 50, 100]}
+            />
           </div>
         </>
       )}
@@ -664,15 +703,22 @@ export default function ReservationsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="input-label">Package / Départ *</label>
-              <select value={form.packageKId} onChange={e => handlePackageChange(e.target.value)} className="premium-input" required>
-                <option value="">Sélectionner un départ...</option>
-                {packages.filter(p => p.statut === 'OUVERT').map(p => (
-                  <option key={p._id} value={p._id}>
-                    {p.nomReference} — {p.type} — {fmtDate(p.dateDepart)}
-                    {p.quotaMax && ` (${p.placesReservees || 0}/${p.quotaMax} places)`}
-                  </option>
-                ))}
-              </select>
+              {selectedPkg ? (
+                <div className="premium-input" style={{ minHeight: 42, display: 'flex', alignItems: 'center' }}>
+                  {selectedPkg.nomReference} — {selectedPkg.type} — {fmtDate(selectedPkg.dateDepart)}
+                  {selectedPkg.quotaMax && ` (${selectedPkg.placesReservees || 0}/${selectedPkg.quotaMax} places)`}
+                </div>
+              ) : (
+                <select value={form.packageKId} onChange={e => handlePackageChange(e.target.value)} className="premium-input" required>
+                  <option value="">Sélectionner un départ...</option>
+                  {packages.filter(p => p.statut === 'OUVERT').map(p => (
+                    <option key={p._id} value={p._id}>
+                      {p.nomReference} — {p.type} — {fmtDate(p.dateDepart)}
+                      {p.quotaMax && ` (${p.placesReservees || 0}/${p.quotaMax} places)`}
+                    </option>
+                  ))}
+                </select>
+              )}
               {/* Prix du package sélectionné */}
               {form.packageKId && (() => {
                 const pkg = packages.find(p => p._id === form.packageKId);

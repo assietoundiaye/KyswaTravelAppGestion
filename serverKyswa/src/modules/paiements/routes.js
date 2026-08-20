@@ -14,15 +14,33 @@ function createPaiementsRoutes(dependencies) {
   // GET liste (paginée)
   router.get('/', protect, checkPermission('paiements', 'view'), async (req, res, next) => {
     try {
-      const { page = 1, limit = 1000 } = req.query;
-      const result = await repository.findMany({}, { page: +page, limit: +limit });
+      const { page = 1, limit = 50, mode, reservation_id, billet_id } = req.query;
+      const filter = {};
+      if (mode) filter.mode = mode;
+      if (reservation_id) filter.reservation_id = reservation_id;
+      if (billet_id) filter.billet_id = billet_id;
+
+      const lim = parseInt(limit);
+      const cur = parseInt(page);
+      const result = await repository.findMany(filter, { page: cur, limit: lim });
+      const total = result.total || result.data?.length || 0;
+      const totalPages = Math.ceil(total / lim) || 1;
+
       res.json({
         success: true,
         data: result.data,
-        total: result.total,
+        total: total,
         paiements: result.data,
         departs: result.data,
-        profiles: result.data
+        profiles: result.data,
+        pagination: {
+          current: cur,
+          page: cur,
+          limit: lim,
+          total: total,
+          pages: totalPages,
+          totalPages: totalPages,
+        }
       });
     } catch (e) { next(e); }
   });

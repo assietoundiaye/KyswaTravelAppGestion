@@ -13,8 +13,10 @@ function createVisasRoutes(dependencies) {
   // GET liste (paginée ou filtrée)
   router.get('/', protect, checkPermission('visas', 'view'), async (req, res, next) => {
     try {
-      const { page = 1, limit = 1000, statut } = req.query;
-      const result = await repository.findMany({}, { page: +page, limit: +limit });
+      const { page = 1, limit = 50, statut } = req.query;
+      const lim = parseInt(limit);
+      const cur = parseInt(page);
+      const result = await repository.findMany({}, { page: cur, limit: lim });
 
       let list = (result.data || []).map(v => {
         let currentStatut = v.statut;
@@ -51,11 +53,22 @@ function createVisasRoutes(dependencies) {
         list = list.filter(v => v.statut === statut);
       }
 
+      const total = result.total || list.length;
+      const totalPages = Math.ceil(total / lim) || 1;
+
       res.json({
         success: true,
         data: list,
         visas: list,
-        total: list.length,
+        total: total,
+        pagination: {
+          current: cur,
+          page: cur,
+          limit: lim,
+          total: total,
+          pages: totalPages,
+          totalPages: totalPages,
+        }
       });
     } catch (e) { next(e); }
   });

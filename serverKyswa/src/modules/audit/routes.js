@@ -12,17 +12,30 @@ function createAuditRoutes(dependencies) {
   // GET liste avec filtres (action, module, search)
   router.get('/', protect, async (req, res, next) => {
     try {
-      const { page = 1, limit = 200, action, module, search } = req.query;
+      const { page = 1, limit = 50, action, module, search } = req.query;
+      const lim = parseInt(limit);
+      const cur = parseInt(page);
       const result = await repository.findFiltered(
         { action, module, search },
-        { page: +page, limit: +limit }
+        { page: cur, limit: lim }
       );
+      const total = result.total || result.data?.length || 0;
+      const totalPages = Math.ceil(total / lim) || 1;
+
       res.json({
         success: true,
         logs: result.data,
         data: result.data,
-        total: result.total,
+        total: total,
         audit_logs: result.data,
+        pagination: {
+          current: cur,
+          page: cur,
+          limit: lim,
+          total: total,
+          pages: totalPages,
+          totalPages: totalPages,
+        }
       });
     } catch (e) { next(e); }
   });

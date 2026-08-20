@@ -22,25 +22,38 @@ class ClientController {
    */
   async getAll(req, res, next) {
     try {
-      const { page = 1, limit = 1000 } = req.query;
+      const { page = 1, limit = 50, search, q } = req.query;
+      const searchQuery = (search || q || '').trim();
 
-      const result = await this.service.getAll(
-        {},
-        {
-          page: parseInt(page),
-          limit: parseInt(limit),
-        }
-      );
+      const result = searchQuery
+        ? await this.service.search(searchQuery, {
+            page: parseInt(page),
+            limit: parseInt(limit),
+          })
+        : await this.service.getAll(
+            {},
+            {
+              page: parseInt(page),
+              limit: parseInt(limit),
+            }
+          );
+
+      const total = result.total || result.data?.length || 0;
+      const lim = parseInt(limit);
+      const cur = parseInt(page);
+      const totalPages = Math.ceil(total / lim) || 1;
 
       res.status(200).json({
         success: true,
         data: result.data,
         clients: result.data,
         pagination: {
-          current: parseInt(page),
-          limit: parseInt(limit),
-          total: result.total,
-          pages: Math.ceil(result.total / parseInt(limit)),
+          current: cur,
+          page: cur,
+          limit: lim,
+          total: total,
+          pages: totalPages,
+          totalPages: totalPages,
         },
       });
     } catch (error) {

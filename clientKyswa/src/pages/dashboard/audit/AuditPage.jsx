@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { RefreshCw, Eye } from 'lucide-react';
 import api from '../../../core/api/axios';
 import Modal from '../../../components/Modal';
+import Pagination from '../../../components/Pagination';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleString('fr-FR', {
   day: '2-digit', month: '2-digit', year: 'numeric',
@@ -61,34 +62,61 @@ function CounterCard({ label, value, color }) {
 export default function AuditPage() {
   const [logs, setLogs] = useState([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterModule, setFilterModule] = useState('tous');
   const [filterAction, setFilterAction] = useState('tous');
   const [selectedLog, setSelectedLog] = useState(null);
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (p = page, l = limit, s = search, mod = filterModule, act = filterAction) => {
     setLoading(true);
     try {
-      const params = { limit: 500 };
-      if (search)                    params.search = search;
-      if (filterModule !== 'tous')   params.module = filterModule;
-      if (filterAction !== 'tous')   params.action = filterAction;
+      const params = { page: p, limit: l };
+      if (s)                    params.search = s;
+      if (mod !== 'tous')   params.module = mod;
+      if (act !== 'tous')   params.action = act;
       const r = await api.get('/audit', { params });
       const data = r.data.logs || r.data.data || [];
       setLogs(data);
-      setTotal(r.data.total ?? data.length);
+      if (r.data.pagination) {
+        setTotal(r.data.pagination.total || 0);
+        setTotalPages(r.data.pagination.totalPages || r.data.pagination.pages || 1);
+        setPage(r.data.pagination.page || p);
+      } else {
+        setTotal(r.data.total ?? data.length);
+        setTotalPages(Math.ceil((r.data.total ?? data.length) / l) || 1);
+      }
     } catch (e) { console.error('[AuditPage] Erreur fetch:', e); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchLogs(); }, [filterModule, filterAction]);
+  useEffect(() => {
+    setPage(1);
+    fetchLogs(1, limit, search, filterModule, filterAction);
+  }, [filterModule, filterAction]);
 
   // Debounce recherche texte
   useEffect(() => {
-    const t = setTimeout(() => fetchLogs(), 400);
+    const t = setTimeout(() => {
+      setPage(1);
+      fetchLogs(1, limit, search, filterModule, filterAction);
+    }, 400);
     return () => clearTimeout(t);
   }, [search]);
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    fetchLogs(newPage, limit, search, filterModule, filterAction);
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
+    fetchLogs(1, newLimit, search, filterModule, filterAction);
+  };
 
   // Compteurs par action (depuis les logs chargés)
   const counts = useMemo(() => {
@@ -234,6 +262,14 @@ export default function AuditPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          itemsPerPage={limit}
+          onPageChange={handlePageChange}
+          onLimitChange={handleLimitChange}
+        />
       </div>
 
       {/* Modal détail */}
