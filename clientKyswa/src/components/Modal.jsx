@@ -25,20 +25,20 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
       }} />
 
       {/* Panel */}
-      <div className="animate-slide-up" style={{
+      <div className="animate-slide-up modal-panel" style={{
         position: 'relative', zIndex: 1,
         width: '100%', maxWidth: widths[size],
         background: 'var(--bg-card)',
         borderRadius: 'var(--radius-2xl)',
         boxShadow: 'var(--shadow-premium)',
         border: '1px solid var(--border-light)',
-        maxHeight: '90vh',
+        maxHeight: '92vh',
         display: 'flex', flexDirection: 'column',
       }}>
         {/* Header */}
-        <div style={{
+        <div className="modal-header" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '20px 24px',
+          padding: '18px 24px',
           borderBottom: '1px solid var(--border-light)',
         }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--text-main)' }}>
@@ -48,12 +48,12 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
             background: 'rgba(var(--primary-rgb), 0.08)', border: 'none',
             borderRadius: 8, width: 32, height: 32,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: 'var(--text-muted)', fontSize: 18, fontWeight: 300,
+            cursor: 'pointer', color: 'var(--text-muted)', fontSize: 20, fontWeight: 400,
           }}>×</button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+        <div className="modal-body" style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
           {children}
         </div>
       </div>

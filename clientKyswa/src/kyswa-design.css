@@ -49,6 +49,74 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* =========================================================================
+   DASHBOARD PAGES SPACING
+   ========================================================================= */
+
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 32px;
+}
+
+.dashboard-page-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.dashboard-page-subtitle {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+/* =========================================================================
+   LAYOUT & SPACING
+   ========================================================================= */
+
+.page-content {
+  padding: 48px 24px 28px 24px;
+}
+
+.page-header-spacing {
+  margin-top: 20px;
+  margin-bottom: 32px;
+}
+
+.section-spacing {
+  margin-bottom: 32px;
+}
+
+@media (max-width: 768px) {
+  .page-content {
+    padding: 32px 16px 20px 16px;
+  }
+  
+  .page-header-spacing {
+    margin-top: 16px;
+    margin-bottom: 24px;
+  }
+}
+
+/* =========================================================================
+   NAVBAR SPACING FIX
+   ========================================================================= */
+
+.dashboard-main-content {
+  padding-top: 32px;
+}
+
+.navbar-content-gap {
+  height: 32px;
+  background: var(--bg-main);
+  width: 100%;
+  display: block;
+}
+
 body {
   font-family: var(--font-sans);
   background: var(--bg-main);
@@ -254,18 +322,61 @@ h1, h2, h3, h4, h5, h6 {
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .hide-mobile { display: none !important; }
 
-/* RESPONSIVE */
-@media (min-width: 768px) { .hide-mobile { display: table-cell !important; } }
-@media (max-width: 768px) {
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-  .premium-card { padding: 16px; border-radius: var(--radius-lg); }
-  .premium-input { font-size: 16px; }
-  .premium-table th, .premium-table td { padding: 10px 12px; font-size: 12px; white-space: nowrap; }
-  .btn-primary, .btn-secondary, .btn-danger { min-height: 44px; font-size: 15px; }
+/* RESPONSIVE DESIGN SYSTEM */
+.table-container, .overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+  max-width: 100%;
 }
+
+@media (min-width: 768px) { 
+  .hide-mobile { display: table-cell !important; } 
+  .show-mobile-only { display: none !important; }
+}
+
+@media (max-width: 1024px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .grid-responsive-3 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+@media (max-width: 768px) {
+  /* Layout & Grids */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid-responsive-2, .grid-responsive-3, .grid-responsive-4 { grid-template-columns: 1fr !important; }
+  
+  /* Cards & Spacing */
+  .premium-card { padding: 14px; border-radius: var(--radius-lg); margin-bottom: 12px; }
+  .stat-icon { width: 42px; height: 42px; }
+  
+  /* Inputs & Buttons */
+  .premium-input { font-size: 15px; padding: 10px 12px; }
+  .btn-primary, .btn-secondary, .btn-danger { min-height: 42px; font-size: 14px; padding: 8px 14px; }
+  
+  /* Tables */
+  .premium-table { font-size: 12px; }
+  .premium-table th, .premium-table td { padding: 8px 10px; font-size: 12px; white-space: nowrap; }
+  
+  /* Modals */
+  .modal-panel { width: 95vw !important; max-width: 95vw !important; margin: 8px !important; border-radius: var(--radius-xl) !important; }
+  .modal-body { padding: 16px !important; }
+  .modal-header { padding: 14px 16px !important; }
+
+  /* Flex tools and action bars */
+  .action-bar, .toolbar-responsive {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+}
+
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stats-grid { grid-template-columns: 1fr; gap: 10px; }
+  .stat-card-title { font-size: 11px; }
+  .stat-card-value { font-size: 20px; }
+  .premium-card { padding: 12px; }
+  .btn-primary, .btn-secondary, .btn-danger { width: 100%; justify-content: center; }
 }
 
 /* Photo profil client */
 label:hover .photo-overlay { opacity: 1 !important; }
+
