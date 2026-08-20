@@ -33,23 +33,46 @@ class ClientRepository extends BaseRepository {
   }
 
   async findByPasseport(n_passeport) {
-    return await this.findOne({ n_passeport });
+    if (!n_passeport || typeof n_passeport !== 'string') return null;
+    const clean = n_passeport.trim();
+    if (!clean) return null;
+    return await this.model.findFirst({
+      where: { n_passeport: { equals: clean, mode: 'insensitive' } }
+    });
   }
 
   // ─────────────────────────────────────────────────────
-  // VÉRIFICATIONS D'EXISTENCE
+  // VÉRIFICATIONS D'EXISTENCE (avec exclusion d'ID pour mise à jour)
   // ─────────────────────────────────────────────────────
 
-  async emailExists(email) {
-    return await this.exists({ email });
+  async emailExists(email, excludeId = null) {
+    if (!email || typeof email !== 'string') return false;
+    const clean = email.trim().toLowerCase();
+    if (!clean) return false;
+    const where = { email: { equals: clean, mode: 'insensitive' } };
+    if (excludeId) where.id = { not: excludeId };
+    const count = await this.model.count({ where });
+    return count > 0;
   }
 
-  async telephoneExists(telephone) {
-    return await this.exists({ telephone });
+  async telephoneExists(telephone, excludeId = null) {
+    if (!telephone || typeof telephone !== 'string') return false;
+    const clean = telephone.trim();
+    if (!clean) return false;
+    const where = { telephone: { equals: clean, mode: 'insensitive' } };
+    if (excludeId) where.id = { not: excludeId };
+    const count = await this.model.count({ where });
+    return count > 0;
   }
 
-  async passeportExists(n_passeport) {
-    return await this.exists({ n_passeport });
+  async passeportExists(n_passeport, excludeId = null) {
+    if (!n_passeport || typeof n_passeport !== 'string') return false;
+    const clean = n_passeport.trim();
+    if (!clean) return false;
+    const where = { n_passeport: { equals: clean, mode: 'insensitive' } };
+    if (excludeId) where.id = { not: excludeId };
+    const count = await this.model.count({ where });
+    return count > 0;
   }
 
   // ─────────────────────────────────────────────────────

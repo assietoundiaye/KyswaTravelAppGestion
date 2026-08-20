@@ -31,48 +31,102 @@ class ClientService {
    * @param {Object} data - Données client (snake_case Supabase)
    * @param {String} userId - UUID du profil agent qui crée
    */
+  /**
+   * Normalise les champs entrants du frontend (camelCase) → snake_case BDD
+   * Supporte les deux formats : camelCase frontend et snake_case direct
+   */
+  normalizeClientInput(data) {
+    return {
+      // Identité
+      nom: data.nom || null,
+      prenom: data.prenom || null,
+      genre: data.genre || data.sexe || null,
+      telephone: data.telephone || null,
+      email: data.email || null,
+      adresse: data.adresse || null,
+      ville: data.ville || null,
+      quartier: data.quartier || null,
+
+      // Dates (supporte les deux nommages)
+      date_naissance: data.date_naissance || data.dateNaissance || null,
+      
+      // Passeport (supporte numeroPasseport ET n_passeport)
+      n_passeport: data.n_passeport || data.numeroPasseport || null,
+      expiration_passeport: data.expiration_passeport || data.dateExpirationPasseport || null,
+      nationalite: data.nationalite || null,
+      nature_passeport: data.nature_passeport || null,
+      
+      // CNI
+      numero_cni: data.numero_cni || data.numeroCNI || null,
+
+      // Fidélité (supporte niveauFidelite ET niveau_fidelite)
+      niveau_fidelite: data.niveau_fidelite || data.niveauFidelite || null,
+      
+      // Voyages
+      vip: data.vip || false,
+      nb_hajj: data.nb_hajj || 0,
+      nb_oumra: data.nb_oumra || 0,
+      premier_voyage: data.premier_voyage !== undefined ? data.premier_voyage : null,
+      
+      // Pro & contact
+      profession: data.profession || null,
+      employeur: data.employeur || null,
+      contact_prefere: data.contact_prefere || null,
+      source_connaissance: data.source_connaissance || null,
+      referent: data.referent || null,
+      budget_estime: data.budget_estime || null,
+      
+      // Visas
+      visa_schengen: data.visa_schengen || false,
+      visa_schengen_expiration: data.visa_schengen_expiration || null,
+      visa_usa: data.visa_usa || false,
+      visa_usa_expiration: data.visa_usa_expiration || null,
+      autres_visas: data.autres_visas || null,
+      
+      // Médias & docs
+      photo_url: data.photo_url || data.photoUrl || null,
+      passport_url: data.passport_url || data.documentPhotoUrl || null,
+      documents_urls: data.documents_urls || [],
+      
+      // Notes
+      notes: data.notes || null,
+    };
+  }
+
   async create(data, userId) {
-    this.validateClientData(data);
+    // Mapper camelCase → snake_case
+    const normalized = this.normalizeClientInput(data);
+
+    if (!normalized.nom) {
+      const { ValidationException } = require('../../../shared/exceptions');
+      throw new ValidationException('Le nom est requis');
+    }
 
     // Vérifier email unique
-    if (data.email && (await this.repository.emailExists(data.email))) {
+    if (normalized.email && (await this.repository.emailExists(normalized.email))) {
       throw new ConflictException('Cet email est déjà utilisé');
     }
 
     // Vérifier passeport unique
-    if (data.n_passeport && (await this.repository.passeportExists(data.n_passeport))) {
-      throw new ConflictException('Ce numéro de passeport est déjà utilisé');
+    if (normalized.n_passeport && (await this.repository.passeportExists(normalized.n_passeport))) {
+      throw new ConflictException(`Ce numéro de passeport (${normalized.n_passeport}) est déjà enregistré`);
+    }
+
+    // Vérifier téléphone unique
+    if (normalized.telephone && (await this.repository.telephoneExists(normalized.telephone))) {
+      throw new ConflictException(`Ce numéro de téléphone (${normalized.telephone}) est déjà utilisé`);
     }
 
     // Valeurs par défaut
     const clientData = {
-      nom: data.nom,
-      prenom: data.prenom || null,
-      genre: data.genre || null,
-      telephone: data.telephone || null,
-      email: data.email || null,
-      adresse: data.adresse || null,
-      ville: data.ville || 'Dakar',
-      date_naissance: data.date_naissance ? new Date(data.date_naissance) : null,
-      n_passeport: data.n_passeport || null,
-      expiration_passeport: data.expiration_passeport ? new Date(data.expiration_passeport) : null,
-      nationalite: data.nationalite || 'Sénégalaise',
-      nature_passeport: data.nature_passeport || 'Ordinaire',
-      vip: data.vip || false,
-      notes: data.notes || null,
+      ...normalized,
+      ville: normalized.ville || 'Dakar',
+      nationalite: normalized.nationalite || 'Sénégalaise',
+      nature_passeport: normalized.nature_passeport || 'Ordinaire',
+      contact_prefere: normalized.contact_prefere || 'WhatsApp',
+      niveau_fidelite: normalized.niveau_fidelite || 'Nouveau',
+      premier_voyage: normalized.premier_voyage !== null ? normalized.premier_voyage : true,
       created_by: userId || null,
-      profession: data.profession || null,
-      employeur: data.employeur || null,
-      quartier: data.quartier || null,
-      contact_prefere: data.contact_prefere || 'WhatsApp',
-      source_connaissance: data.source_connaissance || null,
-      referent: data.referent || null,
-      niveau_fidelite: data.niveau_fidelite || 'Nouveau',
-      budget_estime: data.budget_estime || null,
-      premier_voyage: data.premier_voyage !== undefined ? data.premier_voyage : true,
-      nb_hajj: data.nb_hajj || 0,
-      nb_oumra: data.nb_oumra || 0,
-      documents_urls: data.documents_urls || [],
     };
 
     const client = await this.repository.create(clientData);
@@ -125,16 +179,31 @@ class ClientService {
   async update(id, data, userId) {
     const client = await this.getById(id);
 
-    this.validateClientData(data, true);
+    // Mapper camelCase → snake_case
+    const normalized = this.normalizeClientInput(data);
 
-    // Vérifier email unique si changé
-    if (data.email && data.email !== client.email) {
-      if (await this.repository.emailExists(data.email)) {
-        throw new ConflictException('Cet email est déjà utilisé');
+    // Vérifier email unique si changé (exclude current client)
+    if (normalized.email && normalized.email !== client.email) {
+      if (await this.repository.emailExists(normalized.email, id)) {
+        throw new ConflictException('Cet email est déjà utilisé par un autre client');
       }
     }
 
-    const updated = await this.repository.updateById(id, data);
+    // Vérifier passeport unique si changé (exclude current client)
+    if (normalized.n_passeport && normalized.n_passeport !== client.n_passeport) {
+      if (await this.repository.passeportExists(normalized.n_passeport, id)) {
+        throw new ConflictException(`Ce numéro de passeport (${normalized.n_passeport}) est déjà enregistré`);
+      }
+    }
+
+    // Vérifier téléphone unique si changé (exclude current client)
+    if (normalized.telephone && normalized.telephone !== client.telephone) {
+      if (await this.repository.telephoneExists(normalized.telephone, id)) {
+        throw new ConflictException(`Ce numéro de téléphone (${normalized.telephone}) est déjà utilisé`);
+      }
+    }
+
+    const updated = await this.repository.updateById(id, normalized);
 
     if (this.auditService) {
       await this.auditService.log({
