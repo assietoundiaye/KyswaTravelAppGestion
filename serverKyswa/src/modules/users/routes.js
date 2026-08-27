@@ -39,16 +39,72 @@ function createUsersRoutes(dependencies) {
     } catch (e) { next(e); }
   });
 
-  // POST créer
+  // POST créer — crée auth.users + public.profiles dans une transaction
   router.post('/', protect, checkPermission('utilisateurs', 'create'), async (req, res, next) => {
     try {
-      const body = { ...req.body };
-      // poste est requis en DB — on le déduit du rôle si absent
-      if (!body.poste) {
-        body.poste = body.role || 'Agent';
+      const { nom, prenom, email, telephone, role, poste, password } = req.body;
+
+      // Validation minimale
+      if (!nom || !email || !password) {
+        return res.status(400).json({ success: false, message: 'Nom, email et mot de passe sont requis' });
       }
-      const item = await repository.create(body);
-      res.status(201).json({ success: true, data: item });
+      if (password.length < 6) {
+        return res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 6 caractères' });
+      }
+
+      const emailLower = email.toLowerCase().trim();
+
+      // Vérifier si l'email existe déjà dans auth.users
+      const existingAuthUser = await prisma.users.findFirst({ where: { email: emailLower } });
+      if (existingAuthUser) {
+        return res.status(409).json({ success: false, message: 'Cet email est déjà utilisé' });
+      }
+
+      // Hasher le mot de passe
+      const hashedPassword = await bcrypt.hash(password, 12);
+
+      // Générer un UUID commun pour auth.users et profiles
+      const { randomUUID } = require('crypto');
+      const newId = randomUUID();
+
+      // Créer en transaction : auth.users + public.profiles
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Créer l'entrée auth.users avec l'UUID généré
+        await tx.users.create({
+          data: {
+            id: newId,
+            email: emailLower,
+            encrypted_password: hashedPassword,
+            email_confirmed_at: new Date(),
+            created_at: new Date(),
+            updated_at: new Date(),
+            aud: 'authenticated',
+            role: 'authenticated',
+          }
+        });
+
+        // 2. Créer le profil public.profiles avec le même ID
+        const profile = await tx.profiles.create({
+          data: {
+            id: newId,
+            nom: nom.trim(),
+            prenom: prenom?.trim() || '',
+            email: emailLower,
+            telephone: telephone?.trim() || null,
+            role: role || 'commercial',
+            poste: poste?.trim() || role || 'Agent',
+            actif: true,
+          }
+        });
+
+        return profile;
+      });
+
+      res.status(201).json({
+        success: true,
+        data: { ...result, _id: result.id },
+        message: 'Utilisateur créé avec succès',
+      });
     } catch (e) { next(e); }
   });
 
