@@ -163,18 +163,29 @@ export default function DesistementsPage() {
     { header: 'À rembourser', accessorFn: (d) => fmt(d.montantRembourse), cell: ({ getValue }) => <span style={{ fontWeight: 700, color: 'var(--warning)' }}>{getValue()}</span> },
     {
       header: 'Statut', accessorKey: 'statut',
-      cell: ({ getValue }) => <span className={`badge ${getValue() === 'REMBOURSE' ? 'badge-success' : getValue() === 'EN_ATTENTE' ? 'badge-warning' : 'badge-neutral'}`}>{getValue()}</span>
+      cell: ({ getValue }) => {
+        const val = getValue() || '';
+        const isRemb = val.toLowerCase().includes('rembours') || val === 'REMBOURSE';
+        const isAttente = val.toLowerCase().includes('attente') || val === 'EN_ATTENTE';
+        return (
+          <span className={`badge ${isRemb ? 'badge-success' : isAttente ? 'badge-warning' : 'badge-neutral'}`}>
+            {val}
+          </span>
+        );
+      }
     },
     {
       header: 'Actions', id: 'actions',
-      cell: ({ row }) => (
+      cell: ({ row }) => {
+        const isAttente = (row.original.statut || '').toLowerCase().includes('attente') || row.original.statut === 'EN_ATTENTE';
+        return (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {row.original.statut === 'EN_ATTENTE' && hasEdit && (
+          {isAttente && hasEdit && (
             <button onClick={() => handleRembourser(row.original._id)} className="btn-primary" style={{ padding: '4px 10px', fontSize: 11 }}>
               Marquer remboursé
             </button>
           )}
-          {row.original.statut === 'EN_ATTENTE' && hasEdit && (
+          {isAttente && hasEdit && (
             <button
               onClick={() => {
                 setEditDesistement(row.original);
@@ -188,14 +199,15 @@ export default function DesistementsPage() {
             style={{ background: 'rgba(37,99,235,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', color: '#2563EB', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
             Reçu PDF
           </button>
-          {hasDelete && (
+            {hasDelete && (
             <button onClick={() => setConfirmDeleteId(row.original._id)}
               style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, padding: '4px 10px', color: '#DC2626', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
               Supprimer
             </button>
           )}
         </div>
-      ),
+        );
+      },
     },
   ], [role, hasEdit, hasDelete]);
 
