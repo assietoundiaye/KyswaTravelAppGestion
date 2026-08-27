@@ -7,7 +7,7 @@ import { toast } from '../../../components/Toast';
 import { ROLE_LABELS, ROLE_COLORS, ROLES } from '../../../utils/roles';
 import PermissionsModal from './PermissionsModal';
 
-const EMPTY = { nom: '', prenom: '', email: '', telephone: '', password: '', role: 'commercial' };
+const EMPTY = { nom: '', prenom: '', email: '', telephone: '', password: '', role: 'commercial', poste: '' };
 
 function Avatar({ nom, prenom, role }) {
   const initials = `${nom?.[0] || ''}${prenom?.[0] || ''}`.toUpperCase();
@@ -59,7 +59,7 @@ export default function UtilisateursPage() {
 
   const openEdit = (u) => {
     setEditId(u._id || u.id);
-    setForm({ nom: u.nom, prenom: u.prenom, email: u.email, telephone: u.telephone || '', password: '', role: u.role });
+    setForm({ nom: u.nom, prenom: u.prenom, email: u.email, telephone: u.telephone || '', password: '', role: u.role, poste: u.poste || '' });
     setShowPwd(false); setShowModal(true);
   };
 
@@ -67,7 +67,7 @@ export default function UtilisateursPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = { nom: form.nom, prenom: form.prenom, email: form.email, telephone: form.telephone || undefined, role: form.role };
+      const payload = { nom: form.nom, prenom: form.prenom, email: form.email, telephone: form.telephone || undefined, role: form.role, poste: form.poste || form.role };
       if (!editId) payload.password = form.password;
       if (editId) await api.patch(`/users/${editId}`, payload);
       else await api.post('/users', { ...payload, password: form.password });
@@ -228,6 +228,15 @@ export default function UtilisateursPage() {
                 </div>
               </div>
             )}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="input-label">Poste / Fonction</label>
+              <input
+                value={form.poste}
+                onChange={e => setForm(f => ({ ...f, poste: e.target.value }))}
+                className="premium-input"
+                placeholder="Ex: Agent Commercial, Comptable, Responsable Oumra…"
+              />
+            </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="input-label">Rôle *</label>
               <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="premium-input">
