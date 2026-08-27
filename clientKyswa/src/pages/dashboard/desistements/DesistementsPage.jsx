@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Calendar as CalendarIcon, BarChart2, DollarSign, CornerDownLeft, Search } from 'lucide-react';
 import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
+import Pagination from '../../../components/Pagination';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { useAuth } from '../../../context/AuthContext';
@@ -30,6 +31,10 @@ export default function DesistementsPage() {
   const [editDateDepart, setEditDateDepart] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [search, setSearch] = useState('');
+
+  // ── Pagination state ───────────────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
 
   const desistementsFiltres = useMemo(() => {
     if (!search.trim()) return desistements;
@@ -211,6 +216,13 @@ export default function DesistementsPage() {
     },
   ], [role, hasEdit, hasDelete]);
 
+  const paginatedDesistements = useMemo(() => {
+    const start = (page - 1) * limit;
+    return desistementsFiltres.slice(start, start + limit);
+  }, [desistementsFiltres, page, limit]);
+
+  const totalPages = Math.ceil(desistementsFiltres.length / limit) || 1;
+
   return (
     <div className="animate-fade-in space-y-5">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -225,7 +237,7 @@ export default function DesistementsPage() {
         <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
         <input
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={e => { setSearch(e.target.value); setPage(1); }}
           placeholder="Rechercher par client, N° réservation, motif..."
           className="premium-input"
           style={{ paddingLeft: 36 }}
@@ -233,7 +245,15 @@ export default function DesistementsPage() {
       </div>
 
       <div className="premium-card">
-        <DataTable columns={cols} data={desistementsFiltres} loading={loading} />
+        <DataTable columns={cols} data={paginatedDesistements} loading={loading} />
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={desistementsFiltres.length}
+          itemsPerPage={limit}
+          onPageChange={setPage}
+          onLimitChange={(l) => { setLimit(l); setPage(1); }}
+        />
       </div>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Nouveau désistement">

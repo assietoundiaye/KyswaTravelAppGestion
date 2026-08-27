@@ -3,6 +3,7 @@ import { Eye, EyeOff, UserPlus, Edit2, Power, Trash2, Search, Shield } from 'luc
 import api from '../../../core/api/axios';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
 import { ROLE_LABELS, ROLE_COLORS, ROLES } from '../../../utils/roles';
 import PermissionsModal from './PermissionsModal';
@@ -33,6 +34,10 @@ export default function UtilisateursPage() {
   const [search, setSearch] = useState('');
   const [permissionsUser, setPermissionsUser] = useState(null);
 
+  // ── Pagination state ───────────────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+
   const utilisateursFiltres = useMemo(() => {
     if (!search.trim()) return utilisateurs;
     const q = search.toLowerCase();
@@ -43,6 +48,13 @@ export default function UtilisateursPage() {
       (ROLE_LABELS[u.role] || '').toLowerCase().includes(q)
     );
   }, [utilisateurs, search]);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (page - 1) * limit;
+    return utilisateursFiltres.slice(start, start + limit);
+  }, [utilisateursFiltres, page, limit]);
+
+  const totalPages = Math.ceil(utilisateursFiltres.length / limit) || 1;
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -131,7 +143,7 @@ export default function UtilisateursPage() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Chargement...</td></tr>
-              ) : utilisateursFiltres.map(u => {
+              ) : paginatedUsers.map(u => {
                 const uid = u._id || u.id;
                 const roleColor = ROLE_COLORS[u.role] || '#6B7280';
                 return (
@@ -187,6 +199,14 @@ export default function UtilisateursPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={utilisateursFiltres.length}
+          itemsPerPage={limit}
+          onPageChange={setPage}
+          onLimitChange={(l) => { setLimit(l); setPage(1); }}
+        />
       </div>
 
       {/* Modal create/edit */}

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
+import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
 
 const statutColors = {
@@ -28,6 +29,12 @@ export default function VisasPage() {
   const [filterStatut, setFilterStatut] = useState('');
   const [search, setSearch] = useState('');
 
+  // ── Pagination state ───────────────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const visasFiltres = useMemo(() => {
     if (!search.trim()) return visas;
     const q = search.toLowerCase();
@@ -38,24 +45,47 @@ export default function VisasPage() {
     );
   }, [visas, search]);
 
-  const fetchVisas = async () => {
+  const fetchVisas = async (p = page, l = limit, st = filterStatut) => {
     setLoading(true);
     try {
-      const params = {};
-      if (filterStatut) params.statut = filterStatut;
+      const params = { page: p, limit: l };
+      if (st) params.statut = st;
       const res = await api.get('/visas', { params });
-      setVisas(res.data.visas || []);
+      const data = res.data.visas || res.data.data || [];
+      setVisas(data);
+      if (res.data.pagination) {
+        setTotal(res.data.pagination.total || 0);
+        setTotalPages(res.data.pagination.totalPages || res.data.pagination.pages || 1);
+        setPage(res.data.pagination.page || p);
+      } else {
+        setTotal(res.data.total || data.length);
+        setTotalPages(res.data.totalPages || Math.ceil((res.data.total || data.length) / l) || 1);
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchVisas(); }, [filterStatut]);
+  useEffect(() => {
+    setPage(1);
+    fetchVisas(1, limit, filterStatut);
+  }, [filterStatut]);
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    fetchVisas(newPage, limit, filterStatut);
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
+    fetchVisas(1, newLimit, filterStatut);
+  };
 
   const updateStatut = async (id, statut, extra = {}) => {
     try {
       await api.patch(`/visas/${id}`, { statut, ...extra });
       toast('Statut mis à jour');
-      fetchVisas();
+      fetchVisas(page, limit, filterStatut);
     } catch (e) { toast(e.response?.data?.message || 'Erreur', 'error'); }
   };
 
@@ -128,7 +158,16 @@ export default function VisasPage() {
 
       <div className="premium-card">
         <DataTable columns={cols} data={visasFiltres} loading={loading} />
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          itemsPerPage={limit}
+          onPageChange={handlePageChange}
+          onLimitChange={handleLimitChange}
+        />
       </div>
     </div>
   );
 }
+

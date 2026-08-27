@@ -6,6 +6,7 @@ import { usePermissions } from '../../../context/PermissionsContext';
 import { toast } from '../../../components/Toast';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import Pagination from '../../../components/Pagination';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
 const fmt = (n) => {
@@ -45,6 +46,10 @@ export default function PackagesPage() {
   const [confirmId, setConfirmId] = useState(null);
   const [search, setSearch] = useState('');
 
+  // ── Pagination state ───────────────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+
   const packagesFiltres = useMemo(() => {
     if (!search.trim()) return packages;
     const q = search.toLowerCase();
@@ -56,6 +61,13 @@ export default function PackagesPage() {
       (p.villeArrivee || '').toLowerCase().includes(q)
     );
   }, [packages, search]);
+
+  const paginatedPackages = useMemo(() => {
+    const start = (page - 1) * limit;
+    return packagesFiltres.slice(start, start + limit);
+  }, [packagesFiltres, page, limit]);
+
+  const totalPages = Math.ceil(packagesFiltres.length / limit) || 1;
 
   const fetchPackages = async () => {
     setLoading(true);
@@ -171,7 +183,7 @@ export default function PackagesPage() {
                 <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Chargement...</td></tr>
               ) : packages.length === 0 ? (
                 <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Aucun départ</td></tr>
-              ) : packagesFiltres.map(p => {
+              ) : paginatedPackages.map(p => {
                 const s = STATUT_COLORS[p.statut] || { bg: '#F3F4F6', color: '#6B7280' };
                 return (
                   <tr key={p._id}>
@@ -224,6 +236,14 @@ export default function PackagesPage() {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={packagesFiltres.length}
+          itemsPerPage={limit}
+          onPageChange={setPage}
+          onLimitChange={(l) => { setLimit(l); setPage(1); }}
+        />
       </div>
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editId ? 'Modifier le départ' : 'Nouveau départ'}>

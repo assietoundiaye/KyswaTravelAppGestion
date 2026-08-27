@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
+import Pagination from '../../../components/Pagination';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { toast } from '../../../components/Toast';
 
@@ -19,6 +20,12 @@ export default function BilletsPage() {
   const [confirmId, setConfirmId] = useState(null);
   const [search, setSearch] = useState('');
 
+  // ── Pagination state ───────────────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const billetsFiltres = useMemo(() => {
     if (!search.trim()) return billets;
     const q = search.toLowerCase();
@@ -31,17 +38,40 @@ export default function BilletsPage() {
     );
   }, [billets, search]);
 
-  const fetchAll = async () => {
+  const fetchAll = async (p = page, l = limit) => {
     setLoading(true);
     try {
-      const [b, c] = await Promise.all([api.get('/billets'), api.get('/clients')]);
-      setBillets(b.data.billets || []);
-      setClients(c.data.clients || []);
+      const [b, c] = await Promise.all([
+        api.get('/billets', { params: { page: p, limit: l } }),
+        api.get('/clients', { params: { limit: 100 } }),
+      ]);
+      const data = b.data.billets || b.data.data || [];
+      setBillets(data);
+      setClients(c.data.clients || c.data.data || []);
+      if (b.data.pagination) {
+        setTotal(b.data.pagination.total || 0);
+        setTotalPages(b.data.pagination.totalPages || b.data.pagination.pages || 1);
+        setPage(b.data.pagination.page || p);
+      } else {
+        setTotal(b.data.total || data.length);
+        setTotalPages(b.data.totalPages || Math.ceil((b.data.total || data.length) / l) || 1);
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(1, limit); }, []);
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    fetchAll(newPage, limit);
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
+    fetchAll(1, newLimit);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -185,6 +215,14 @@ export default function BilletsPage() {
 
       <div className="premium-card">
         <DataTable columns={cols} data={billetsFiltres} loading={loading} />
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          itemsPerPage={limit}
+          onPageChange={handlePageChange}
+          onLimitChange={handleLimitChange}
+        />
       </div>
 
       <ConfirmDialog
