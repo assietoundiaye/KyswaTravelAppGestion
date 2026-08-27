@@ -42,7 +42,12 @@ function createUsersRoutes(dependencies) {
   // POST créer
   router.post('/', protect, checkPermission('utilisateurs', 'create'), async (req, res, next) => {
     try {
-      const item = await repository.create(req.body);
+      const body = { ...req.body };
+      // poste est requis en DB — on le déduit du rôle si absent
+      if (!body.poste) {
+        body.poste = body.role || 'Agent';
+      }
+      const item = await repository.create(body);
       res.status(201).json({ success: true, data: item });
     } catch (e) { next(e); }
   });

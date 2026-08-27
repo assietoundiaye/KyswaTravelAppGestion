@@ -1140,7 +1140,7 @@ model profiles {
   nom                                                        String
   prenom                                                     String?
   email                                                      String                @unique
-  poste                                                      String
+  poste                                                      String?
   role                                                       String
   couleur                                                    String?               @default("#C9A84C")
   telephone                                                  String?
