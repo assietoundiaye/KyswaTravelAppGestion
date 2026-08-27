@@ -95,7 +95,7 @@ model identities {
   last_sign_in_at DateTime? @db.Timestamptz(6)
   created_at      DateTime? @db.Timestamptz(6)
   updated_at      DateTime? @db.Timestamptz(6)
-  email           String?   @default(dbgenerated("lower((identity_data ->> 'email'::text))"))
+  email           String?
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   users           users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -431,7 +431,7 @@ model users {
   phone_change                String?                @default("")
   phone_change_token          String?                @default("") @db.VarChar(255)
   phone_change_sent_at        DateTime?              @db.Timestamptz(6)
-  confirmed_at                DateTime?              @default(dbgenerated("LEAST(email_confirmed_at, phone_confirmed_at)")) @db.Timestamptz(6)
+  confirmed_at                DateTime?              @db.Timestamptz(6)
   email_change_token_current  String?                @default("") @db.VarChar(255)
   email_change_confirm_status Int?                   @default(0) @db.SmallInt
   banned_until                DateTime?              @db.Timestamptz(6)
@@ -494,7 +494,7 @@ model webauthn_credentials {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model agencies {
-  id              String          @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nom             String
   pays            String
   ville           String?
@@ -519,7 +519,7 @@ model agencies {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model alerts {
-  id          String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   agency_id   String?   @db.Uuid
   package_id  String?   @db.Uuid
   type_alerte String?
@@ -534,7 +534,7 @@ model alerts {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model audit_logs {
-  id         String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    String?   @db.Uuid
   user_nom   String?
   user_role  String?
@@ -599,7 +599,7 @@ model billets {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model billets_groupe {
-  id                     String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   depart_id              String?   @unique @db.Uuid
   compagnie              String?
   num_vol_aller          String?
@@ -632,7 +632,7 @@ model billets_groupe {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model billets_pelerins {
-  id             String        @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   inscription_id String?       @db.Uuid
   client_id      String?       @db.Uuid
   depart_id      String?       @db.Uuid
@@ -655,7 +655,7 @@ model billets_pelerins {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model canaux {
-  id         String     @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   slug       String     @unique
   nom        String
   couleur    String?    @default("#607D8B")
@@ -669,7 +669,7 @@ model canaux {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model clients {
-  id                       String             @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id                       String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nom                      String
   prenom                   String?
   genre                    String?
@@ -754,7 +754,7 @@ model contrats_billets {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model departs {
-  id                 String               @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   service            String
   nom_depart         String
   date_depart        DateTime?            @db.Date
@@ -799,7 +799,7 @@ model depenses {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model desistements {
-  id                 String        @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   inscription_id     String?       @db.Uuid
   client_id          String?       @db.Uuid
   date_annulation    DateTime      @default(dbgenerated("CURRENT_DATE")) @db.Date
@@ -844,7 +844,7 @@ model documents_admin {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model exchange_rates {
-  id          String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   devise_from String
   devise_to   String    @default("FCFA")
   taux        Decimal   @db.Decimal(12, 4)
@@ -905,7 +905,7 @@ model hababs {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model inscriptions {
-  id                 String             @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   numero             String?            @unique
   client_id          String?            @db.Uuid
   service            String
@@ -956,7 +956,7 @@ model message_reads {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model messages {
-  id                                        String          @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id                                        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   canal_id                                  String?         @db.Uuid
   sender_id                                 String?         @db.Uuid
   contenu                                   String
@@ -976,7 +976,7 @@ model messages {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model package_flights {
-  id               String   @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   package_id       String   @db.Uuid
   compagnie        String?
   type_vol         String?
@@ -992,7 +992,7 @@ model package_flights {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model package_hotels {
-  id                 String   @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   package_id         String   @db.Uuid
   ville              String
   nom_hotel          String
@@ -1030,7 +1030,7 @@ model package_services {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model packages {
-  id               String            @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   agency_id        String            @db.Uuid
   nom              String
   type             String
@@ -1064,7 +1064,7 @@ model packages {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model paiements {
-  id             String        @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   inscription_id String?       @db.Uuid
   montant        BigInt
   mode_paiement  String?
@@ -1122,7 +1122,7 @@ model pelerins {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model price_history {
-  id          String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   package_id  String    @db.Uuid
   prix        Decimal   @db.Decimal(14, 2)
   devise      String
@@ -1245,7 +1245,7 @@ model rapports {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model rapports_quotidiens {
-  id                                              String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id                                              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id                                         String?   @db.Uuid
   date_rapport                                    DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
   statut_journee                                  String?   @default("normal")
@@ -1318,7 +1318,7 @@ model recouvrement {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model reunions {
-  id            String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   depart_id     String?   @unique @db.Uuid
   date_reunion  DateTime? @db.Date
   heure         String?
@@ -1372,7 +1372,7 @@ model reunions_dg {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model reunions_pred_part {
-  id           String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   depart_id    String?   @db.Uuid
   date_reunion DateTime? @db.Date
   lieu         String?
@@ -1393,7 +1393,7 @@ model reunions_pred_part {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model scraping_logs {
-  id          String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   agency_id   String?   @db.Uuid
   url         String?
   statut      String?
@@ -1409,7 +1409,7 @@ model scraping_logs {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model taches {
-  id            String    @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   titre         String
   description   String?
   priorite      String?   @default("Normale")
@@ -1522,7 +1522,7 @@ model ventes_voitures {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model visas {
-  id                 String        @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   inscription_id     String?       @db.Uuid
   client_id          String?       @db.Uuid
   depart_id          String?       @db.Uuid
