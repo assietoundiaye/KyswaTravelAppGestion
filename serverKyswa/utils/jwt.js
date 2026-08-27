@@ -9,14 +9,16 @@ function generateToken(user) {
   const payload = { id: user._id, role: user.role, nom: user.nom, prenom: user.prenom };
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error("JWT_SECRET non configuré");
-  return jwt.sign(payload, secret, { expiresIn: '7d' });
+  const expiresIn = process.env.JWT_EXPIRES_IN || '24h';
+  return jwt.sign(payload, secret, { expiresIn });
 }
 
 function generateRefreshToken(user) {
   const payload = { id: user._id };
   const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
   if (!secret) throw new Error("JWT_SECRET non configuré");
-  return jwt.sign(payload, secret, { expiresIn: '30d' });
+  const expiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+  return jwt.sign(payload, secret, { expiresIn });
 }
 
 /**

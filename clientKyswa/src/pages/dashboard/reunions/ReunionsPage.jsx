@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
 import Modal from '../../../components/Modal';
 import { toast } from '../../../components/Toast';

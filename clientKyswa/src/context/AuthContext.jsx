@@ -67,3 +67,6 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+
+// Export the context for direct use in other hooks
+export { AuthContext };

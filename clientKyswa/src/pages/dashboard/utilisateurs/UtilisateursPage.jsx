@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Eye, EyeOff, UserPlus, Edit2, Power, Trash2, Search } from 'lucide-react';
-import api from '../../../api/axios';
+import { Eye, EyeOff, UserPlus, Edit2, Power, Trash2, Search, Shield } from 'lucide-react';
+import api from '../../../core/api/axios';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { toast } from '../../../components/Toast';
 import { ROLE_LABELS, ROLE_COLORS, ROLES } from '../../../utils/roles';
+import PermissionsModal from './PermissionsModal';
 
 const EMPTY = { nom: '', prenom: '', email: '', telephone: '', password: '', role: 'commercial' };
 
@@ -30,6 +31,7 @@ export default function UtilisateursPage() {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [search, setSearch] = useState('');
+  const [permissionsUser, setPermissionsUser] = useState(null);
 
   const utilisateursFiltres = useMemo(() => {
     if (!search.trim()) return utilisateurs;
@@ -123,7 +125,7 @@ export default function UtilisateursPage() {
                 <th>Téléphone</th>
                 <th>Rôle</th>
                 <th>Statut</th>
-                <th>Actions</th>
+                <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -160,10 +162,14 @@ export default function UtilisateursPage() {
                       }}>{u.etat}</span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                         <button onClick={() => openEdit(u)} title="Modifier"
                           style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '5px 8px', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                           <Edit2 size={13} />
+                        </button>
+                        <button onClick={() => setPermissionsUser(u)} title="Gérer les permissions"
+                          style={{ background: 'rgba(124,58,237,0.08)', border: 'none', borderRadius: 6, padding: '5px 8px', color: '#7C3AED', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          <Shield size={13} />
                         </button>
                         <button onClick={() => handleToggle(uid)} title={u.etat === 'ACTIF' ? 'Désactiver' : 'Activer'}
                           style={{ background: u.etat === 'ACTIF' ? 'rgba(234,88,12,0.08)' : 'rgba(22,163,74,0.08)', border: 'none', borderRadius: 6, padding: '5px 8px', color: u.etat === 'ACTIF' ? '#EA580C' : '#16A34A', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
@@ -243,6 +249,12 @@ export default function UtilisateursPage() {
         message="Supprimer définitivement cet utilisateur ?"
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
+      />
+
+      <PermissionsModal
+        open={!!permissionsUser}
+        onClose={() => setPermissionsUser(null)}
+        utilisateur={permissionsUser}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -41,40 +41,46 @@ export default function RapportsPage() {
     try {
       const r = await api.get('/rapports');
       const list = r.data.rapports || [];
+      console.log('Rapports récupérés:', list);
+      
       setRapports(list);
-      // Chercher rapport du jour de l'agent
+      
+      // Chercher rapport du jour de l'agent connecté
       const mine = list.find(r => {
         const agentId = r.agentId?._id || r.agentId?.id || r.agentId;
         const sameAgent = agentId?.toString() === user?.id?.toString();
         const sameDay = new Date(r.date).toISOString().split('T')[0] === today;
+        console.log('Vérification rapport:', {
+          rapportId: r._id,
+          agentId: agentId,
+          userId: user?.id,
+          sameAgent,
+          rapportDate: new Date(r.date).toISOString().split('T')[0],
+          today,
+          sameDay
+        });
         return sameAgent && sameDay;
       });
+      
+      console.log('Rapport du jour trouvé:', mine);
+      setTodayRapport(mine || null);
+      
       if (mine) {
-        setTodayRapport(mine);
         setEditId(mine._id);
-        setForm({
-          activites: mine.activites || '', problemes: mine.problemes || '',
-          objectifsDemain: mine.objectifsDemain || '', notes: mine.notes || '',
-          appelsClients: mine.appelsClients || 0, inscriptionsCreees: mine.inscriptionsCreees || 0,
-          paiementsEncaisses: mine.paiementsEncaisses || 0, suiviCommercial: mine.suiviCommercial || '',
-          constats: mine.constats || '', appelsDetail: mine.appelsDetail || [],
-          publications: mine.publications || 0, vues: mine.vues || 0,
-          abonnesGagnes: mine.abonnesGagnes || 0, likes: mine.likes || 0,
-          campagnesActives: mine.campagnesActives || 0, budgetCampagne: mine.budgetCampagne || 0,
-          plateformes: mine.plateformes || [],
-          articlesPub: mine.articlesPub || 0, packagesMAJ: mine.packagesMAJ || 0,
-          etatSite: mine.etatSite || '', problemesRegles: mine.problemesRegles || '',
-        });
+        loadRapport(mine);
       } else {
-        setTodayRapport(null);
-        setEditId(null);
         setForm(EMPTY_FORM);
+        setEditId(null);
       }
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    } catch (err) {
+      console.error('Erreur fetch rapports:', err);
+      toast('Erreur lors du chargement des rapports', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchRapports(); }, []);
+  useEffect(() => { fetchRapports(); }, [user?.id]);
 
   const canEdit = (rapport) => {
     const agentId = rapport.agentId?._id || rapport.agentId?.id || rapport.agentId;
@@ -110,17 +116,43 @@ export default function RapportsPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    
     try {
-      if (editId) await api.patch(`/rapports/${editId}`, form);
-      else await api.post('/rapports', form);
-      toast(editId ? 'Rapport mis à jour' : 'Rapport soumis');
-      fetchRapports();
-    } catch (err) { toast(err.response?.data?.message || 'Erreur', 'error'); }
-    finally { setSaving(false); }
+      // Préparer les données avec la date du jour pour l'UPSERT
+      const submitData = {
+        ...form,
+        date: today // Force la date à aujourd'hui
+      };
+      
+      console.log('Soumission rapport avec données:', submitData);
+      
+      // Utiliser POST pour la logique UPSERT côté serveur
+      const response = await api.post('/rapports', submitData);
+      
+      const { action, message, rapport } = response.data;
+      
+      console.log('Réponse serveur:', { action, message, rapport });
+      
+      if (action === 'UPDATE') {
+        toast(message || 'Rapport mis à jour avec succès');
+        setTodayRapport(rapport);
+        setEditId(rapport._id);
+      } else {
+        toast(message || 'Rapport soumis avec succès');
+        setTodayRapport(rapport);
+        setEditId(rapport._id);
+      }
+      
+      // Rafraîchir la liste des rapports
+      await fetchRapports();
+    } catch (err) { 
+      console.error('Erreur soumission rapport:', err);
+      const errorMessage = err.response?.data?.message || 'Erreur lors de la soumission';
+      toast(errorMessage, 'error'); 
+    } finally { 
+      setSaving(false); 
+    }
   };
-
-  // Historique : tous sauf le rapport du jour courant affiché dans le form
-  const historique = rapports.filter(r => r._id !== todayRapport?._id);
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
@@ -130,10 +162,40 @@ export default function RapportsPage() {
         {/* Bannière statut */}
         {canSubmit && todayRapport && (
           <div style={{
-            background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10,
-            padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#92400E', fontWeight: 500,
+            background: '#F0FDF4', border: '1px solid #16A34A', borderRadius: 10,
+            padding: '12px 16px', marginBottom: 16, fontSize: 13, fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 8
           }}>
-            Rapport soumis — modification possible dans les 7 jours
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 20, height: 20, borderRadius: '50%', background: '#16A34A', color: 'white',
+              fontSize: 12, fontWeight: 700
+            }}>✓</span>
+            <div>
+              <div style={{ color: '#166534', marginBottom: 2 }}>
+                Rapport soumis avec succès le {new Date(todayRapport.dateCreation).toLocaleDateString('fr-FR')}
+              </div>
+              <div style={{ color: '#16A34A', fontSize: 11 }}>
+                Vous pouvez modifier ce rapport pendant {Math.max(0, 7 - Math.floor((new Date() - new Date(todayRapport.dateCreation)) / (1000 * 60 * 60 * 24)))} jour(s) restant(s)
+              </div>
+            </div>
+          </div>
+        )}
+
+        {canSubmit && !todayRapport && (
+          <div style={{
+            background: '#FFF7ED', border: '1px solid #FB923C', borderRadius: 10,
+            padding: '12px 16px', marginBottom: 16, fontSize: 13, fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 8
+          }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 20, height: 20, borderRadius: '50%', background: '#FB923C', color: 'white',
+              fontSize: 12, fontWeight: 700
+            }}></span>
+            <span style={{ color: '#9A3412' }}>
+              Aucun rapport soumis aujourd'hui — Veuillez remplir le formulaire ci-dessous
+            </span>
           </div>
         )}
 
@@ -273,7 +335,7 @@ export default function RapportsPage() {
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
                 <button type="submit" disabled={saving} className="btn-primary">
-                  {saving ? 'Enregistrement...' : (editId ? 'Mettre à jour' : 'Soumettre le rapport')}
+                  {saving ? 'Enregistrement...' : (todayRapport ? 'Mettre à jour le rapport' : 'Soumettre le rapport')}
                 </button>
               </div>
             </form>

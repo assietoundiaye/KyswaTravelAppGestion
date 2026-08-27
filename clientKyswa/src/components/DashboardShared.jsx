@@ -170,8 +170,6 @@ export default function DashboardShared() {
       try {
         setLoading(true);
         
-        console.log('=== FETCH DASHBOARD DATA ===');
-        
         // Utiliser la nouvelle route dashboard optimisée
         const [reunionsRes, packagesRes, dashboardRes] = await Promise.all([
           api.get('/reunions').catch(() => ({ data: { reunions: [] } })),
@@ -185,8 +183,6 @@ export default function DashboardShared() {
         const pkgArr = packagesRes.data.packages || [];
         setReunions(reunionsRes.data.reunions || []);
         setPackages(pkgArr.filter(p => p.statut === 'OUVERT'));
-        
-        console.log('Dashboard data received:', dashboardRes.data);
         setDashboardData(dashboardRes.data);
         
         // Pour compatibilité avec l'ancien code
@@ -196,12 +192,6 @@ export default function DashboardShared() {
             .map(e => ({...e.rapport, agentId: e.employe}))
           );
           setUsers(dashboardRes.data.employes.map(e => e.employe));
-          
-          console.log('Employés traités:', dashboardRes.data.employes.map(e => ({
-            nom: `${e.employe.prenom} ${e.employe.nom}`,
-            statut: e.statut,
-            aRapport: !!e.rapport
-          })));
         }
 
       } catch (error) {
@@ -216,7 +206,6 @@ export default function DashboardShared() {
 
     // Actualisation automatique toutes les 2 minutes
     const interval = setInterval(() => {
-      console.log('=== AUTO REFRESH DASHBOARD ===');
       setRefreshKey(prev => prev + 1);
     }, 2 * 60 * 1000);
 
@@ -231,21 +220,6 @@ export default function DashboardShared() {
     if (l.module) return canViewModule(l.module);
     return true;
   });
-
-  // Debug simplifié
-  console.log('=== DEBUG DASHBOARD SHARED ===');
-  console.log('Date aujourd\'hui:', todayStr);
-  console.log('Dashboard data:', dashboardData);
-  if (dashboardData) {
-    console.log('Stats:', dashboardData.stats);
-    console.log('Employés avec statuts:', dashboardData.employes.map(e => ({
-      nom: `${e.employe.prenom} ${e.employe.nom}`,
-      role: e.employe.role,
-      statut: e.statut,
-      aRapport: !!e.rapport
-    })));
-  }
-  console.log('=====================================');
 
   return (
     <>
@@ -283,7 +257,6 @@ export default function DashboardShared() {
               </span>
               <button 
                 onClick={() => {
-                  console.log('=== MANUAL REFRESH DASHBOARD ===');
                   setRefreshKey(prev => prev + 1);
                 }}
                 style={{

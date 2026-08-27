@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Clock, ChevronDown, ChevronUp, Download, X } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
+const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
 const CATEGORIES = ['Administratif', 'Fiscal', 'Légal', 'RH', 'Opérationnel'];
 const STATUTS = ['EN_COURS', 'URGENT', 'EN_ATTENTE', 'TERMINE'];
 const STATUT_LABELS = { EN_COURS: 'En cours', URGENT: 'Urgent', EN_ATTENTE: 'En attente', TERMINE: 'Terminé' };
@@ -46,7 +47,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [showDocModal, setShowDocModal] = useState(false);
   const [showReunionModal, setShowReunionModal] = useState(false);
-  const [filterDate, setFilterDate] = useState('');
+  const [filterDate, setFilterDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [expandedRapport, setExpandedRapport] = useState(null);
   const [editDoc, setEditDoc] = useState(null);
   const [editDocForm, setEditDocForm] = useState({ titre: '', categorie: '', statut: '', echeance: '', description: '' });
@@ -279,63 +280,144 @@ export default function DocumentsPage() {
       {/* Tab 3: Rapports journaliers */}
       {tab === 3 && (
         <>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
               className="premium-input" style={{ width: 180 }} />
-            {filterDate && <button onClick={() => setFilterDate('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 3 }}><X size={12} /> Effacer</button>}
+            {filterDate && <button onClick={() => setFilterDate('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 3 }}><X size={12} /> Effacer la date</button>}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {rapports.length === 0 ? (
-              <p style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Aucun rapport{filterDate ? ' pour cette date' : ''}</p>
-            ) : rapports.map(r => (
-              <div key={r._id} style={{ background: 'white', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                  onClick={() => setExpandedRapport(expandedRapport === r._id ? null : r._id)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 800 }}>
-                      {r.agentId?.prenom?.[0]}{r.agentId?.nom?.[0]}
-                    </div>
-                    <div>
-                      <p style={{ fontWeight: 700, fontSize: 13 }}>{r.agentId?.prenom} {r.agentId?.nom}</p>
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.agentId?.role} · {fmtDate(r.date)}</p>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>Voir détail</span>
-                    {expandedRapport === r._id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </div>
-                </div>
-                {expandedRapport === r._id && (
-                  <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      {[['Activités', r.activites], ['Problèmes', r.problemes], ['Objectifs demain', r.objectifsDemain], ['Suivi commercial', r.suiviCommercial], ['Constats', r.constats]].filter(([, v]) => v).map(([l, v]) => (
-                        <div key={l}>
-                          <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>{l}</p>
-                          <p style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{v}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="premium-card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
+                <p style={{ fontSize: 14, fontWeight: 600 }}>Aucun rapport journalier{filterDate ? ' pour cette date' : ''}</p>
               </div>
-            ))}
+            ) : rapports.map(r => {
+              const roleLabel = (r.agentId?.role || 'agent').toUpperCase();
+              const ROLE_COLORS = {
+                COMMERCIAL: { bg: '#EFF6FF', color: '#2563EB' },
+                SOCIAL: { bg: '#F5F3FF', color: '#7C3AED' },
+                ADMINISTRATEUR: { bg: '#FEF2F2', color: '#DC2626' },
+                DG: { bg: '#FEF3C7', color: '#B45309' },
+                SECRETAIRE: { bg: '#FCE7F3', color: '#DB2777' },
+                COMPTABLE: { bg: '#F0FDF4', color: '#16A34A' },
+              };
+              const roleStyle = ROLE_COLORS[roleLabel] || { bg: '#F3F4F6', color: '#6B7280' };
+
+              return (
+                <div key={r._id} style={{ background: 'white', borderRadius: 12, border: '1.5px solid var(--border)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+                  <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: expandedRapport === r._id ? 'var(--bg-main)' : 'white' }}
+                    onClick={() => setExpandedRapport(expandedRapport === r._id ? null : r._id)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 13, fontWeight: 800 }}>
+                        {(r.agentId?.prenom?.[0] || '?')}{(r.agentId?.nom?.[0] || '?')}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <p style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-main)' }}>
+                            {r.agentId?.prenom || 'Agent'} {r.agentId?.nom || ''}
+                          </p>
+                          <span style={{ background: roleStyle.bg, color: roleStyle.color, borderRadius: 12, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>
+                            {roleLabel}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          Rapport du {fmtDate(r.date)} {r.dateCreation ? `à ${fmtTime(r.dateCreation)}` : ''}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 700 }}>
+                        {expandedRapport === r._id ? 'Réduire' : 'Déplier'}
+                      </span>
+                      {expandedRapport === r._id ? <ChevronUp size={16} color="var(--primary)" /> : <ChevronDown size={16} color="var(--primary)" />}
+                    </div>
+                  </div>
+
+                  {/* Vue repliée : résumé rapide des activités */}
+                  {expandedRapport !== r._id && (
+                    <div style={{ padding: '0 18px 14px', fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      « {r.activites} »
+                    </div>
+                  )}
+
+                  {/* Vue dépliée complète */}
+                  {expandedRapport === r._id && (
+                    <div style={{ padding: '16px 18px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {/* Section texte principal */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                        {[['Activités réalisées', r.activites], ['Problèmes rencontrés', r.problemes], ['Objectifs pour demain', r.objectifsDemain], ['Suivi commercial', r.suiviCommercial], ['Constats & suggestions', r.constats], ['Notes', r.notes]].filter(([, v]) => v).map(([l, v]) => (
+                          <div key={l} style={{ background: 'var(--bg-main)', borderRadius: 8, padding: 12 }}>
+                            <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{l}</p>
+                            <p style={{ fontSize: 13, color: 'var(--text-main)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{v}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Indicateurs chiffrés si présents */}
+                      {(r.appelsClients > 0 || r.inscriptionsCreees > 0 || r.paiementsEncaisses > 0 || r.publications > 0 || r.vues > 0 || r.articlesPub > 0) && (
+                        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                          <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                            📊 Indicateurs de la journée
+                          </p>
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            {r.appelsClients > 0 && <span className="badge badge-info" style={{ fontSize: 11 }}>📞 Appels: {r.appelsClients}</span>}
+                            {r.inscriptionsCreees > 0 && <span className="badge badge-success" style={{ fontSize: 11 }}>📝 Inscriptions: {r.inscriptionsCreees}</span>}
+                            {r.paiementsEncaisses > 0 && <span className="badge badge-primary" style={{ fontSize: 11 }}>💳 Recettes: {r.paiementsEncaisses.toLocaleString('fr-FR')} FCFA</span>}
+                            {r.publications > 0 && <span className="badge badge-warning" style={{ fontSize: 11 }}>📱 Publications: {r.publications}</span>}
+                            {r.vues > 0 && <span className="badge badge-neutral" style={{ fontSize: 11 }}>👁 Vues: {r.vues}</span>}
+                            {r.articlesPub > 0 && <span className="badge badge-info" style={{ fontSize: 11 }}>🌐 Articles: {r.articlesPub}</span>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </>
       )}
 
       {/* Tab 4: Supervision */}
       {tab === 4 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>Rapports des profils informatique et social</p>
-          {rapports.filter(r => ['administrateur', 'social'].includes(r.agentId?.role)).length === 0 ? (
-            <p style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Aucun rapport</p>
-          ) : rapports.filter(r => ['administrateur', 'social'].includes(r.agentId?.role)).map(r => (
-            <div key={r._id} className="premium-card">
-              <p style={{ fontWeight: 700, fontSize: 13 }}>{r.agentId?.prenom} {r.agentId?.nom} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({r.agentId?.role})</span></p>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{fmtDate(r.date)}</p>
-              <p style={{ fontSize: 13 }}>{r.activites}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
+            Suivi spécialisé des rapports des profils Informatique et Community Management / Social Media
+          </p>
+
+          {rapports.filter(r => {
+            const role = (r.agentId?.role || '').toLowerCase();
+            return ['administrateur', 'social', 'informatique'].includes(role);
+          }).length === 0 ? (
+            <div className="premium-card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>💻</div>
+              <p style={{ fontSize: 14, fontWeight: 600 }}>Aucun rapport informatique ou social média</p>
             </div>
-          ))}
+          ) : (
+            rapports.filter(r => {
+              const role = (r.agentId?.role || '').toLowerCase();
+              return ['administrateur', 'social', 'informatique'].includes(role);
+            }).map(r => (
+              <div key={r._id} className="premium-card" style={{ borderLeft: '4px solid var(--primary)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <p style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-main)' }}>
+                      {r.agentId?.prenom} {r.agentId?.nom}
+                    </p>
+                    <span className="badge badge-primary" style={{ fontSize: 10 }}>{r.agentId?.role}</span>
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fmtDate(r.date)}</span>
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--text-main)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{r.activites}</p>
+                {r.problemes && (
+                  <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 8, fontWeight: 600 }}>
+                    ⚠️ Problème : {r.problemes}
+                  </p>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
 

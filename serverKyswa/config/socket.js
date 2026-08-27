@@ -1,12 +1,12 @@
 /**
  * Configuration Socket.IO
  * Authentification JWT + gestion des rooms et événements temps réel.
+ * Version PostgreSQL avec Prisma
  */
 
 const { Server } = require('socket.io');
 const { verifyToken } = require('../utils/jwt');
-const Utilisateur = require('../models/Utilisateur');
-const Message = require('../models/Message');
+const prismaService = require('../services/prismaService');
 
 /**
  * Initialise Socket.IO sur le serveur HTTP fourni.
@@ -33,20 +33,30 @@ function initSocket(httpServer) {
       if (!token) return next(new Error('Non authentifié'));
 
       const decoded = verifyToken(token);
-      const user = await Utilisateur.findById(decoded.id).select('_id nom prenom role etat');
+      const user = await prismaService.findFirst('profiles', {
+        where: { id: decoded.id },
+        select: { 
+          id: true, 
+          nom: true, 
+          prenom: true, 
+          role: true,
+          actif: true 
+        }
+      });
 
       if (!user) return next(new Error('Utilisateur introuvable'));
-      if (user.etat === 'INACTIF') return next(new Error('Compte désactivé'));
+      if (!user.actif) return next(new Error('Compte désactivé'));
 
       socket.user = {
-        id: user._id.toString(),
+        id: user.id,
         nom: user.nom,
         prenom: user.prenom,
         role: user.role,
       };
 
       return next();
-    } catch {
+    } catch (error) {
+      console.error('Socket auth error:', error);
       return next(new Error('Token invalide'));
     }
   });
@@ -59,17 +69,26 @@ function initSocket(httpServer) {
 
     socket.on('send_message', async (data) => {
       try {
-        const message = await Message.create({
-          expediteurId: socket.user.id,
-          destinataireId: data.destinataireId,
+        const message = await prismaService.create('messages', {
+          expediteur_id: socket.user.id,
+          destinataire_id: data.destinataireId,
           contenu: data.contenu,
+          date_envoi: new Date(),
         });
-        await message.populate('expediteurId', 'nom prenom role');
-        await message.populate('destinataireId', 'nom prenom role');
 
-        io.to(`user_${data.destinataireId}`).emit('new_message', message);
-        socket.emit('message_sent', message);
-      } catch {
+        // Récupérer le message avec les relations
+        const fullMessage = await prismaService.findUnique('messages', {
+          where: { id: message.id },
+          include: {
+            expediteur: { select: { nom: true, prenom: true, role: true } },
+            destinataire: { select: { nom: true, prenom: true, role: true } }
+          }
+        });
+
+        io.to(`user_${data.destinataireId}`).emit('new_message', fullMessage);
+        socket.emit('message_sent', fullMessage);
+      } catch (error) {
+        console.error('Message send error:', error);
         socket.emit('message_error', { message: 'Erreur envoi message' });
       }
     });

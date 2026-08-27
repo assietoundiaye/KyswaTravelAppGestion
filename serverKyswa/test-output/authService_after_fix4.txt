@@ -1,0 +1,226 @@
+  console.log
+    ✅ Connecté à la base de test PostgreSQL
+
+      at Object.log (__tests__/setup-postgresql.js:50:13)
+
+  console.log
+    ✅ Déconnecté de la base de test
+
+      at Object.log (__tests__/setup-postgresql.js:61:13)
+
+FAIL __tests__/services/authService.test.js (10.244 s)
+  ● AuthService - register › devrait créer un nouvel utilisateur avec succès
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:41:20)
+
+  ● AuthService - register › devrait normaliser l'email en minuscules
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:59:20)
+
+  ● AuthService - register › devrait rejeter un email déjà utilisé
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:72:5)
+
+  ● AuthService - register › devrait rejeter un téléphone déjà utilisé
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:111:5)
+
+  ● AuthService - login › devrait authentifier avec email et mot de passe corrects
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:129:5)
+
+  ● AuthService - login › devrait authentifier avec téléphone et mot de passe corrects
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:129:5)
+
+  ● AuthService - login › devrait rejeter un email incorrect
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:129:5)
+
+  ● AuthService - login › devrait rejeter un mot de passe incorrect
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:129:5)
+
+  ● AuthService - login › devrait rejeter si email et téléphone manquants
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:129:5)
+
+  ● AuthService - login › devrait mettre à jour la date de dernière connexion
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:129:5)
+
+  ● AuthService - refreshAccessToken › devrait générer un nouveau token avec un refresh token valide
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:210:20)
+
+  ● AuthService - refreshAccessToken › devrait rejeter un refresh token manquant
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:210:20)
+
+  ● AuthService - refreshAccessToken › devrait rejeter un refresh token invalide
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:210:20)
+
+  ● AuthService - refreshAccessToken › devrait rejeter si l'utilisateur n'existe plus
+
+    Cet email est déjà utilisé
+
+      84 |     } catch (e) {
+      85 |       if (e?.code === 'P2002' && e.message && e.message.includes('email')) {
+    > 86 |         const err = new Error('Cet email est déjà utilisé');
+         |                     ^
+      87 |         err.status = 400;
+      88 |         throw err;
+      89 |       }
+
+      at Object.register (services/authService.js:86:21)
+      at Object.<anonymous> (__tests__/services/authService.test.js:210:20)
+
+Test Suites: 1 failed, 1 total
+Tests:       14 failed, 2 passed, 16 total
+Snapshots:   0 total
+Time:        10.309 s, estimated 11 s
+Ran all test suites matching __tests__/services/authService.test.js.

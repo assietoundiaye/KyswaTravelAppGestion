@@ -1,17 +1,22 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Calendar as CalendarIcon, BarChart2, DollarSign, CornerDownLeft, Search } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
-import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
+import { usePermissions } from '../../../context/PermissionsContext';
+import { toast } from '../../../components/Toast';
 
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-';
 
 export default function DesistementsPage() {
   const { role } = useAuth();
+  const { canCreate, canEdit, canDelete } = usePermissions();
+  const hasCreate = canCreate('desistements') || ['dg', 'administrateur', 'informatique', 'comptable'].includes((role || '').toLowerCase());
+  const hasEdit = canEdit('desistements') || ['dg', 'administrateur', 'informatique', 'comptable'].includes((role || '').toLowerCase());
+  const hasDelete = canDelete('desistements') || ['dg', 'administrateur', 'informatique'].includes((role || '').toLowerCase());
   const [desistements, setDesistements] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -164,12 +169,12 @@ export default function DesistementsPage() {
       header: 'Actions', id: 'actions',
       cell: ({ row }) => (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {row.original.statut === 'EN_ATTENTE' && ['COMPTABLE', 'ADMIN', 'comptable', 'administrateur', 'dg'].includes(role) && (
+          {row.original.statut === 'EN_ATTENTE' && hasEdit && (
             <button onClick={() => handleRembourser(row.original._id)} className="btn-primary" style={{ padding: '4px 10px', fontSize: 11 }}>
               Marquer remboursé
             </button>
           )}
-          {row.original.statut === 'EN_ATTENTE' && (
+          {row.original.statut === 'EN_ATTENTE' && hasEdit && (
             <button
               onClick={() => {
                 setEditDesistement(row.original);
@@ -183,14 +188,16 @@ export default function DesistementsPage() {
             style={{ background: 'rgba(37,99,235,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', color: '#2563EB', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
             Reçu PDF
           </button>
-          <button onClick={() => setConfirmDeleteId(row.original._id)}
-            style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, padding: '4px 10px', color: '#DC2626', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-            Supprimer
-          </button>
+          {hasDelete && (
+            <button onClick={() => setConfirmDeleteId(row.original._id)}
+              style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, padding: '4px 10px', color: '#DC2626', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+              Supprimer
+            </button>
+          )}
         </div>
       ),
     },
-  ], [role]);
+  ], [role, hasEdit, hasDelete]);
 
   return (
     <div className="animate-fade-in space-y-5">
@@ -198,7 +205,7 @@ export default function DesistementsPage() {
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-main)' }}>
           Désistements
         </h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary">+ Nouveau désistement</button>
+        {hasCreate && <button onClick={() => setShowForm(true)} className="btn-primary">+ Nouveau désistement</button>}
       </div>
 
       {/* Barre de recherche */}

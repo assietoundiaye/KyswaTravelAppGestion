@@ -49,6 +49,18 @@ node index.js
 npx nodemon index.js
 ```
 
+Lancer les tests :
+
+```bash
+npm test
+```
+
+Accéder à la documentation API :
+
+```
+http://localhost:3000/api-docs
+```
+
 ### 3. Frontend
 
 ```bash
@@ -74,12 +86,14 @@ Identifiants par défaut : `admin@kyswa.sn` / `Admin123!`
 ```
 kyswa-app/
 ├── serverKyswa/          # API Node.js/Express
-│   ├── config/           # Cloudinary
-│   ├── middleware/        # auth.js, errorHandler.js
+│   ├── config/           # Cloudinary, Swagger
+│   ├── middleware/       # auth.js, errorHandler.js
 │   ├── models/           # Schémas Mongoose
 │   ├── routes/           # Routes REST
+│   ├── services/         # Logique métier (NEW v2.1.0)
 │   ├── scripts/          # createAdmin.js
 │   ├── utils/            # jwt.js
+│   ├── __tests__/        # Tests unitaires (NEW v2.1.0)
 │   └── index.js
 │
 └── clientKyswa/          # SPA React/Vite
@@ -189,6 +203,8 @@ GET    /api/public/billet           Suivi public billet
 - Multer + Cloudinary
 - jsPDF + jspdf-autotable
 - express-validator / express-rate-limit
+- **Jest + Supertest** (tests) ✨ NEW v2.1.0
+- **Swagger/OpenAPI** (documentation) ✨ NEW v2.1.0
 
 **Frontend**
 - React 18 / Vite 5
@@ -200,9 +216,68 @@ GET    /api/public/billet           Suivi public billet
 
 ---
 
-## Documentation complémentaire
+## Tests et Qualité
 
-- [Architecture technique](docs/architecture-technique.md)
+### Lancer les tests
+
+```bash
+cd serverKyswa
+npm test
+```
+
+### Couverture des tests
+
+```bash
+npm test -- --coverage
+```
+
+### Tests disponibles
+
+- **authService** - 18 tests (authentification, register, login, refresh)
+- **paiementService** - 13 tests (paiements réservations et billets)
+- **reservationService** - 10 tests (CRUD réservations)
+
+**Total : 41 tests automatisés** ✅
+
+---
+
+## Documentation API
+
+### Accéder à Swagger
+
+1. Démarrer le serveur : `npm start`
+2. Ouvrir : http://localhost:3000/api-docs
+3. Tester les endpoints directement dans l'interface
+
+### Endpoints documentés
+
+- ✅ Authentification (register, login, refresh)
+- 🔄 Réservations (en cours)
+- 🔄 Paiements (en cours)
+- 🔄 Clients (en cours)
+
+---
+
+## Documentation complète
+
+📚 **[INDEX DE LA DOCUMENTATION](docs/INDEX.md)** - Point d'entrée vers toute la documentation
+
+### Documents essentiels
+- ⭐ [Résumé architecture](docs/RESUME-ARCHITECTURE.md) - Vue d'ensemble synthétique
+- ⭐ [Architecture logique améliorée](docs/architecture-logique-amelioree.md) - Documentation complète
+- ⭐ [Architecture technique améliorée](docs/architecture-technique-amelioree.md) - Stack technique détaillée
+- 🔧 [Guide de migration](docs/GUIDE-MIGRATION-ARCHITECTURE.md) - Migration vers architecture modulaire
+- ✨ **[Priorité 1 - Implémentation](docs/PRIORITE-1-IMPLEMENTATION.md)** - Services, tests, Swagger ✅ NEW
+
+### Diagrammes UML
+- [Architecture logique (PlantUML)](docs/uml/architecture-logique-amelioree.puml)
+- [Architecture technique (PlantUML)](docs/uml/architecture-technique-amelioree.puml)
+- [Flux de données détaillé (PlantUML)](docs/uml/flux-donnees-detaille.puml)
+- [Structure modulaire (PlantUML)](docs/uml/structure-modules.puml)
+- [Cas d'utilisation](docs/uml/cas-utilisation.puml)
+- [Diagrammes de classes](docs/uml/)
+
+### Autres documents
 - [Fonctionnalités détaillées](docs/fonctionnalites.md)
 - [Choix technologiques](docs/choix-technologiques.md)
 

@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../context/AuthContext';
-import api from '../api/axios';
+import api from '../core/api/axios';
 
 const schema = z.object({
   email: z.string().email('Email invalide'),
@@ -32,81 +32,168 @@ export default function Login() {
 
   return (
     <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 60%, #10B981 100%)',
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg-main)',
       padding: '24px',
     }}>
-      {/* Decorative circles */}
-      <div style={{ position: 'fixed', top: -100, right: -100, width: 400, height: 400, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-      <div style={{ position: 'fixed', bottom: -80, left: -80, width: 300, height: 300, borderRadius: '50%', background: 'rgba(230,181,55,0.08)', pointerEvents: 'none' }} />
-
-      <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{
-            width: 72, height: 72, borderRadius: 20,
-            background: 'rgba(255,255,255,0.15)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,255,255,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            overflow: 'hidden',
-          }}>
-            <img src="/logokyswa.jpg" alt="Kyswa Travel" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 20 }} />
-          </div>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800, color: 'white', letterSpacing: '-0.02em' }}>
-            Kyswa Travel
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, marginTop: 6 }}>
-            Plateforme de gestion interne
-          </p>
-        </div>
-
-        {/* Card */}
+      <div style={{ 
+        width: '100%', 
+        maxWidth: 400, 
+        animation: 'slideUp 0.6s ease-out'
+      }}>
+        {/* Card principale */}
         <div style={{
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(20px)',
-          borderRadius: 'var(--radius-2xl)',
-          padding: '36px 32px',
-          boxShadow: 'var(--shadow-premium)',
-          border: '1px solid rgba(255,255,255,0.8)',
+          background: 'var(--bg-card)',
+          borderRadius: 'var(--radius-xl)',
+          padding: '3rem 2.5rem',
+          boxShadow: 'var(--shadow-lg)',
+          border: '1px solid var(--border-light)',
+          textAlign: 'center'
         }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--text-main)', marginBottom: 24 }}>
-            Connexion
-          </h2>
+          {/* Logo et titre */}
+          <div style={{ marginBottom: '2.5rem' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <img 
+                src="/logokyswa.jpg" 
+                alt="Kyswa Travel" 
+                style={{ 
+                  width: '120px', 
+                  height: '120px', 
+                  borderRadius: '20px',
+                  objectFit: 'contain',
+                  display: 'block',
+                  margin: '0 auto'
+                }} 
+                onError={(e) => {
+                  console.error('Logo loading error:', e);
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
+            <h1 style={{ 
+              fontFamily: 'var(--font-display)', 
+              fontSize: '1.8rem', 
+              fontWeight: 700, 
+              color: 'var(--primary)', 
+              marginBottom: '0.3rem',
+              letterSpacing: '-0.02em'
+            }}>
+              Kyswa Travel
+            </h1>
+            <p style={{ 
+              color: 'var(--text-muted)', 
+              fontSize: '0.9rem', 
+              fontWeight: 400
+            }}>
+              Espace de gestion interne sécurisé
+            </p>
+          </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Formulaire */}
+          <form onSubmit={handleSubmit(onSubmit)} style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '1rem',
+            textAlign: 'left'
+          }}>
             <div>
-              <label className="input-label">Email</label>
-              <input {...register('email')} type="email" placeholder="prenom.nom@kyswa.sn" className="premium-input" />
-              {errors.email && <p style={{ color: 'var(--danger)', fontSize: 12, marginTop: 4 }}>{errors.email.message}</p>}
+              <label className="input-label">Adresse email</label>
+              <input 
+                {...register('email')} 
+                type="email" 
+                placeholder="prenom.nom@kyswa.sn" 
+                className="premium-input"
+                style={{ fontSize: '14px' }}
+              />
+              {errors.email && (
+                <p style={{ 
+                  color: 'var(--danger)', 
+                  fontSize: '12px', 
+                  marginTop: '4px' 
+                }}>
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             <div>
               <label className="input-label">Mot de passe</label>
-              <input {...register('password')} type="password" placeholder="••••••••" className="premium-input" />
-              {errors.password && <p style={{ color: 'var(--danger)', fontSize: 12, marginTop: 4 }}>{errors.password.message}</p>}
+              <input 
+                {...register('password')} 
+                type="password" 
+                placeholder="••••••••" 
+                className="premium-input"
+                style={{ fontSize: '14px' }}
+              />
+              {errors.password && (
+                <p style={{ 
+                  color: 'var(--danger)', 
+                  fontSize: '12px', 
+                  marginTop: '4px' 
+                }}>
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
             {error && (
               <div style={{
-                background: 'var(--danger-bg)', border: '1px solid rgba(220,38,38,0.2)',
-                borderRadius: 'var(--radius-md)', padding: '12px 16px',
-                color: 'var(--danger)', fontSize: 13, fontWeight: 500,
-              }}>{error}</div>
+                background: 'var(--danger-bg)', 
+                border: '1px solid rgba(220,38,38,0.2)',
+                borderRadius: 'var(--radius-md)', 
+                padding: '12px 16px',
+                color: 'var(--danger)', 
+                fontSize: '13px', 
+                fontWeight: 500,
+                textAlign: 'center'
+              }}>
+                {error}
+              </div>
             )}
 
-            <button type="submit" disabled={loading} className="btn-primary" style={{ marginTop: 4, width: '100%', justifyContent: 'center' }}>
+            <button 
+              type="submit" 
+              disabled={loading} 
+              className="btn-primary" 
+              style={{ 
+                marginTop: '1rem', 
+                width: '100%', 
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: 600
+              }}
+            >
               {loading ? 'Connexion...' : 'Se connecter'}
             </button>
           </form>
         </div>
 
-        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 20 }}>
-          Accès réservé au personnel autorisé
+        {/* Footer */}
+        <p style={{ 
+          textAlign: 'center', 
+          color: 'var(--text-muted)', 
+          fontSize: '12px', 
+          marginTop: '1.5rem' 
+        }}>
+          &copy; 2026 Kyswa Travel
         </p>
       </div>
+
+      <style jsx>{`
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

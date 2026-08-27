@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
 
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';

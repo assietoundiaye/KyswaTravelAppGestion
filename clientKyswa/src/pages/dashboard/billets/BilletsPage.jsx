@@ -1,8 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
-import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { toast } from '../../../components/Toast';
 
@@ -14,7 +13,7 @@ export default function BilletsPage() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ numeroBillet: '', compagnie: '', classe: '', destination: '', typeBillet: 'aller_simple', dateDepart: '', dateArrivee: '', prix: '', clientId: '' });
+  const [form, setForm] = useState({ compagnie: '', classe: '', destination: '', typeBillet: 'aller_simple', dateDepart: '', dateArrivee: '', prix: '', clientId: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmId, setConfirmId] = useState(null);
@@ -27,7 +26,8 @@ export default function BilletsPage() {
       (b.numeroBillet || '').toLowerCase().includes(q) ||
       `${b.clientId?.nom || ''} ${b.clientId?.prenom || ''}`.toLowerCase().includes(q) ||
       (b.destination || '').toLowerCase().includes(q) ||
-      (b.compagnie || '').toLowerCase().includes(q)
+      (b.compagnie || '').toLowerCase().includes(q) ||
+      (b.classe || '').toLowerCase().includes(q)
     );
   }, [billets, search]);
 
@@ -49,7 +49,7 @@ export default function BilletsPage() {
     try {
       await api.post('/billets', { ...form, prix: Number(form.prix) });
       setShowForm(false);
-      setForm({ numeroBillet: '', compagnie: '', classe: '', destination: '', typeBillet: 'aller_simple', dateDepart: '', dateArrivee: '', prix: '', clientId: '' });
+      setForm({ compagnie: '', classe: '', destination: '', typeBillet: 'aller_simple', dateDepart: '', dateArrivee: '', prix: '', clientId: '' });
       fetchAll();
       toast('Billet créé avec succès');
     } catch (err) {
@@ -66,6 +66,7 @@ export default function BilletsPage() {
     { header: 'N° Billet', accessorKey: 'numeroBillet' },
     { header: 'Client', accessorFn: (b) => b.clientId ? `${b.clientId.nom} ${b.clientId.prenom}` : '-' },
     { header: 'Compagnie', accessorKey: 'compagnie' },
+    { header: 'Classe', accessorKey: 'classe' },
     { header: 'Destination', accessorKey: 'destination' },
     { header: 'Départ', accessorFn: (b) => fmtDate(b.dateDepart) },
     { header: 'Prix', accessorFn: (b) => fmt(b.prix) },
@@ -108,7 +109,7 @@ export default function BilletsPage() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher par N° billet, client, destination..."
+          placeholder="Rechercher par N° billet, client, destination, classe..."
           className="premium-input"
           style={{ paddingLeft: 36 }}
         />
@@ -119,13 +120,24 @@ export default function BilletsPage() {
           <h2 className="font-semibold text-gray-800">Nouveau billet</h2>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[['numeroBillet','N° Billet *'],['compagnie','Compagnie *'],['classe','Classe *'],['destination','Destination *']].map(([k,l]) => (
+            {[['compagnie','Compagnie *'],['destination','Destination *']].map(([k,l]) => (
               <div key={k}>
                 <label className="block text-xs font-medium text-gray-600 mb-1">{l}</label>
                 <input value={form[k]} onChange={e => setForm(f => ({...f,[k]:e.target.value}))}
                   className="premium-input" />
               </div>
             ))}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Classe *</label>
+              <select value={form.classe} onChange={e => setForm(f => ({...f, classe: e.target.value}))}
+                className="premium-input">
+                <option value="">Sélectionner une classe...</option>
+                <option value="Économique">Économique</option>
+                <option value="Premium Economy">Premium Economy</option>
+                <option value="Affaires">Affaires</option>
+                <option value="Première">Première</option>
+              </select>
+            </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Type *</label>
               <select value={form.typeBillet} onChange={e => setForm(f => ({...f, typeBillet: e.target.value}))}

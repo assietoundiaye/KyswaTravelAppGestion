@@ -1,0 +1,27 @@
+{
+  "totalScans": 2,
+  "successfulMrz": 2,
+  "textualExtractionFallback": 0,
+  "completeFailures": 0,
+  "confidenceScores": [
+    100,
+    100
+  ],
+  "processingTimes": [
+    4527,
+    4061
+  ],
+  "documentTypes": {
+    "passport": 2,
+    "id_card": 0
+  },
+  "fieldExtractionSuccess": {
+    "nom": 2,
+    "prenom": 1,
+    "numeroPasseport": 2,
+    "numeroCNI": 0,
+    "dateNaissance": 2,
+    "dateExpirationPasseport": 2,
+    "photo": 2
+  }
+}

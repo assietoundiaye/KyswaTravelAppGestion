@@ -1,108 +1,109 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import Modal from '../../../components/Modal';
 import { toast } from '../../../components/Toast';
+import { useAuth } from '../../../context/AuthContext';
 
 const fmt = (n) => {
   if (n === null || n === undefined) return '0 FCFA';
-  const raw = typeof n === 'object' && n.$numberDecimal ? n.$numberDecimal : n;
-  const v = parseFloat(raw);
+  const v = parseFloat(n);
   return isNaN(v) ? '0 FCFA' : v.toLocaleString('fr-FR') + ' FCFA';
 };
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-';
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
 
-const statutBadge = {
-  EN_ATTENTE: 'bg-yellow-100 text-yellow-800',
-  CONFIRMEE: 'bg-blue-100 text-blue-800',
-  PAYEE: 'bg-green-100 text-green-800',
-  ANNULEE: 'bg-red-100 text-red-800',
+// Couleurs statut client (valeurs Supabase)
+const STATUT_CLIENT_STYLES = {
+  Inscrit: { bg: '#EFF6FF', color: '#2563EB' },
+  Confirmé: { bg: '#F0FDF4', color: '#16A34A' },
+  Parti: { bg: '#FFF7ED', color: '#EA580C' },
+  Rentré: { bg: '#F0FDF4', color: '#15803D' },
+  Désisté: { bg: '#FFFBEB', color: '#D97706' },
+  Annulé: { bg: '#FEF2F2', color: '#DC2626' },
 };
 
-const MODES = ['CARTE_BANCAIRE','VIREMENT','ORANGE_MONEY','WAVE','MONEY','ESPECES','AUTRE'];
-const STATUTS = ['EN_ATTENTE','CONFIRMEE','PAYEE','ANNULEE'];
+// Couleurs statut paiement (valeurs Supabase)
+const STATUT_PAIEMENT_STYLES = {
+  'Non payé': { bg: '#FEF2F2', color: '#DC2626' },
+  'Acompte versé': { bg: '#FFFBEB', color: '#D97706' },
+  Soldé: { bg: '#F0FDF4', color: '#16A34A' },
+};
+
+const SERVICE_EMOJIS = { Omra: '🕋', Hajj: '🕌', Ziyara: '🌙' };
+
+const STATUTS_CLIENT_LIST = ['Inscrit', 'Confirmé', 'Parti', 'Rentré', 'Désisté', 'Annulé'];
+const MODES_PAIEMENT = ['Espèces', 'Virement', 'Orange Money', 'Wave', 'Chèque', 'Carte bancaire', 'Autre'];
 
 export default function ReservationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [reservation, setReservation] = useState(null);
-  const [supplements, setSupplements] = useState([]);
-  const [allSupplements, setAllSupplements] = useState([]);
-  const [allClients, setAllClients] = useState([]);
+  const { user } = useAuth(); // Récupérer l'utilisateur connecté
+  const [inscription, setInscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Paiement form
+  // Paiement
   const [showPaiement, setShowPaiement] = useState(false);
-  const [paiementForm, setPaiementForm] = useState({ montant: '', dateReglement: '', mode: 'ESPECES', reference: '' });
+  const [paiementForm, setPaiementForm] = useState({
+    montant: '', date_paiement: '', mode_paiement: 'Espèces', reference: '', notes: ''
+  });
   const [savingPaiement, setSavingPaiement] = useState(false);
-
-  // Supplément form
-  const [showSupp, setShowSupp] = useState(false);
-  const [suppForm, setSuppForm] = useState({ clientId: '', supplementId: '', quantite: 1 });
-  const [savingSupp, setSavingSupp] = useState(false);
 
   const fetchAll = async () => {
     try {
-      const [r, s, lignes, clients] = await Promise.all([
-        api.get(`/reservations/${id}`),
-        api.get('/supplements'),
-        api.get(`/reservations/${id}/supplements`),
-        api.get('/clients'),
-      ]);
-      setReservation(r.data.reservation);
-      setAllSupplements(s.data.supplements || []);
-      setSupplements(lignes.data.lignes || []);
-      setAllClients(clients.data.clients || []);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      // Le backend retourne { success: true, data: { ...inscription, departs, clients, paiements } }
+      const res = await api.get(`/reservations/${id}`);
+      const data = res.data.data || res.data.reservation;
+      if (!data) throw new Error('Réponse inattendue');
+      setInscription(data);
+    } catch (e) {
+      console.error('Erreur chargement inscription:', e);
+      setError('Impossible de charger les détails de cette inscription.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchAll(); }, [id]);
 
-  const STATUTS_CLIENT = ['INSCRIT', 'CONFIRME', 'PARTI', 'RENTRE', 'DESISTE', 'ANNULE'];
-  const STATUTS_PAIEMENT = { EN_ATTENTE: 'badge-neutral', PARTIEL: 'badge-warning', SOLDE: 'badge-success' };
-
-  const handleStatutClient = async (statutClient) => {
+  const handleStatutClient = async (statut_client) => {
     try {
-      await api.patch(`/reservations/${id}/statut-client`, { statutClient });
+      await api.patch(`/reservations/${id}`, { statut_client });
+      toast('Statut mis à jour');
       fetchAll();
-    } catch (e) { alert(e.response?.data?.message || 'Erreur'); }
+    } catch (e) {
+      toast(e.response?.data?.message || 'Erreur mise à jour statut', 'error');
+    }
   };
 
   const handlePaiement = async (e) => {
     e.preventDefault();
-    setSavingPaiement(true); setError('');
+    setSavingPaiement(true);
+    setError('');
     try {
-      await api.post(`/reservations/${id}/paiements`, { ...paiementForm, montant: Number(paiementForm.montant) });
+      await api.post(`/paiements`, {
+        inscription_id: id,
+        montant: Number(paiementForm.montant),
+        date_paiement: paiementForm.date_paiement || new Date().toISOString(),
+        mode_paiement: paiementForm.mode_paiement,
+        reference: paiementForm.reference || null,
+        notes: paiementForm.notes || null,
+      });
+      toast('Paiement enregistré');
       setShowPaiement(false);
-      setPaiementForm({ montant: '', dateReglement: '', mode: 'ESPECES', reference: '' });
+      setPaiementForm({ montant: '', date_paiement: '', mode_paiement: 'Espèces', reference: '', notes: '' });
       fetchAll();
-    } catch (err) { setError(err.response?.data?.message || 'Erreur'); }
-    finally { setSavingPaiement(false); }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement du paiement');
+    } finally {
+      setSavingPaiement(false);
+    }
   };
 
-  const handleSupp = async (e) => {
-    e.preventDefault();
-    setSavingSupp(true); setError('');
-    try {
-      await api.post(`/reservations/${id}/supplements`, { ...suppForm, quantite: Number(suppForm.quantite) });
-      setShowSupp(false);
-      setSuppForm({ clientId: '', supplementId: '', quantite: 1 });
-      fetchAll();
-    } catch (err) { setError(err.response?.data?.message || 'Erreur'); }
-    finally { setSavingSupp(false); }
-  };
-
-  const handleDeleteSupp = async (ligneId) => {
-    if (!confirm('Supprimer ce supplément ?')) return;
-    try { await api.delete(`/reservations/${id}/supplements/${ligneId}`); fetchAll(); }
-    catch (e) { alert(e.response?.data?.message || 'Erreur'); }
-  };
-
-  const handleDeleteReservation = async () => {
+  const handleDeleteInscription = async () => {
     setDeleting(true);
     try {
       await api.delete(`/reservations/${id}`);
@@ -110,205 +111,340 @@ export default function ReservationDetail() {
       navigate('/dashboard/reservations');
     } catch (err) {
       toast(err.response?.data?.message || 'Erreur lors de la suppression', 'error');
-    } finally { setDeleting(false); setConfirmDelete(false); }
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
   };
 
-  if (loading) return <p className="text-sm text-gray-500 p-8">Chargement...</p>;
-  if (!reservation) return <p className="text-sm text-red-500 p-8">Réservation introuvable</p>;
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+      <div style={{ width: 28, height: 28, border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
 
-  const r = reservation;
-  const statut = statutBadge[r.statut] || 'bg-gray-100 text-gray-700';
+  if (!inscription) return (
+    <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+      <p style={{ color: 'var(--danger)', fontSize: 15, fontWeight: 600 }}>Inscription introuvable</p>
+      <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 6 }}>{error || 'Vérifiez que l\'ID est correct.'}</p>
+      <button onClick={() => navigate('/dashboard/reservations')}
+        className="btn-secondary" style={{ marginTop: 16, fontSize: 13 }}>
+        ← Retour aux inscriptions
+      </button>
+    </div>
+  );
+
+  const insc = inscription;
+  const depart = insc.departs || {};
+  const client = insc.clients || {};
+  const paiements = insc.paiements || [];
+
+  // Calcul finances
+  const prixTotal = insc.prix_total || 0;
+  const totalPaye = paiements.reduce((s, p) => s + (p.montant || 0), 0) || (insc.acompte || 0);
+  const reste = Math.max(0, prixTotal - totalPaye);
+  const isSolde = reste <= 0;
+
+  const statutClient = insc.statut_client || 'Inscrit';
+  const statutPaiement = insc.statut_paiement || 'Non payé';
+  const stClient = STATUT_CLIENT_STYLES[statutClient] || { bg: '#F3F4F6', color: '#6B7280' };
+  const stPaiement = STATUT_PAIEMENT_STYLES[statutPaiement] || { bg: '#F3F4F6', color: '#6B7280' };
+  const svcEmoji = SERVICE_EMOJIS[insc.service] || ' ';
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="animate-fade-in" style={{ maxWidth: 800 }}>
+      {/* Breadcrumb */}
+      <button onClick={() => navigate(-1)}
+        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 4 }}>
+        ← Retour
+      </button>
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <button onClick={() => navigate('/dashboard/reservations')} className="text-xs text-gray-500 hover:text-gray-700 mb-1 flex items-center gap-1">
-            Retour aux réservations
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">Réservation #{r.idReservation}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 28 }}>{svcEmoji}</span>
+            <div>
+              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--text-main)' }}>
+                {depart.nom_depart || insc.service || 'Inscription'}
+              </h1>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+                N° {insc.numero || insc.id?.slice(0, 8)}
+                {insc.formule ? ` · ${insc.formule}` : ''}
+              </p>
+            </div>
+          </div>
         </div>
         <button
           onClick={() => setConfirmDelete(true)}
-          style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '7px 16px', color: '#DC2626', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-        >
-          Supprimer l'inscription
+          style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '7px 16px', color: '#DC2626', fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+          Supprimer
         </button>
       </div>
 
-      {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
-
-      {/* Infos générales */}
-      <div className="premium-card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-800">Informations</h2>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statut}`}>{r.statut}</span>
+      {error && (
+        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', color: '#DC2626', fontSize: 13, marginBottom: 16 }}>
+          {error}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-          <div><p className="text-xs text-gray-500">Package</p><p className="font-medium">{r.packageKId?.nomReference || '-'}</p></div>
-          <div><p className="text-xs text-gray-500">Type</p><p className="font-medium">{r.packageKId?.type || '-'}</p></div>
-          <div><p className="text-xs text-gray-500">Formule</p><p className="font-medium">{r.formule || '-'}</p></div>
-          <div><p className="text-xs text-gray-500">Confort</p><p className="font-medium">{r.niveauConfort || '-'}</p></div>
-          <div><p className="text-xs text-gray-500">Départ</p><p className="font-medium">{fmtDate(r.dateDepart)}</p></div>
-          <div><p className="text-xs text-gray-500">Retour</p><p className="font-medium">{fmtDate(r.dateRetour)}</p></div>
-          <div><p className="text-xs text-gray-500">Total dû</p><p className="font-bold text-gray-900">{fmt(r.montantTotalDu)}</p></div>
-          <div><p className="text-xs text-gray-500">Reste à payer</p><p className={`font-bold text-lg ${r.resteAPayer > 0 ? 'text-red-600' : 'text-green-600'}`}>{fmt(r.resteAPayer)}</p></div>
-        </div>
+      )}
 
-        {/* Statuts séparés */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+      {/* Statuts */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+        <span style={{ background: stClient.bg, color: stClient.color, borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 700 }}>
+          Client : {statutClient}
+        </span>
+        <span style={{ background: stPaiement.bg, color: stPaiement.color, borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 700 }}>
+          Paiement : {statutPaiement}
+        </span>
+      </div>
+
+      {/* Infos départ + finances */}
+      <div className="premium-card" style={{ marginBottom: 16 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 16 }}>
+          Détails du voyage
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           <div>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>STATUT CLIENT</p>
-            <span className={`badge ${statut}`}>{r.statutClient || r.statut}</span>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Voyage</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{depart.nom_depart || insc.service || '—'}</p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{insc.service || '—'}</p>
           </div>
           <div>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>STATUT PAIEMENT</p>
-            <span className={`badge ${STATUTS_PAIEMENT[r.statutPaiement] || 'badge-neutral'}`}>
-              {r.statutPaiement || 'EN_ATTENTE'}
-            </span>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Dates</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+              {fmtDate(depart.date_depart || insc.date_depart)}
+            </p>
+            {depart.date_retour && (
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                Retour : {fmtDate(depart.date_retour)}
+              </p>
+            )}
+          </div>
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Formule</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{insc.formule || '—'}</p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{insc.type_chambre || ''}</p>
+          </div>
+          {insc.hotel_makkah && (
+            <div>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Hôtel La Mecque</p>
+              <p style={{ fontSize: 13, color: 'var(--text-main)' }}>🕋 {insc.hotel_makkah}</p>
+              {insc.nb_nuits_makkah && <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{insc.nb_nuits_makkah} nuits</p>}
+            </div>
+          )}
+          {insc.hotel_medine && (
+            <div>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Hôtel Médine</p>
+              <p style={{ fontSize: 13, color: 'var(--text-main)' }}>🌙 {insc.hotel_medine}</p>
+              {insc.nb_nuits_medine && <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{insc.nb_nuits_medine} nuits</p>}
+            </div>
+          )}
+          {insc.notes && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Notes</p>
+              <p style={{ fontSize: 13, color: 'var(--text-main)', fontStyle: 'italic' }}>{insc.notes}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Client */}
+      <div className="premium-card" style={{ marginBottom: 16 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 16 }}>
+          Client
+        </h2>
+        {client.id ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: 'var(--primary)' }}>
+                {(client.prenom || client.nom || '?')[0]}
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-main)' }}>
+                  {client.prenom} {client.nom}
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {client.telephone || ''}{client.n_passeport ? ` · ${client.n_passeport}` : ''}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate(`/dashboard/clients/${client.id}`)}
+              style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 12px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              Voir le dossier →
+            </button>
+          </div>
+        ) : (
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, fontStyle: 'italic' }}>Client non renseigné</p>
+        )}
+      </div>
+
+      {/* Finances */}
+      <div className="premium-card" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>
+            Finances
+          </h2>
+          {/* Bouton visible seulement pour les comptables et DG */}
+          {(user?.role === 'comptable' || user?.role === 'dg') && (
+            <button onClick={() => setShowPaiement(true)} className="btn-primary" style={{ fontSize: 12, padding: '5px 12px' }}>
+              + Ajouter un paiement
+            </button>
+          )}
+        </div>
+
+        {/* Résumé financier */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+          <div style={{ background: 'var(--bg-main)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total dû</p>
+            <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-main)', marginTop: 4 }}>{fmt(prixTotal)}</p>
+          </div>
+          <div style={{ background: 'var(--bg-main)', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total payé</p>
+            <p style={{ fontSize: 18, fontWeight: 800, color: '#16A34A', marginTop: 4 }}>{fmt(totalPaye)}</p>
+          </div>
+          <div style={{ background: isSolde ? '#F0FDF4' : '#FEF2F2', borderRadius: 10, padding: 14, textAlign: 'center' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Reste à payer</p>
+            <p style={{ fontSize: 18, fontWeight: 800, color: isSolde ? '#16A34A' : '#DC2626', marginTop: 4 }}>
+              {isSolde ? '✓ Soldé' : fmt(reste)}
+            </p>
           </div>
         </div>
 
-        {/* Changement statut client */}
-        <div style={{ marginTop: 4, paddingTop: 16, borderTop: '1px solid var(--border-light)' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>Changer statut client</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {STATUTS_CLIENT.map(s => (
-              <button key={s} onClick={() => handleStatutClient(s)}
-                disabled={(r.statutClient || r.statut) === s}
+        {/* Historique paiements */}
+        {paiements.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, fontStyle: 'italic' }}>Aucun paiement enregistré</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</th>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Mode</th>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Référence</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Montant</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paiements.map((p, i) => (
+                  <tr key={p.id || i} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '10px 12px' }}>{fmtDate(p.date_paiement || p.dateReglement)}</td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <span style={{ background: 'var(--bg-main)', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>
+                        {p.mode_paiement || p.mode || '—'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{p.reference || '—'}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#16A34A' }}>{fmt(p.montant)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Changement de statut client */}
+      <div className="premium-card" style={{ marginBottom: 16 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 12 }}>
+          Changer le statut du client
+        </h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {STATUTS_CLIENT_LIST.map(s => {
+            const st = STATUT_CLIENT_STYLES[s] || { bg: '#F3F4F6', color: '#6B7280' };
+            const isCurrent = statutClient === s;
+            return (
+              <button key={s}
+                onClick={() => !isCurrent && handleStatutClient(s)}
+                disabled={isCurrent}
                 style={{
-                  padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                  border: 'none', cursor: 'pointer', opacity: (r.statutClient || r.statut) === s ? 0.4 : 1,
-                  background: s === 'PARTI' ? 'var(--primary)' : s === 'RENTRE' ? 'var(--success)' : s === 'DESISTE' || s === 'ANNULE' ? 'var(--danger)' : 'var(--info)',
-                  color: 'white',
+                  padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+                  border: isCurrent ? `2px solid ${st.color}` : '2px solid transparent',
+                  cursor: isCurrent ? 'default' : 'pointer',
+                  background: st.bg, color: st.color,
+                  opacity: isCurrent ? 1 : 0.7,
+                  transition: 'all 0.15s',
                 }}>
                 {s}
               </button>
-            ))}
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Modal ajouter paiement */}
+      <Modal open={showPaiement} onClose={() => setShowPaiement(false)} title="Enregistrer un paiement">
+        <form onSubmit={handlePaiement} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {error && (
+            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', color: '#DC2626', fontSize: 13 }}>
+              {error}
+            </div>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label className="input-label">Montant (FCFA) *</label>
+              <input
+                type="number"
+                min="1"
+                value={paiementForm.montant}
+                onChange={e => setPaiementForm(f => ({ ...f, montant: e.target.value }))}
+                className="premium-input"
+                placeholder="Ex: 500000"
+                required
+              />
+            </div>
+            <div>
+              <label className="input-label">Date du paiement *</label>
+              <input
+                type="date"
+                value={paiementForm.date_paiement}
+                onChange={e => setPaiementForm(f => ({ ...f, date_paiement: e.target.value }))}
+                className="premium-input"
+                required
+              />
+            </div>
+            <div>
+              <label className="input-label">Mode de paiement</label>
+              <select
+                value={paiementForm.mode_paiement}
+                onChange={e => setPaiementForm(f => ({ ...f, mode_paiement: e.target.value }))}
+                className="premium-input">
+                {MODES_PAIEMENT.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="input-label">Référence / N° reçu</label>
+              <input
+                value={paiementForm.reference}
+                onChange={e => setPaiementForm(f => ({ ...f, reference: e.target.value }))}
+                className="premium-input"
+                placeholder="Facultatif"
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="input-label">Notes</label>
+              <input
+                value={paiementForm.notes}
+                onChange={e => setPaiementForm(f => ({ ...f, notes: e.target.value }))}
+                className="premium-input"
+                placeholder="Facultatif"
+              />
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Clients */}
-      <div className="premium-card">
-        <h2 className="font-semibold text-gray-800 mb-3">Clients ({r.clients?.length || 0})</h2>
-        <div className="space-y-2">
-          {(r.clients || []).map(c => (
-            <div key={c._id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
-              <span>{c.nom} {c.prenom} — <span className="text-gray-500">{c.numeroPasseport}</span></span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Suppléments */}
-      <div className="premium-card">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-800">Suppléments</h2>
-          <button onClick={() => setShowSupp(true)}
-            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600">
-            + Ajouter
-          </button>
-        </div>
-
-        {showSupp && (
-          <form onSubmit={handleSupp} className="mb-4 rounded-lg border border-gray-200 p-4 space-y-3 bg-gray-50">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Client *</label>
-                <select value={suppForm.clientId} onChange={e => setSuppForm(f => ({...f, clientId: e.target.value}))}
-                  className="premium-input">
-                  <option value="">Sélectionner...</option>
-                  {(r.clients || []).map(c => <option key={c._id} value={c._id}>{c.nom} {c.prenom}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Supplément *</label>
-                <select value={suppForm.supplementId} onChange={e => setSuppForm(f => ({...f, supplementId: e.target.value}))}
-                  className="premium-input">
-                  <option value="">Sélectionner...</option>
-                  {allSupplements.map(s => <option key={s._id} value={s._id}>{s.nom} — {fmt(s.prix)}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Quantité *</label>
-                <input type="number" min="1" value={suppForm.quantite} onChange={e => setSuppForm(f => ({...f, quantite: e.target.value}))}
-                  className="premium-input" />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button type="submit" disabled={savingSupp}
-                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-60">
-                {savingSupp ? '...' : 'Ajouter'}
-              </button>
-              <button type="button" onClick={() => setShowSupp(false)}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50">
-                Annuler
-              </button>
-            </div>
-          </form>
-        )}
-
-        {supplements.length === 0 ? (
-          <p className="text-sm text-gray-400">Aucun supplément</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead><tr className="border-b text-xs text-gray-500 text-left">
-              <th className="pb-2 pr-4">Client</th><th className="pb-2 pr-4">Supplément</th>
-              <th className="pb-2 pr-4">Qté</th><th className="pb-2 pr-4">Prix unit.</th>
-              <th className="pb-2 pr-4">Total</th><th className="pb-2"></th>
-            </tr></thead>
-            <tbody>
-              {supplements.map(l => (
-                <tr key={l._id} className="border-b last:border-0">
-                  <td className="py-2 pr-4">{l.clientId?.nom} {l.clientId?.prenom}</td>
-                  <td className="py-2 pr-4">{l.supplementId?.nom}</td>
-                  <td className="py-2 pr-4">{l.quantite}</td>
-                  <td className="py-2 pr-4">{fmt(l.prixUnitaire)}</td>
-                  <td className="py-2 pr-4 font-medium">{fmt((l.prixUnitaire || 0) * (l.quantite || 1))}</td>
-                  <td className="py-2">
-                    <button onClick={() => handleDeleteSupp(l._id)} className="text-xs text-red-500 hover:underline">Supprimer</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Paiements */}
-      <div className="premium-card">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-800">Paiements</h2>
-        </div>
-
-        {(!r.paiements || r.paiements.length === 0) ? (
-          <p className="text-sm text-gray-400">Aucun paiement</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead><tr className="border-b text-xs text-gray-500 text-left">
-              <th className="pb-2 pr-4">Date</th><th className="pb-2 pr-4">Mode</th>
-              <th className="pb-2 pr-4">Référence</th><th className="pb-2 text-right">Montant</th>
-            </tr></thead>
-            <tbody>
-              {r.paiements.map((p, i) => (
-                <tr key={i} className="border-b last:border-0">
-                  <td className="py-2 pr-4">{fmtDate(p.dateReglement)}</td>
-                  <td className="py-2 pr-4">{p.mode}</td>
-                  <td className="py-2 pr-4 text-gray-500">{p.reference || '-'}</td>
-                  <td className="py-2 text-right font-medium text-green-700">{fmt(p.montant)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={() => setShowPaiement(false)} className="btn-secondary">Annuler</button>
+            <button type="submit" disabled={savingPaiement} className="btn-primary">
+              {savingPaiement ? 'Enregistrement...' : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <ConfirmDialog
         open={confirmDelete}
-        message={`Supprimer définitivement l'inscription ${r.numero || `#${r.idReservation}`} ? Tous les paiements et suppléments associés seront aussi supprimés.`}
-        onConfirm={handleDeleteReservation}
+        message={`Supprimer définitivement l'inscription N° ${insc.numero || insc.id?.slice(0, 8)} ? Cette action est irréversible.`}
+        onConfirm={handleDeleteInscription}
         onCancel={() => setConfirmDelete(false)}
       />
     </div>

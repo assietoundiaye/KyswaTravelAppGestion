@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, CalendarCheck, Ticket, Package } from 'lucide-react';
-import api from '../../api/axios';
+import api from '../../core/api/axios';
 import DashboardShared from '../../components/DashboardShared';
+import usePermissions from '../../hooks/usePermissions';
 
 const MOIS = ['', 'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 
@@ -87,6 +88,7 @@ export default function DashboardAdmin() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { canViewModule, getModulePermissions } = usePermissions();
 
   useEffect(() => {
     api.get('/stats')
@@ -97,19 +99,26 @@ export default function DashboardAdmin() {
 
   if (loading) return <p style={{ color: 'var(--text-muted)', padding: 32 }}>Chargement...</p>;
 
+  // Filtrer les KPI selon les permissions
+  const kpiCards = [
+    { module: 'clients', label: 'Clients', value: stats?.totalClients ?? 0, icon: Users, bg: '#2563EB' },
+    { module: 'reservations', label: 'Inscriptions', value: stats?.totalReservations ?? 0, icon: CalendarCheck, bg: '#00674F' },
+    { module: 'billets', label: 'Billets', value: stats?.totalBillets ?? 0, icon: Ticket, bg: '#7C3AED' },
+    { module: 'packages', label: 'Départs', value: stats?.totalPackages ?? 0, icon: Package, bg: '#EA580C' }
+  ].filter(kpi => canViewModule(kpi.module));
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
       {/* KPI colorés */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
-        <KpiCard label="Clients" value={stats?.totalClients ?? 0} icon={Users} bg="#2563EB" />
-        <KpiCard label="Inscriptions" value={stats?.totalReservations ?? 0} icon={CalendarCheck} bg="#00674F" />
-        <KpiCard label="Billets" value={stats?.totalBillets ?? 0} icon={Ticket} bg="#7C3AED" />
-        <KpiCard label="Départs" value={stats?.totalPackages ?? 0} icon={Package} bg="#EA580C" />
+        {kpiCards.map(kpi => (
+          <KpiCard key={kpi.module} label={kpi.label} value={kpi.value} icon={kpi.icon} bg={kpi.bg} />
+        ))}
       </div>
 
       {/* Graphique inscriptions par statut */}
-      {stats?.reservationsParStatut?.length > 0 && (
+      {canViewModule('reservations') && stats?.reservationsParStatut?.length > 0 && (
         <div className="premium-card" style={{ padding: 24 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, marginBottom: 20 }}>
             Inscriptions par statut
@@ -143,7 +152,7 @@ export default function DashboardAdmin() {
       )}
 
       {/* Graphique 6 derniers mois avec axes */}
-      {stats?.resaParMois?.length > 0 && (
+      {canViewModule('reservations') && stats?.resaParMois?.length > 0 && (
         <BarChart data={stats.resaParMois} title="Inscriptions — 6 derniers mois" />
       )}
 

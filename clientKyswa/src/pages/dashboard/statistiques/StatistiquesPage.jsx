@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import { ROLE_LABELS, ROLE_COLORS } from '../../../utils/roles';
+import { ResponsiveContainer, BarChart as RechartsBarChart, PieChart as RechartsPieChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Pie } from 'recharts';
 
 // ── KPI card ──────────────────────────────────────────────────────────────────
 function KpiCard({ label, value, color, onClick }) {
@@ -46,19 +47,19 @@ function BarChart({ utilisateurs, packages, rapports }) {
   const pkgPerMonth   = byMonth(packages, 'dateDepart');
   const rapPerMonth   = byMonth(rapports, 'date');
 
-  const series = [
-    { label: 'Utilisateurs', data: usersPerMonth, color: '#6B7280' },
-    { label: 'Départs',      data: pkgPerMonth,   color: '#00674F' },
-    { label: 'Rapports',     data: rapPerMonth,   color: '#2563EB' },
-  ];
+  // Formatter les données pour Recharts
+  const chartData = MOIS.map((mois, idx) => ({
+    mois,
+    Utilisateurs: usersPerMonth[idx],
+    Départs: pkgPerMonth[idx],
+    Rapports: rapPerMonth[idx],
+  }));
 
-  const maxVal = Math.max(...series.flatMap(s => s.data), 1);
-  const W = 700, H = 200, PAD = { top: 20, right: 20, bottom: 36, left: 36 };
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
-  const groupW = innerW / 12;
-  const barW = (groupW - 8) / series.length;
-  const yTicks = [0, Math.round(maxVal / 2), maxVal];
+  const seriesColors = {
+    Utilisateurs: '#6B7280',
+    Départs: '#00674F',
+    Rapports: '#2563EB',
+  };
 
   return (
     <div className="premium-card" style={{ padding: 24 }}>
@@ -66,86 +67,31 @@ function BarChart({ utilisateurs, packages, rapports }) {
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>
           Activité mensuelle — {new Date().getFullYear()}
         </h2>
-        <div style={{ display: 'flex', gap: 16 }}>
-          {series.map(s => (
-            <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 12, height: 12, borderRadius: 3, background: s.color }} />
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{s.label}</span>
-            </div>
-          ))}
-        </div>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', minWidth: 400, height: 'auto' }}>
-          {/* Grid + Y axis */}
-          {yTicks.map(v => {
-            const y = PAD.top + innerH - (v / maxVal) * innerH;
-            return (
-              <g key={v}>
-                <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke="#E5E7EB" strokeWidth="1" strokeDasharray="4 3" />
-                <text x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize="10" fill="#9CA3AF">{v}</text>
-              </g>
-            );
-          })}
-          {/* Bars */}
-          {MOIS.map((m, mi) => {
-            const groupX = PAD.left + mi * groupW + 4;
-            return (
-              <g key={m}>
-                {series.map((s, si) => {
-                  const h = maxVal > 0 ? (s.data[mi] / maxVal) * innerH : 0;
-                  const x = groupX + si * barW;
-                  const y = PAD.top + innerH - h;
-                  return (
-                    <g key={si}>
-                      <rect x={x} y={y} width={Math.max(barW - 2, 2)} height={Math.max(h, 0)}
-                        fill={s.color} rx="2" opacity="0.85" />
-                      {s.data[mi] > 0 && (
-                        <text x={x + barW / 2 - 1} y={y - 3} textAnchor="middle" fontSize="8" fill={s.color} fontWeight="700">
-                          {s.data[mi]}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-                <text x={groupX + (groupW - 8) / 2} y={H - 8} textAnchor="middle" fontSize="10" fill="#9CA3AF">{m}</text>
-              </g>
-            );
-          })}
-          {/* X axis line */}
-          <line x1={PAD.left} y1={PAD.top + innerH} x2={W - PAD.right} y2={PAD.top + innerH} stroke="#E5E7EB" strokeWidth="1" />
-        </svg>
-      </div>
+      <ResponsiveContainer width="100%" height={200}>
+        <RechartsBarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 36 }}>
+          <CartesianGrid strokeDasharray="4 3" stroke="#E5E7EB" />
+          <XAxis dataKey="mois" tick={{ fontSize: 10, fill: '#9CA3AF' }} />
+          <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} allowDecimals={false} />
+          <Tooltip 
+            contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 8, fontSize: 12 }}
+            labelStyle={{ color: 'var(--text-main)' }}
+          />
+          <Bar dataKey="Utilisateurs" fill={seriesColors.Utilisateurs} radius={[2, 2, 0, 0]} />
+          <Bar dataKey="Départs" fill={seriesColors.Départs} radius={[2, 2, 0, 0]} />
+          <Bar dataKey="Rapports" fill={seriesColors.Rapports} radius={[2, 2, 0, 0]} />
+        </RechartsBarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
 
-// ── Diagramme circulaire SVG (répartition des rôles) ─────────────────────────
-function PieChart({ data, title }) {
+// ── Diagramme circulaire Recharts (répartition des rôles) ─────────────────────────
+function PieChartComponent({ data, title }) {
   if (!data || data.length === 0) return null;
 
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) return null;
-
-  const CX = 100, CY = 100, R = 80;
-  let startAngle = -Math.PI / 2;
-
-  const slices = data.map(d => {
-    const angle = (d.value / total) * 2 * Math.PI;
-    const endAngle = startAngle + angle;
-    const x1 = CX + R * Math.cos(startAngle);
-    const y1 = CY + R * Math.sin(startAngle);
-    const x2 = CX + R * Math.cos(endAngle);
-    const y2 = CY + R * Math.sin(endAngle);
-    const largeArc = angle > Math.PI ? 1 : 0;
-    const midAngle = startAngle + angle / 2;
-    const lx = CX + (R + 20) * Math.cos(midAngle);
-    const ly = CY + (R + 20) * Math.sin(midAngle);
-    const path = `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-    const result = { ...d, path, lx, ly, midAngle, startAngle, endAngle };
-    startAngle = endAngle;
-    return result;
-  });
 
   return (
     <div className="premium-card" style={{ padding: 24 }}>
@@ -153,26 +99,34 @@ function PieChart({ data, title }) {
         {title}
       </h2>
       <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-        <svg viewBox="0 0 200 200" style={{ width: 180, height: 180, flexShrink: 0 }}>
-          {slices.map((s, i) => (
-            <path key={i} d={s.path} fill={s.color} stroke="white" strokeWidth="2" opacity="0.9" />
-          ))}
-          {/* Cercle central blanc (donut effect) */}
-          <circle cx={CX} cy={CY} r={40} fill="white" />
-          <text x={CX} y={CY - 6} textAnchor="middle" fontSize="18" fontWeight="900" fill="var(--text-main)">{total}</text>
-          <text x={CX} y={CY + 12} textAnchor="middle" fontSize="9" fill="#9CA3AF">TOTAL</text>
-        </svg>
+        <ResponsiveContainer width={200} height={200}>
+          <RechartsPieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={40}
+              outerRadius={80}
+              paddingAngle={2}
+              dataKey="value"
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+          </RechartsPieChart>
+        </ResponsiveContainer>
         {/* Légende */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {slices.map((s, i) => (
+          {data.map((item, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 12, height: 12, borderRadius: 3, background: s.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, color: 'var(--text-main)', fontWeight: 600 }}>{s.label}</span>
+                <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: 'var(--text-main)', fontWeight: 600 }}>{item.label}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 900, color: s.color, fontFamily: 'var(--font-display)' }}>{s.value}</span>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>({Math.round(s.value / total * 100)}%)</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: item.color, fontFamily: 'var(--font-display)' }}>{item.value}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>({Math.round(item.value / total * 100)}%)</span>
               </div>
             </div>
           ))}
@@ -260,8 +214,8 @@ export default function StatistiquesPage() {
       {/* Diagrammes circulaires côte à côte */}
       {!loading && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-          <PieChart data={pieRoles} title="Répartition des comptes par rôle" />
-          <PieChart data={pieStatuts} title="Statut des comptes (Actifs / Inactifs)" />
+          <PieChartComponent data={pieRoles} title="Répartition des comptes par rôle" />
+          <PieChartComponent data={pieStatuts} title="Statut des comptes (Actifs / Inactifs)" />
         </div>
       )}
 

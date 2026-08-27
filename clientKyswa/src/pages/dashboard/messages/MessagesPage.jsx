@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { toast } from '../../../components/Toast';
 import { useSocket } from '../../../hooks/useSocket';

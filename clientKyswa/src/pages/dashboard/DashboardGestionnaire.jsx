@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import api from '../../api/axios';
+import api from '../../core/api/axios';
 import DataTable from '../../components/DataTable';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-';
@@ -46,7 +46,7 @@ export default function DashboardGestionnaire() {
   ], []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={{ paddingTop: 32 }}>
       <h1 className="text-2xl font-bold text-gray-900">Dashboard Gestionnaire</h1>
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>

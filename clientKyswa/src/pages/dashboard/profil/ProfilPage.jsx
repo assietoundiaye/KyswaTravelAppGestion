@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
 import { ROLE_LABELS, ROLE_COLORS } from '../../../utils/roles';

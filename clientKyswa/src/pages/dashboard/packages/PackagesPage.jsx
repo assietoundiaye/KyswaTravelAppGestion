@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 import { useAuth } from '../../../context/AuthContext';
+import { usePermissions } from '../../../context/PermissionsContext';
 import { toast } from '../../../components/Toast';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
@@ -30,7 +31,11 @@ const STATUT_COLORS = {
 
 export default function PackagesPage() {
   const { role } = useAuth();
-  const canEdit = ['dg', 'administrateur'].includes(role);
+  const { canCreate, canEdit, canDelete } = usePermissions();
+  const hasCreate = canCreate('packages') || ['dg', 'administrateur', 'informatique'].includes(role?.toLowerCase());
+  const hasEdit = canEdit('packages') || ['dg', 'administrateur', 'informatique'].includes(role?.toLowerCase());
+  const hasDelete = canDelete('packages') || ['dg', 'administrateur', 'informatique'].includes(role?.toLowerCase());
+  const showActions = hasEdit || hasDelete;
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -138,7 +143,7 @@ export default function PackagesPage() {
             />
           </div>
         </div>
-        {canEdit && (
+        {hasCreate && (
           <button onClick={() => { setEditId(null); setForm(EMPTY); setShowModal(true); }} className="btn-primary">
             + Nouveau départ
           </button>
@@ -158,7 +163,7 @@ export default function PackagesPage() {
                 <th>Places</th>
                 <th>Prix (Éco / Confort / VIP)</th>
                 <th>Compagnie</th>
-                {canEdit && <th>Actions</th>}
+                {showActions && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -195,17 +200,21 @@ export default function PackagesPage() {
                       </div>
                     </td>
                     <td style={{ fontSize: 12 }}>{p.compagnieAerienne || '—'}</td>
-                    {canEdit && (
+                    {showActions && (
                       <td>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button onClick={() => openEdit(p)}
-                            style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                            Modifier
-                          </button>
-                          <button onClick={() => { if ((p.placesReservees || 0) > 0) { toast('Impossible : des inscriptions existent', 'error'); return; } setConfirmId(p._id); }}
-                            style={{ background: 'rgba(220,38,38,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                            Supprimer
-                          </button>
+                          {hasEdit && (
+                            <button onClick={() => openEdit(p)}
+                              style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                              Modifier
+                            </button>
+                          )}
+                          {hasDelete && (
+                            <button onClick={() => { if ((p.placesReservees || 0) > 0) { toast('Impossible : des inscriptions existent', 'error'); return; } setConfirmId(p._id); }}
+                              style={{ background: 'rgba(220,38,38,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                              Supprimer
+                            </button>
+                          )}
                         </div>
                       </td>
                     )}

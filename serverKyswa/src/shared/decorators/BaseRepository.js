@@ -85,14 +85,15 @@ function mapSortToPrisma(sort) {
 
 /**
  * Transforme les données du frontend (camelCase) vers le format base de données (snake_case)
+ * et filtre les champs non supportés par le modèle Prisma pour éviter les erreurs de validation.
  */
-function transformInputData(data, tableName) {
+function transformInputData(data, tableName, model = null) {
   if (!data || typeof data !== 'object') return data;
-  if (Array.isArray(data)) return data.map(item => transformInputData(item, tableName));
+  if (Array.isArray(data)) return data.map(item => transformInputData(item, tableName, model));
 
   const transformed = {};
 
-  // Définition des champs autorisés par table
+  // Définition des champs autorisés par table de secours
   const allowedFields = {
     departs: ['service', 'nom_depart', 'date_depart', 'date_retour', 'places_total', 'places_restantes', 'actif'],
     clients: ['nom', 'prenom', 'genre', 'telephone', 'email', 'adresse', 'ville', 'date_naissance', 
@@ -107,13 +108,31 @@ function transformInputData(data, tableName) {
                    'acompte', 'statut_paiement', 'statut_client', 'agent_id', 'notes', 'date_inscription',
                    'date_dernier_depot'],
     paiements: ['inscription_id', 'client_id', 'montant', 'mode_paiement', 'date_paiement',
-                'agent_id', 'notes', 'methode', 'reference']
+                'agent_id', 'notes', 'methode', 'reference', 'recu_numero', 'enregistre_par']
   };
 
   // Champs de dates qui nécessitent une conversion
   const dateFields = ['date_depart', 'date_retour', 'date_naissance', 'expiration_passeport', 
                      'visa_schengen_expiration', 'visa_usa_expiration', 'date_paiement', 
-                     'date_inscription', 'date_dernier_depot', 'date_ajout'];
+                     'date_inscription', 'date_dernier_depot', 'date_ajout', 'created_at', 'updated_at'];
+
+  // Champs booléens
+  const booleanFields = ['vip', 'actif', 'visa_schengen', 'visa_usa', 'premier_voyage', 'valide_18_mois', 'scan_conforme', 'photo_norme'];
+
+  // Champs entiers
+  const integerFields = ['nb_hajj', 'nb_oumra', 'budget_estime', 'places_total', 'places_restantes', 'nb_nuits_makkah', 'nb_nuits_medine'];
+
+  // Champs montants / BigInt
+  const numberFields = ['prix_total', 'acompte', 'montant'];
+
+  // Déterminer la liste des champs autorisés pour ce modèle
+  const targetTable = tableName || model?.name || null;
+  let modelValidFields = null;
+  if (model?.fields && typeof model.fields === 'object') {
+    modelValidFields = Object.keys(model.fields);
+  } else if (targetTable && allowedFields[targetTable]) {
+    modelValidFields = allowedFields[targetTable];
+  }
 
   for (const [key, value] of Object.entries(data)) {
     let dbKey = key;
@@ -124,7 +143,6 @@ function transformInputData(data, tableName) {
     else if (key === 'dateRetour') dbKey = 'date_retour';
     else if (key === 'quotaMax') dbKey = 'places_total';
     else if (key === 'statut' && (value === 'OUVERT' || value === 'COMPLET' || value === 'TERMINE' || value === 'ANNULE')) {
-      // Pour les départs, le statut est géré via le champ 'actif'
       dbKey = 'actif';
       transformed[dbKey] = value === 'OUVERT' || value === 'COMPLET';
       continue;
@@ -134,31 +152,78 @@ function transformInputData(data, tableName) {
     else if (key === 'dateExpirationPasseport') dbKey = 'expiration_passeport';
     else if (key === 'sexe') dbKey = 'genre';
     else if (key === 'dateNaissance') dbKey = 'date_naissance';
+    else if (key === 'niveauFidelite') dbKey = 'niveau_fidelite';
+    else if (key === 'contactPrefere') dbKey = 'contact_prefere';
+    else if (key === 'sourceConnaissance') dbKey = 'source_connaissance';
+    else if (key === 'premierVoyage') dbKey = 'premier_voyage';
+    else if (key === 'agencePrecedente') dbKey = 'agence_precedente';
+    else if (key === 'naturePasseport') dbKey = 'nature_passeport';
+    else if (key === 'visaSchengen') dbKey = 'visa_schengen';
+    else if (key === 'visaSchengenExpiration') dbKey = 'visa_schengen_expiration';
+    else if (key === 'visaUSA' || key === 'visaUsa') dbKey = 'visa_usa';
+    else if (key === 'visaUSAExpiration' || key === 'visaUsaExpiration') dbKey = 'visa_usa_expiration';
+    else if (key === 'autresVisas') dbKey = 'autres_visas';
+    else if (key === 'nbHajj') dbKey = 'nb_hajj';
+    else if (key === 'nbOumra') dbKey = 'nb_oumra';
+    else if (key === 'budgetEstime') dbKey = 'budget_estime';
+    else if (key === 'passportUrl') dbKey = 'passport_url';
+    else if (key === 'documentsUrls') dbKey = 'documents_urls';
+    else if (key === 'dateAjout') dbKey = 'date_ajout';
+    else if (key === 'photoUrl') dbKey = 'photo_url';
+    else if (key === 'createdBy') dbKey = 'created_by';
+    else if (key === 'createdAt') dbKey = 'created_at';
     // Mappages pour les inscriptions
     else if (key === 'statutClient') dbKey = 'statut_client';
     else if (key === 'statutPaiement') dbKey = 'statut_paiement';
     else if (key === 'montantTotalDu') dbKey = 'prix_total';
+    else if (key === 'typeChambre') dbKey = 'type_chambre';
+    else if (key === 'hotelMakkah') dbKey = 'hotel_makkah';
+    else if (key === 'hotelMedine') dbKey = 'hotel_medine';
+    else if (key === 'nbNuitsMakkah') dbKey = 'nb_nuits_makkah';
+    else if (key === 'nbNuitsMedine') dbKey = 'nb_nuits_medine';
     // Mappages pour les paiements
     else if (key === 'modePaiement') dbKey = 'mode_paiement';
     else if (key === 'datePaiement') dbKey = 'date_paiement';
+    else if (key === 'recuNumero') dbKey = 'recu_numero';
 
-    // Filtrer les champs non autorisés si on connaît le nom de la table
-    if (tableName && allowedFields[tableName]) {
-      if (!allowedFields[tableName].includes(dbKey) && dbKey !== 'id') {
-        continue; // Ignorer les champs non autorisés
-      }
+    // Filtrer les champs non autorisés / inconnus de Prisma
+    if (modelValidFields && !modelValidFields.includes(dbKey) && dbKey !== 'id') {
+      continue; // Ignorer les champs inexistants dans la table
     }
 
     // Transformer les champs de date
     let transformedValue = value;
-    if (dateFields.includes(dbKey) && value && typeof value === 'string' && value !== '') {
-      // Convertir les chaînes de date en objets Date pour Prisma
-      // Vérifier si c'est une date au format YYYY-MM-DD
-      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        transformedValue = new Date(value + 'T00:00:00.000Z');
-      } else if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
-        // C'est déjà une date ISO complète
-        transformedValue = new Date(value);
+    if (dateFields.includes(dbKey)) {
+      if (!value || value === '') {
+        transformedValue = null;
+      } else if (typeof value === 'string') {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          transformedValue = new Date(value + 'T00:00:00.000Z');
+        } else if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+          transformedValue = new Date(value);
+        } else {
+          const parsed = new Date(value);
+          transformedValue = isNaN(parsed.getTime()) ? null : parsed;
+        }
+      }
+    } else if (booleanFields.includes(dbKey)) {
+      if (value === '' || value === undefined || value === null) {
+        transformedValue = null;
+      } else {
+        transformedValue = Boolean(value);
+      }
+    } else if (integerFields.includes(dbKey)) {
+      if (value === '' || value === undefined || value === null) {
+        transformedValue = null;
+      } else {
+        const parsed = parseInt(value, 10);
+        transformedValue = isNaN(parsed) ? null : parsed;
+      }
+    } else if (numberFields.includes(dbKey)) {
+      if (value === '' || value === undefined || value === null) {
+        transformedValue = null;
+      } else if (typeof value === 'string' || typeof value === 'number') {
+        transformedValue = typeof value === 'number' ? value : (parseFloat(value) || 0);
       }
     }
 
@@ -297,7 +362,8 @@ class BaseRepository {
     delete data._id;
     
     // Transformation des champs camelCase vers snake_case
-    const transformedData = transformInputData(data, this.tableName);
+    // On passe this.model pour que transformInputData filtre via model.fields
+    const transformedData = transformInputData(data, this.tableName, this.model);
     
     const item = await this.model.create({ data: transformedData });
     return normalizeItem(item);
@@ -361,8 +427,8 @@ class BaseRepository {
     delete data._id;
     delete data.id;
     
-    // Transformation des champs camelCase vers snake_case
-    const transformedData = transformInputData(data, this.tableName);
+    // Transformation + filtrage strict via les champs réels du modèle Prisma
+    const transformedData = transformInputData(data, this.tableName, this.model);
     
     const item = await this.model.update({ where: { id }, data: transformedData });
     return normalizeItem(item);
@@ -374,8 +440,8 @@ class BaseRepository {
   async updateOne(filter, data) {
     delete data._id;
     
-    // Transformation des champs camelCase vers snake_case
-    const transformedData = transformInputData(data, this.tableName);
+    // Transformation + filtrage strict via les champs réels du modèle Prisma
+    const transformedData = transformInputData(data, this.tableName, this.model);
     
     const record = await this.model.findFirst({ where: mapFilterToPrisma(filter) });
     if (!record) return null;

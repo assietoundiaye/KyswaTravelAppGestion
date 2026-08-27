@@ -37,13 +37,41 @@ class AuthRepository extends BaseRepository {
    * Trouve le profil et les identifiants hashés dans auth.users par Email
    */
   async findAuthUserByEmail(email) {
-    const profile = await this.findByEmail(email);
-    if (!profile) return null;
+    if (!email) return null;
+    const normalizedEmail = email.toLowerCase().trim();
 
-    const authUser = await this.usersModel.findFirst({
-      where: { id: profile.id }
+    // 1. Chercher dans auth.users par email
+    let authUser = await this.usersModel.findFirst({
+      where: { email: { equals: normalizedEmail, mode: 'insensitive' } }
     });
 
+    // 2. Chercher dans profiles par email
+    let profile = await this.findByEmail(normalizedEmail);
+
+    if (!authUser && profile) {
+      authUser = await this.usersModel.findFirst({ where: { id: profile.id } });
+    }
+
+    if (!profile && authUser) {
+      // Auto-créer le profil manquant
+      const emailParts = normalizedEmail.split('@')[0].replace(/[0-9]/g, '').split(/[\._]/);
+      const prenom = emailParts[0] ? emailParts[0].charAt(0).toUpperCase() + emailParts[0].slice(1) : 'Agent';
+      const nom = emailParts[1] ? emailParts[1].charAt(0).toUpperCase() + emailParts[1].slice(1) : 'Kyswa';
+
+      profile = await this.model.create({
+        data: {
+          id: authUser.id,
+          email: normalizedEmail,
+          nom,
+          prenom,
+          poste: 'COMMERCIAL',
+          role: 'commercial',
+          actif: true,
+        }
+      });
+    }
+
+    if (!profile || !authUser) return null;
     return { profile, authUser };
   }
 
@@ -51,13 +79,16 @@ class AuthRepository extends BaseRepository {
    * Trouve le profil et les identifiants hashés dans auth.users par Téléphone
    */
   async findAuthUserByTelephone(telephone) {
-    const profile = await this.findByTelephone(telephone);
+    if (!telephone) return null;
+
+    let profile = await this.findByTelephone(telephone);
     if (!profile) return null;
 
     const authUser = await this.usersModel.findFirst({
       where: { id: profile.id }
     });
 
+    if (!authUser) return null;
     return { profile, authUser };
   }
 

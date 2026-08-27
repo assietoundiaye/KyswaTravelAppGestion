@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Download, ScanLine, CheckCircle, AlertCircle } from 'lucide-react';
-import api from '../../../api/axios';
+import { Download, ScanLine, CheckCircle, AlertCircle, Phone, Calendar, ChevronRight } from 'lucide-react';
+import api from '../../../core/api/axios';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { toast } from '../../../components/Toast';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
 
-const DOC_TYPES = ['PASSEPORT', 'VISA', 'BILLET_ELECTRONIQUE', 'CERTIFICAT', 'AUTRE'];
+const DOC_TYPES = ['PASSEPORT', 'VISA', 'BILLET_ELECTRONIQUE', 'CERTIFICAT', 'PASSEPORT_PHOTO', 'AUTRE'];
 const DOC_STATUTS = ['EN_ATTENTE', 'VALIDE', 'REFUSE', 'EXPIREE'];
 const STATUT_COLORS = {
   VALIDE: { bg: '#F0FDF4', color: '#16A34A' },
@@ -22,6 +22,7 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [documents, setDocuments] = useState([]);
+  const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showEdit, setShowEdit] = useState(false);
   const [form, setForm] = useState({});
@@ -39,24 +40,59 @@ export default function ClientDetail() {
   const fetchClient = async () => {
     try {
       const res = await api.get(`/clients/${id}`);
-      setClient(res.data.client);
-      setDocuments(res.data.documents || []);
-      const c = res.data.client;
-      setForm({
+      // Le backend retourne { success: true, data: { ...client } }
+      const c = res.data.data || res.data.client;
+      if (!c) throw new Error('Réponse inattendue du serveur');
+
+      // Normalisation snake_case → camelCase pour rétrocompatibilité avec le template
+      const normalized = {
+        ...c,
+        // Identité
         nom: c.nom || '',
         prenom: c.prenom || '',
         telephone: c.telephone || '',
         email: c.email || '',
         adresse: c.adresse || '',
+        ville: c.ville || '',
+        // Champs camelCase attendus par le template (mappés depuis snake_case Supabase)
+        numeroPasseport: c.n_passeport || c.numeroPasseport || '',
         numeroCNI: c.numeroCNI || '',
-        numeroPasseport: c.numeroPasseport || '',
-        dateNaissance: c.dateNaissance ? c.dateNaissance.substring(0, 10) : '',
+        dateNaissance: c.date_naissance || c.dateNaissance || null,
         lieuNaissance: c.lieuNaissance || '',
-        dateExpirationPasseport: c.dateExpirationPasseport ? c.dateExpirationPasseport.substring(0, 10) : '',
-        niveauFidelite: c.niveauFidelite || 'BRONZE',
+        dateExpirationPasseport: c.expiration_passeport || c.dateExpirationPasseport || null,
+        niveauFidelite: c.niveau_fidelite || c.niveauFidelite || 'Nouveau',
+        photoUrl: c.photo_url || c.photoUrl || null,
+        dateCreation: c.created_at || c.dateCreation || null,
+        contactUrgence: c.contactUrgence || null,
+        vip: c.vip || false,
+        notes: c.notes || '',
+      };
+
+      setClient(normalized);
+      setDocuments(res.data.documents || []);
+      // Les inscriptions viennent de c.inscriptions (inclus par getClientFull)
+      setReservations(c.inscriptions || res.data.reservations || []);
+      setForm({
+        nom: normalized.nom,
+        prenom: normalized.prenom,
+        telephone: normalized.telephone,
+        email: normalized.email,
+        adresse: normalized.adresse,
+        numeroCNI: normalized.numeroCNI,
+        numeroPasseport: normalized.numeroPasseport,
+        dateNaissance: normalized.dateNaissance ? normalized.dateNaissance.substring(0, 10) : '',
+        lieuNaissance: normalized.lieuNaissance,
+        dateExpirationPasseport: normalized.dateExpirationPasseport ? normalized.dateExpirationPasseport.substring(0, 10) : '',
+        niveauFidelite: normalized.niveauFidelite,
+        contactUrgenceNom: normalized.contactUrgence?.nom || '',
+        contactUrgenceTelephone: normalized.contactUrgence?.telephone || '',
+        contactUrgenceRelation: normalized.contactUrgence?.relation || '',
       });
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    } catch (e) {
+      console.error('Erreur chargement client:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchClient(); }, [id]);
@@ -65,7 +101,14 @@ export default function ClientDetail() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.patch(`/clients/${id}`, form);
+      await api.patch(`/clients/${id}`, {
+        ...form,
+        contactUrgence: {
+          nom: form.contactUrgenceNom,
+          telephone: form.contactUrgenceTelephone,
+          relation: form.contactUrgenceRelation,
+        }
+      });
       await fetchClient();
       setShowEdit(false);
       toast('Client modifié avec succès');
@@ -120,7 +163,7 @@ export default function ClientDetail() {
       if (extracted.nom || extracted.prenom || extracted.numeroPasseport) {
         setForm(f => ({
           ...f,
-          nom:    extracted.nom    || f.nom,
+          nom: extracted.nom || f.nom,
           prenom: extracted.prenom || f.prenom,
           dateNaissance: extracted.dateNaissance || f.dateNaissance,
           lieuNaissance: extracted.lieuNaissance || f.lieuNaissance,
@@ -271,6 +314,32 @@ export default function ClientDetail() {
             </div>
           ))}
         </div>
+        <div className="divider" style={{ margin: '20px 0' }} />
+        <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Contact en cas d'urgence
+        </h3>
+        {client.contactUrgence && (client.contactUrgence.nom || client.contactUrgence.telephone) ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Nom du contact</p>
+              <p style={{ fontSize: 14, color: 'var(--text-main)', fontWeight: 600 }}>{client.contactUrgence.nom}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Téléphone</p>
+              <p style={{ fontSize: 14, color: 'var(--text-main)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Phone size={14} style={{ color: 'var(--primary)' }} /> {client.contactUrgence.telephone}
+              </p>
+            </div>
+            {client.contactUrgence.relation && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Relation / Parenté</p>
+                <p style={{ fontSize: 14, color: 'var(--text-main)' }}>{client.contactUrgence.relation}</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>Aucun contact d'urgence enregistré</p>
+        )}
       </div>
 
       {/* Documents */}
@@ -289,11 +358,56 @@ export default function ClientDetail() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {documents.map(d => {
               const s = STATUT_COLORS[d.statut] || STATUT_COLORS.EN_ATTENTE;
+              const isAutoExtractedPhoto = d.type === 'PASSEPORT_PHOTO';
+
               return (
-                <div key={d._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-main)', borderRadius: 'var(--radius-md)' }}>
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{d.type}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{fmtDate(d.dateCreation)}</span>
+                <div key={d._id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  background: isAutoExtractedPhoto ? 'rgba(0,103,79,0.04)' : 'var(--bg-main)',
+                  borderRadius: 'var(--radius-md)',
+                  border: isAutoExtractedPhoto ? '1px solid rgba(0,103,79,0.12)' : 'none'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {/* Aperçu pour les photos */}
+                    {isAutoExtractedPhoto && d.cheminFichier && (
+                      <img
+                        src={d.cheminFichier}
+                        alt="Photo passeport"
+                        style={{
+                          width: 40,
+                          height: 40,
+                          objectFit: 'cover',
+                          borderRadius: 6,
+                          border: '2px solid var(--primary)'
+                        }}
+                      />
+                    )}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+                          {d.type === 'PASSEPORT_PHOTO' ? 'Photo passeport (auto)' : d.type}
+                        </span>
+                        {isAutoExtractedPhoto && (
+                          <span style={{
+                            background: 'rgba(0,103,79,0.08)',
+                            color: 'var(--primary)',
+                            borderRadius: 12,
+                            padding: '2px 6px',
+                            fontSize: 9,
+                            fontWeight: 700
+                          }}>
+                            OCR
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {fmtDate(d.dateCreation)}
+                        {isAutoExtractedPhoto && ' • Extraite automatiquement'}
+                      </span>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <select
@@ -322,6 +436,150 @@ export default function ClientDetail() {
                       style={{ background: 'none', border: 'none', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                     >
                       Supprimer
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Historique des départs */}
+      <div className="premium-card" style={{ marginTop: 16, marginBottom: 16 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Calendar size={18} style={{ color: 'var(--primary)' }} />
+          Historique des Départs ({reservations.length})
+        </h2>
+        {reservations.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '32px 0' }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}> </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, fontStyle: 'italic' }}>Aucun départ enregistré pour ce client</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {reservations.map(insc => {
+              // Données Supabase : inscriptions + departs (relation incluse)
+              const depart = insc.departs || {};
+              const totalPaye = Array.isArray(insc.paiements)
+                ? insc.paiements.reduce((s, p) => s + (p.montant || 0), 0)
+                : (insc.acompte || 0);
+              const prixTotal = insc.prix_total || 0;
+              const reste = Math.max(0, prixTotal - totalPaye);
+              const isSolde = reste <= 0;
+
+              // Couleurs statut client
+              const STATUT_STYLE = {
+                Inscrit: { bg: '#EFF6FF', color: '#2563EB' },
+                Confirmé: { bg: '#F0FDF4', color: '#16A34A' },
+                Parti: { bg: '#FFF7ED', color: '#EA580C' },
+                Rentré: { bg: '#F0FDF4', color: '#15803D' },
+                Désisté: { bg: '#FFFBEB', color: '#D97706' },
+                Annulé: { bg: '#FEF2F2', color: '#DC2626' },
+              };
+              const statut = insc.statut_client || 'Inscrit';
+              const st = STATUT_STYLE[statut] || { bg: '#F3F4F6', color: '#6B7280' };
+
+              // Couleur service
+              const SERVICE_COLORS = {
+                Omra: { bg: 'rgba(37,99,235,0.08)', color: '#2563EB', emoji: '🕋' },
+                Hajj: { bg: 'rgba(220,38,38,0.08)', color: '#DC2626', emoji: '🕌' },
+                Ziyara: { bg: 'rgba(22,163,74,0.08)', color: '#16A34A', emoji: '🌙' },
+              };
+              const svc = SERVICE_COLORS[insc.service] || { bg: 'rgba(107,114,128,0.08)', color: '#6B7280', emoji: ' ' };
+
+              return (
+                <div key={insc.id} style={{
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  background: 'var(--bg-card)',
+                }}>
+                  {/* En-tête de la carte */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    background: svc.bg,
+                    borderBottom: '1px solid var(--border)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 22 }}>{svc.emoji}</span>
+                      <div>
+                        <p style={{ fontWeight: 800, fontSize: 14, color: svc.color }}>
+                          {depart.nom_depart || insc.service || 'Voyage'}
+                        </p>
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                          N° {insc.numero || insc.id?.slice(0, 8)}
+                          {insc.formule ? ` · ${insc.formule}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <span style={{
+                      background: st.bg, color: st.color,
+                      borderRadius: 20, padding: '4px 12px',
+                      fontSize: 11, fontWeight: 700,
+                    }}>{statut}</span>
+                  </div>
+
+                  {/* Corps de la carte */}
+                  <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                    {/* Dates */}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Départ</p>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+                        {fmtDate(depart.date_depart || insc.date_depart)}
+                      </p>
+                      {(depart.date_retour) && (
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          Retour : {fmtDate(depart.date_retour)}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Finances */}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Finances</p>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)' }}>
+                        {prixTotal.toLocaleString('fr-FR')} FCFA
+                      </p>
+                      {isSolde ? (
+                        <span style={{ display: 'inline-block', marginTop: 3, background: '#F0FDF4', color: '#16A34A', borderRadius: 20, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>✓ Soldé</span>
+                      ) : (
+                        <p style={{ fontSize: 11, color: '#DC2626', fontWeight: 700, marginTop: 2 }}>Reste : {reste.toLocaleString('fr-FR')} FCFA</p>
+                      )}
+                    </div>
+
+                    {/* Hébergement */}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Hébergement</p>
+                      {insc.hotel_makkah && (
+                        <p style={{ fontSize: 12, color: 'var(--text-main)' }}>🕋 {insc.hotel_makkah}</p>
+                      )}
+                      {insc.hotel_medine && (
+                        <p style={{ fontSize: 12, color: 'var(--text-main)', marginTop: 2 }}>🌙 {insc.hotel_medine}</p>
+                      )}
+                      {insc.type_chambre && (
+                        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{insc.type_chambre}</p>
+                      )}
+                      {!insc.hotel_makkah && !insc.hotel_medine && (
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Footer avec bouton détails */}
+                  <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => navigate(`/dashboard/reservations/${insc.id}`)}
+                      style={{
+                        background: 'none', border: 'none', color: 'var(--primary)',
+                        cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 12, fontWeight: 700, padding: '4px 0',
+                      }}
+                    >
+                      Voir les détails <ChevronRight size={14} />
                     </button>
                   </div>
                 </div>
@@ -412,12 +670,12 @@ export default function ClientDetail() {
           {/* Identité */}
           <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Identité</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            {[['nom','Nom *'],['prenom','Prénom *']].map(([k,l]) => (
+            {[['nom', 'Nom *'], ['prenom', 'Prénom *']].map(([k, l]) => (
               <div key={k}>
                 <label className="input-label">{l}</label>
                 <input
                   value={form[k] || ''}
-                  onChange={e => setForm(f => ({...f, [k]: e.target.value.toUpperCase()}))}
+                  onChange={e => setForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }))}
                   className="premium-input"
                   style={{ textTransform: 'uppercase' }}
                   required
@@ -426,11 +684,11 @@ export default function ClientDetail() {
             ))}
             <div>
               <label className="input-label">Date de naissance</label>
-              <input type="date" value={form.dateNaissance || ''} onChange={e => setForm(f => ({...f, dateNaissance: e.target.value}))} className="premium-input" />
+              <input type="date" value={form.dateNaissance || ''} onChange={e => setForm(f => ({ ...f, dateNaissance: e.target.value }))} className="premium-input" />
             </div>
             <div>
               <label className="input-label">Lieu de naissance</label>
-              <input value={form.lieuNaissance || ''} onChange={e => setForm(f => ({...f, lieuNaissance: e.target.value}))} className="premium-input" />
+              <input value={form.lieuNaissance || ''} onChange={e => setForm(f => ({ ...f, lieuNaissance: e.target.value }))} className="premium-input" />
             </div>
           </div>
 
@@ -439,15 +697,32 @@ export default function ClientDetail() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
               <label className="input-label">Téléphone</label>
-              <input value={form.telephone || ''} onChange={e => setForm(f => ({...f, telephone: e.target.value}))} className="premium-input" />
+              <input value={form.telephone || ''} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))} className="premium-input" />
             </div>
             <div>
               <label className="input-label">Email</label>
-              <input type="email" value={form.email || ''} onChange={e => setForm(f => ({...f, email: e.target.value}))} className="premium-input" />
+              <input type="email" value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="premium-input" />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="input-label">Adresse</label>
-              <input value={form.adresse || ''} onChange={e => setForm(f => ({...f, adresse: e.target.value}))} className="premium-input" />
+              <input value={form.adresse || ''} onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))} className="premium-input" />
+            </div>
+          </div>
+
+          {/* Contact d'urgence */}
+          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>  Contact en cas d'urgence</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="input-label">Nom complet du contact</label>
+              <input value={form.contactUrgenceNom || ''} onChange={e => setForm(f => ({ ...f, contactUrgenceNom: e.target.value }))} className="premium-input" placeholder="Ex: Adama Diop" />
+            </div>
+            <div>
+              <label className="input-label">Téléphone d'urgence</label>
+              <input value={form.contactUrgenceTelephone || ''} onChange={e => setForm(f => ({ ...f, contactUrgenceTelephone: e.target.value }))} className="premium-input" placeholder="Ex: +221 77..." />
+            </div>
+            <div>
+              <label className="input-label">Relation / Parenté</label>
+              <input value={form.contactUrgenceRelation || ''} onChange={e => setForm(f => ({ ...f, contactUrgenceRelation: e.target.value }))} className="premium-input" placeholder="Ex: Époux, Frère, etc." />
             </div>
           </div>
 
@@ -456,19 +731,19 @@ export default function ClientDetail() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
               <label className="input-label">N° Passeport</label>
-              <input value={form.numeroPasseport || ''} onChange={e => setForm(f => ({...f, numeroPasseport: e.target.value}))} className="premium-input" placeholder="Laisser vide si non disponible" />
+              <input value={form.numeroPasseport || ''} onChange={e => setForm(f => ({ ...f, numeroPasseport: e.target.value }))} className="premium-input" placeholder="Laisser vide si non disponible" />
             </div>
             <div>
               <label className="input-label">Expiration passeport</label>
-              <input type="date" value={form.dateExpirationPasseport || ''} onChange={e => setForm(f => ({...f, dateExpirationPasseport: e.target.value}))} className="premium-input" />
+              <input type="date" value={form.dateExpirationPasseport || ''} onChange={e => setForm(f => ({ ...f, dateExpirationPasseport: e.target.value }))} className="premium-input" />
             </div>
             <div>
               <label className="input-label">N° CNI</label>
-              <input value={form.numeroCNI || ''} onChange={e => setForm(f => ({...f, numeroCNI: e.target.value}))} className="premium-input" />
+              <input value={form.numeroCNI || ''} onChange={e => setForm(f => ({ ...f, numeroCNI: e.target.value }))} className="premium-input" />
             </div>
             <div>
               <label className="input-label">Niveau fidélité</label>
-              <select value={form.niveauFidelite || 'BRONZE'} onChange={e => setForm(f => ({...f, niveauFidelite: e.target.value}))} className="premium-input">
+              <select value={form.niveauFidelite || 'BRONZE'} onChange={e => setForm(f => ({ ...f, niveauFidelite: e.target.value }))} className="premium-input">
                 {['BRONZE', 'ARGENT', 'OR', 'PLATINE'].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>

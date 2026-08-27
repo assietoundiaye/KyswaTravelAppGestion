@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link } from 'react-router-dom';
-import api from '../../api/axios';
+import api from '../../core/api/axios';
 
 const schema = z.object({
   numeroReservation: z

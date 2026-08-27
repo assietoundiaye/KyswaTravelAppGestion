@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../../../api/axios';
+import api from '../../../core/api/axios';
 
 const fmt = (n) => {
   const raw = n?.$numberDecimal ?? n;
