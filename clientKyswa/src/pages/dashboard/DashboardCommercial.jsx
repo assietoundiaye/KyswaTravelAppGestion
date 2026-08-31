@@ -101,67 +101,273 @@ function QuickBtn({ label, icon: Icon, color, onClick }) {
 }
 
 // ── Calendar ──────────────────────────────────────────────────────────────────
-function MiniCalendar({ reunions, packages }) {
+function MiniCalendar({ reunions = [], packages = [] }) {
+  const navigate = useNavigate();
   const today = new Date();
   const [cur, setCur] = useState({ year: today.getFullYear(), month: today.getMonth() });
+  const [selectedDate, setSelectedDate] = useState(today);
 
-  const prev = () => setCur(c => { const d = new Date(c.year, c.month-1, 1); return { year: d.getFullYear(), month: d.getMonth() }; });
-  const next = () => setCur(c => { const d = new Date(c.year, c.month+1, 1); return { year: d.getFullYear(), month: d.getMonth() }; });
+  const prev = () => setCur(c => { const d = new Date(c.year, c.month - 1, 1); return { year: d.getFullYear(), month: d.getMonth() }; });
+  const next = () => setCur(c => { const d = new Date(c.year, c.month + 1, 1); return { year: d.getFullYear(), month: d.getMonth() }; });
+  const goToToday = () => { setCur({ year: today.getFullYear(), month: today.getMonth() }); setSelectedDate(today); };
 
   const firstDay = new Date(cur.year, cur.month, 1);
-  const lastDay  = new Date(cur.year, cur.month+1, 0);
+  const lastDay = new Date(cur.year, cur.month + 1, 0);
   const startOffset = (firstDay.getDay() + 6) % 7;
   const cells = [];
   for (let i = 0; i < startOffset; i++) cells.push(null);
   for (let d = 1; d <= lastDay.getDate(); d++) cells.push(new Date(cur.year, cur.month, d));
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const key = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-  const reunionDates = new Set(reunions.map(r => { const d = new Date(r.date || r.dateReunion || r.createdAt); return key(d); }));
-  const departDates  = new Set(packages.map(p => { const d = new Date(p.date_depart || p.dateDepart); return key(d); }));
+  const key = (d) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
+
+  // Indexer les réunions par jour
+  const reunionsByDay = useMemo(() => {
+    const map = new Map();
+    reunions.forEach(r => {
+      const raw = r.dateReunion || r.date_reunion || r.date || r.createdAt || r.created_at;
+      if (!raw) return;
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return;
+      const k = key(d);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(r);
+    });
+    return map;
+  }, [reunions]);
+
+  // Indexer les départs par jour
+  const departsByDay = useMemo(() => {
+    const map = new Map();
+    packages.forEach(p => {
+      const raw = p.date_depart || p.dateDepart || p.date;
+      if (!raw) return;
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return;
+      const k = key(d);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(p);
+    });
+    return map;
+  }, [packages]);
+
+  // Événements du jour sélectionné
+  const selKey = selectedDate ? key(selectedDate) : '';
+  const dayReunions = (selKey && reunionsByDay.get(selKey)) || [];
+  const dayDeparts = (selKey && departsByDay.get(selKey)) || [];
+  const totalEventsToday = dayReunions.length + dayDeparts.length;
+
+  // Tous les événements du mois affiché
+  const monthEvents = useMemo(() => {
+    const list = [];
+    reunions.forEach(r => {
+      const raw = r.dateReunion || r.date_reunion || r.date || r.createdAt;
+      if (!raw) return;
+      const d = new Date(raw);
+      if (!isNaN(d.getTime()) && d.getFullYear() === cur.year && d.getMonth() === cur.month) {
+        list.push({ type: 'reunion', item: r, date: d });
+      }
+    });
+    packages.forEach(p => {
+      const raw = p.date_depart || p.dateDepart;
+      if (!raw) return;
+      const d = new Date(raw);
+      if (!isNaN(d.getTime()) && d.getFullYear() === cur.year && d.getMonth() === cur.month) {
+        list.push({ type: 'depart', item: p, date: d });
+      }
+    });
+    return list.sort((a, b) => a.date - b.date);
+  }, [reunions, packages, cur]);
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <button onClick={prev} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ChevronLeft size={16} color="var(--text-muted)" />
-        </button>
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15 }}>{MONTH_FR[cur.month]} {cur.year}</span>
-        <button onClick={next} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ChevronRight size={16} color="var(--text-muted)" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Navigation Mois / Année */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={prev} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronLeft size={16} color="var(--text-muted)" />
+          </button>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: 'var(--text-main)' }}>
+            {MONTH_FR[cur.month]} {cur.year}
+          </span>
+          <button onClick={next} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronRight size={16} color="var(--text-muted)" />
+          </button>
+        </div>
+        <button onClick={goToToday} style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700, color: 'var(--primary)', cursor: 'pointer' }}>
+          Aujourd'hui
         </button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, marginBottom: 4 }}>
-        {DAY_FR.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', padding: '4px 0', letterSpacing: '0.05em' }}>{d}</div>)}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
-        {cells.map((day, i) => {
-          if (!day) return <div key={`e-${i}`} />;
-          const isToday = isSameDay(day, today);
-          const hasR = reunionDates.has(key(day));
-          const hasD = departDates.has(key(day));
-          return (
-            <div key={key(day)} style={{ textAlign: 'center', padding: '6px 2px', borderRadius: 8, border: isToday ? '2px solid #16A34A' : '2px solid transparent', background: isToday ? '#F0FDF4' : 'transparent' }}>
-              <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 500, color: isToday ? '#16A34A' : 'var(--text-main)' }}>{day.getDate()}</span>
-              {(hasR || hasD) && (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 2, marginTop: 2 }}>
-                  {hasR && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#2563EB', display: 'inline-block' }} />}
-                  {hasD && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#EA580C', display: 'inline-block' }} />}
-                </div>
-              )}
+
+      {/* Grille des jours */}
+      <div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 6 }}>
+          {DAY_FR.map(d => (
+            <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', padding: '4px 0', letterSpacing: '0.05em' }}>
+              {d}
             </div>
-          );
-        })}
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+          {cells.map((day, i) => {
+            if (!day) return <div key={`empty-${i}`} style={{ minHeight: 40 }} />;
+            const isToday = isSameDay(day, today);
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+            const k = key(day);
+            const rList = reunionsByDay.get(k) || [];
+            const dList = departsByDay.get(k) || [];
+            const hasR = rList.length > 0;
+            const hasD = dList.length > 0;
+
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setSelectedDate(day)}
+                style={{
+                  minHeight: 44,
+                  padding: '4px 2px',
+                  borderRadius: 10,
+                  border: isSelected ? '2px solid var(--primary)' : isToday ? '2px solid #16A34A' : '1px solid transparent',
+                  background: isSelected ? 'rgba(0,103,79,0.12)' : isToday ? '#F0FDF4' : 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                  position: 'relative'
+                }}
+              >
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: isSelected || isToday ? 800 : 500,
+                  color: isSelected ? 'var(--primary)' : isToday ? '#16A34A' : 'var(--text-main)'
+                }}>
+                  {day.getDate()}
+                </span>
+                {(hasR || hasD) && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginTop: 2 }}>
+                    {hasR && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB', display: 'inline-block' }} title={`${rList.length} réunion(s)`} />}
+                    {hasD && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#EA580C', display: 'inline-block' }} title={`${dList.length} départ(s)`} />}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: 16, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563EB', display: 'inline-block' }} />
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Réunion</span>
+
+      {/* Légende */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-main)', borderRadius: 'var(--radius-md)' }}>
+        <div style={{ display: 'flex', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563EB', display: 'inline-block' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-main)', fontWeight: 600 }}>Réunion</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EA580C', display: 'inline-block' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-main)', fontWeight: 600 }}>Départ groupe</span>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EA580C', display: 'inline-block' }} />
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>Pré-Départ</span>
+        <button
+          onClick={() => navigate('/dashboard/reunions')}
+          style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+        >
+          + Gérer les réunions
+        </button>
+      </div>
+
+      {/* Détail du jour sélectionné ou prochains événements */}
+      <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+          {selectedDate
+            ? `Événements du ${selectedDate.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' })}`
+            : 'Événements du mois'}
         </div>
+
+        {totalEventsToday > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {dayReunions.map((r, idx) => {
+              const raw = r.dateReunion || r.date_reunion || r.date || r.createdAt;
+              const time = raw ? new Date(raw).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+              return (
+                <div
+                  key={r._id || r.id || idx}
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
+                    borderRadius: 'var(--radius-md)', background: '#EFF6FF', border: '1px solid rgba(37,99,235,0.2)'
+                  }}
+                >
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563EB', marginTop: 5, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#1E40AF' }}>{r.titre}</div>
+                    <div style={{ fontSize: 11, color: '#3B82F6', marginTop: 2 }}>
+                      {time && <strong>{time}</strong>} {r.lieu ? `• ${r.lieu}` : ''}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {dayDeparts.map((p, idx) => (
+              <div
+                key={p._id || p.id || idx}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)', background: '#FFF7ED', border: '1px solid rgba(234,88,12,0.2)'
+                }}
+              >
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EA580C', marginTop: 5, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#9A3412' }}>{p.nomReference || p.nom_depart}</div>
+                  <div style={{ fontSize: 11, color: '#EA580C', marginTop: 2 }}>
+                    Départ groupe • {p.type || p.service || 'Voyage'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : monthEvents.length > 0 ? (
+          <div>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+              Aucun événement ce jour. Prochains événements en {MONTH_FR[cur.month]} :
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
+              {monthEvents.slice(0, 4).map((ev, idx) => {
+                const isReunion = ev.type === 'reunion';
+                const dateStr = ev.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                const timeStr = ev.date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                const title = isReunion ? ev.item.titre : (ev.item.nomReference || ev.item.nom_depart);
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 10px', borderRadius: 8,
+                      background: isReunion ? '#EFF6FF' : '#FFF7ED',
+                      fontSize: 12
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: isReunion ? '#2563EB' : '#EA580C', flexShrink: 0 }} />
+                      <span style={{ fontWeight: 700, color: isReunion ? '#1E40AF' : '#9A3412', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {title}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0, marginLeft: 8 }}>
+                      {dateStr} {timeStr !== '00:00' ? timeStr : ''}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '16px 8px', color: 'var(--text-muted)', fontSize: 12 }}>
+            Aucune réunion ni départ prévu pour ce mois.
+          </div>
+        )}
       </div>
     </div>
   );
