@@ -325,7 +325,7 @@ export default function DashboardCommercial() {
       )}
 
       {/* Calendrier + Rapports */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'start' }}>
+      <div className="grid-responsive-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 24, alignItems: 'start' }}>
         <div className="premium-card" style={{ padding: 28 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
             <div style={{ 

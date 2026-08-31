@@ -116,6 +116,11 @@ export default function DashboardLayout() {
           minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
+          minWidth: 0,
+          maxWidth: '100vw',
+          overflowX: 'hidden',
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
         {/* Top header responsive */}
@@ -133,6 +138,9 @@ export default function DashboardLayout() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             boxShadow: '0 1px 12px rgba(0,0,0,0.06)',
             transition: 'padding 0.2s ease',
+            maxWidth: '100vw',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
           }}
         >
           <h1 style={{
@@ -154,6 +162,8 @@ export default function DashboardLayout() {
             maxWidth: '1600px',
             margin: '0 auto',
             width: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
             flex: 1,
           }}
           className="animate-fade-in"

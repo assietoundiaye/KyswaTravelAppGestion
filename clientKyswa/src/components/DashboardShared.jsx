@@ -238,7 +238,7 @@ export default function DashboardShared() {
       )}
 
       {/* Calendrier + Rapports */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="grid-responsive-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 20, alignItems: 'start' }}>
         <div className="premium-card" style={{ padding: 24 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color: 'var(--text-main)', marginBottom: 18 }}>
             Calendrier des Réunions

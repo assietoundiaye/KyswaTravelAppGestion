@@ -327,6 +327,8 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-overflow-scrolling: touch;
   overflow-x: auto;
   max-width: 100%;
+  width: 100%;
+  min-width: 0;
 }
 
 @media (min-width: 768px) { 
@@ -337,35 +339,94 @@ h1, h2, h3, h4, h5, h6 {
 @media (max-width: 1024px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .grid-responsive-3 { grid-template-columns: repeat(2, 1fr) !important; }
+  .grid-responsive-2 { grid-template-columns: 1fr !important; }
 }
 
 @media (max-width: 768px) {
-  /* Layout & Grids */
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .grid-responsive-2, .grid-responsive-3, .grid-responsive-4 { grid-template-columns: 1fr !important; }
+  /* Layout & Conteneurs */
+  main {
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    padding-left: 0 !important;
+  }
+
+  /* Force 1 colonne pour toutes les grilles inline */
+  div[style*="gridTemplateColumns: '1fr 1fr'"],
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="gridTemplateColumns: \"1fr 1fr\""],
+  form[style*="gridTemplateColumns: '1fr 1fr'"],
+  form[style*="grid-template-columns: 1fr 1fr"],
+  .grid-responsive-2,
+  .grid-responsive-3,
+  .grid-responsive-4,
+  .form-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
   
-  /* Cards & Spacing */
-  .premium-card { padding: 14px; border-radius: var(--radius-lg); margin-bottom: 12px; }
+  /* Grille des statistiques et KPI */
+  .stats-grid { grid-template-columns: 1fr !important; gap: 12px; }
+  
+  /* Cartes & Conteneurs */
+  .premium-card {
+    padding: 16px 12px !important;
+    border-radius: var(--radius-lg);
+    margin-bottom: 12px;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
+  }
   .stat-icon { width: 42px; height: 42px; }
   
-  /* Inputs & Buttons */
-  .premium-input { font-size: 15px; padding: 10px 12px; }
-  .btn-primary, .btn-secondary, .btn-danger { min-height: 42px; font-size: 14px; padding: 8px 14px; }
+  /* Inputs, sélecteurs & Boutons */
+  .premium-input {
+    font-size: 15px;
+    padding: 10px 12px;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  .btn-primary, .btn-secondary, .btn-danger {
+    min-height: 42px;
+    font-size: 14px;
+    padding: 8px 14px;
+    max-width: 100%;
+  }
   
-  /* Tables */
-  .premium-table { font-size: 12px; }
-  .premium-table th, .premium-table td { padding: 8px 10px; font-size: 12px; white-space: nowrap; }
+  /* Tables responsives avec scroll intérieur fluide */
+  .premium-table {
+    font-size: 12px;
+    min-width: 580px;
+  }
+  .premium-table th, .premium-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
   
-  /* Modals */
-  .modal-panel { width: 95vw !important; max-width: 95vw !important; margin: 8px !important; border-radius: var(--radius-xl) !important; }
+  /* Modals responsifs */
+  .modal-panel {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 8px !important;
+    border-radius: var(--radius-xl) !important;
+    max-height: 92vh !important;
+  }
   .modal-body { padding: 16px !important; }
   .modal-header { padding: 14px 16px !important; }
 
-  /* Flex tools and action bars */
-  .action-bar, .toolbar-responsive {
+  /* Flex toolbars et barres de recherche */
+  .action-bar, .toolbar-responsive, .search-bar-container {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .pagination-container {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 12px 8px !important;
   }
 }
 
@@ -373,10 +434,11 @@ h1, h2, h3, h4, h5, h6 {
   .stats-grid { grid-template-columns: 1fr; gap: 10px; }
   .stat-card-title { font-size: 11px; }
   .stat-card-value { font-size: 20px; }
-  .premium-card { padding: 12px; }
+  .premium-card { padding: 12px 8px !important; }
   .btn-primary, .btn-secondary, .btn-danger { width: 100%; justify-content: center; }
 }
 
 /* Photo profil client */
 label:hover .photo-overlay { opacity: 1 !important; }
+
 

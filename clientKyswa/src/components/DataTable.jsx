@@ -17,7 +17,7 @@ export default function DataTable({ columns, data, loading }) {
   );
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%', maxWidth: '100%', display: 'block', minWidth: 0 }} className="table-container">
       <table className="premium-table">
         <thead>
           {table.getHeaderGroups().map(hg => (
