@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
 import Modal from '../../../components/Modal';
+import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '-';
@@ -23,6 +24,10 @@ export default function BilletsGroupePage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
 
+  // ── Pagination ────────────────────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+
   const billetsFiltres = useMemo(() => {
     if (!search.trim()) return billets;
     const q = search.toLowerCase();
@@ -34,6 +39,13 @@ export default function BilletsGroupePage() {
       (b.packageKId?.nomReference || '').toLowerCase().includes(q)
     );
   }, [billets, search]);
+
+  const paginatedBillets = useMemo(() => {
+    const start = (page - 1) * limit;
+    return billetsFiltres.slice(start, start + limit);
+  }, [billetsFiltres, page, limit]);
+
+  const totalPages = Math.ceil(billetsFiltres.length / limit) || 1;
 
   const fetchAll = async () => {
     setLoading(true);
@@ -100,7 +112,17 @@ export default function BilletsGroupePage() {
         />
       </div>
 
-      <div className="premium-card"><DataTable columns={cols} data={billetsFiltres} loading={loading} /></div>
+      <div className="premium-card">
+        <DataTable columns={cols} data={paginatedBillets} loading={loading} />
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={billetsFiltres.length}
+          itemsPerPage={limit}
+          onPageChange={setPage}
+          onLimitChange={(l) => { setLimit(l); setPage(1); }}
+        />
+      </div>
 
       <Modal open={showForm} onClose={() => { setShowForm(false); setEditId(null); }} title={editId ? 'Modifier le vol' : 'Nouveau vol groupe'} size="lg">
         <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>

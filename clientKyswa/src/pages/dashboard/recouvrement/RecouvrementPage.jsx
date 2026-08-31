@@ -3,6 +3,7 @@ import { Search, AlertTriangle, Clock, TrendingDown, Phone, ChevronDown, Chevron
 import api from '../../../core/api/axios';
 import { toast } from '../../../components/Toast';
 import Modal from '../../../components/Modal';
+import Pagination from '../../../components/Pagination';
 import { useAuth } from '../../../context/AuthContext';
 
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
@@ -191,6 +192,11 @@ export default function RecouvrementPage() {
     } finally { setSaving(false); }
   };
 
+  const [pageImpayes, setPageImpayes] = useState(1);
+  const [limitImpayes, setLimitImpayes] = useState(25);
+  const [pageAutres, setPageAutres] = useState(1);
+  const [limitAutres, setLimitAutres] = useState(25);
+
   const filterTexte = (list) => {
     if (!search.trim()) return list;
     const q = search.toLowerCase();
@@ -209,7 +215,21 @@ export default function RecouvrementPage() {
     return filterTexte(result);
   }, [data.impayés, search, filterUrgence]);
 
+  const paginatedImpayes = useMemo(() => {
+    const start = (pageImpayes - 1) * limitImpayes;
+    return impayesFiltres.slice(start, start + limitImpayes);
+  }, [impayesFiltres, pageImpayes, limitImpayes]);
+
+  const totalPagesImpayes = Math.ceil(impayesFiltres.length / limitImpayes) || 1;
+
   const impayésAutresFiltres = useMemo(() => filterTexte(data.impayésAutres || []), [data.impayésAutres, search]);
+
+  const paginatedAutres = useMemo(() => {
+    const start = (pageAutres - 1) * limitAutres;
+    return impayésAutresFiltres.slice(start, start + limitAutres);
+  }, [impayésAutresFiltres, pageAutres, limitAutres]);
+
+  const totalPagesAutres = Math.ceil(impayésAutresFiltres.length / limitAutres) || 1;
 
   const remboursementsFiltres = useMemo(() => {
     if (!search.trim()) return data.remboursements || [];
@@ -302,7 +322,17 @@ export default function RecouvrementPage() {
             {search || filterUrgence !== 'tous' ? 'Aucun résultat pour ce filtre' : 'Aucun impayé dans les 30 prochains jours'}
           </div>
         ) : (
-          impayesFiltres.map(r => <LigneImpaye key={r._id} r={r} {...sharedProps} />)
+          <>
+            {paginatedImpayes.map(r => <LigneImpaye key={r._id} r={r} {...sharedProps} />)}
+            <Pagination
+              currentPage={pageImpayes}
+              totalPages={totalPagesImpayes}
+              totalItems={impayesFiltres.length}
+              itemsPerPage={limitImpayes}
+              onPageChange={setPageImpayes}
+              onLimitChange={(l) => { setLimitImpayes(l); setPageImpayes(1); }}
+            />
+          </>
         )}
       </div>
 
@@ -318,7 +348,15 @@ export default function RecouvrementPage() {
               {fmt(impayésAutresFiltres.reduce((s, r) => s + r.resteAPayer, 0))}
             </span>
           </div>
-          {impayésAutresFiltres.map(r => <LigneImpaye key={r._id} r={r} {...sharedProps} />)}
+          {paginatedAutres.map(r => <LigneImpaye key={r._id} r={r} {...sharedProps} />)}
+          <Pagination
+            currentPage={pageAutres}
+            totalPages={totalPagesAutres}
+            totalItems={impayésAutresFiltres.length}
+            itemsPerPage={limitAutres}
+            onPageChange={setPageAutres}
+            onLimitChange={(l) => { setLimitAutres(l); setPageAutres(1); }}
+          />
         </div>
       )}
 

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { AlertTriangle, Clock, ChevronDown, ChevronUp, Download, X } from 'lucide-react';
 import api from '../../../core/api/axios';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -52,6 +53,12 @@ export default function DocumentsPage() {
   const [editDoc, setEditDoc] = useState(null);
   const [editDocForm, setEditDocForm] = useState({ titre: '', categorie: '', statut: '', echeance: '', description: '' });
   const [confirmDeleteDocId, setConfirmDeleteDocId] = useState(null);
+
+  // ── Pagination pour Documents & Réunions ───────────────────────────────────
+  const [pageDocs, setPageDocs] = useState(1);
+  const [limitDocs, setLimitDocs] = useState(25);
+  const [pageReunions, setPageReunions] = useState(1);
+  const [limitReunions, setLimitReunions] = useState(25);
 
   const [docForm, setDocForm] = useState({ titre: '', categorie: 'Administratif', statut: 'EN_COURS', echeance: '', description: '' });
   const [reunionForm, setReunionForm] = useState({ titre: '', date: '', lieu: '', ordreJour: '', participants: '' });
@@ -134,9 +141,23 @@ export default function DocumentsPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, background: 'white', borderRadius: 10, padding: 4, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
+    <div className="animate-fade-in space-y-6">
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-main)' }}>
+          Secrétariat & Direction Générale
+        </h1>
+        {isSecretaire && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setShowDocModal(true)} className="btn-primary">+ Document</button>
+            <button onClick={() => setShowReunionModal(true)} className="btn-secondary">+ Réunion</button>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation tabs */}
+      <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--border)', paddingBottom: 8, flexWrap: 'wrap' }}>
         {TABS.map((t, i) => (
           <TabBtn key={t} label={t} active={tab === i} onClick={() => setTab(i)}
             badge={i === 0 ? urgents.length : 0} />
@@ -182,9 +203,6 @@ export default function DocumentsPage() {
       {/* Tab 1: Documents */}
       {tab === 1 && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowDocModal(true)} className="btn-primary">+ Nouveau document</button>
-          </div>
           <div className="premium-card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
               <table className="premium-table">
@@ -196,7 +214,7 @@ export default function DocumentsPage() {
                     <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Chargement...</td></tr>
                   ) : documents.length === 0 ? (
                     <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Aucun document</td></tr>
-                  ) : documents.map(d => {
+                  ) : paginatedDocs.map(d => {
                     const s = STATUT_COLORS[d.statut] || { bg: '#F3F4F6', color: '#6B7280' };
                     return (
                       <tr key={d._id}>
@@ -239,6 +257,14 @@ export default function DocumentsPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={pageDocs}
+              totalPages={totalPagesDocs}
+              totalItems={documents.length}
+              itemsPerPage={limitDocs}
+              onPageChange={setPageDocs}
+              onLimitChange={(l) => { setLimitDocs(l); setPageDocs(1); }}
+            />
           </div>
         </>
       )}
@@ -246,33 +272,45 @@ export default function DocumentsPage() {
       {/* Tab 2: Réunions DG */}
       {tab === 2 && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
             <button onClick={() => setShowReunionModal(true)} className="btn-primary">+ Planifier réunion</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {reunions.length === 0 ? (
               <p style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Aucune réunion planifiée</p>
-            ) : reunions.map(r => (
-              <div key={r._id} className="premium-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <p style={{ fontWeight: 700, fontSize: 15 }}>{r.titre}</p>
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                      {fmtDate(r.date)} · {r.lieu || '—'}
-                    </p>
-                    {r.ordreJour && <p style={{ fontSize: 13, marginTop: 8, color: 'var(--text-main)' }}>{r.ordreJour}</p>}
-                    {r.participants?.length > 0 && (
-                      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-                        {r.participants.join(', ')}
-                      </p>
-                    )}
+            ) : (
+              <>
+                {paginatedReunions.map(r => (
+                  <div key={r._id} className="premium-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <p style={{ fontWeight: 700, fontSize: 15 }}>{r.titre}</p>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                          {fmtDate(r.date)} · {r.lieu || '—'}
+                        </p>
+                        {r.ordreJour && <p style={{ fontSize: 13, marginTop: 8, color: 'var(--text-main)' }}>{r.ordreJour}</p>}
+                        {r.participants?.length > 0 && (
+                          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
+                            Participants : {Array.isArray(r.participants) ? r.participants.join(', ') : r.participants}
+                          </p>
+                        )}
+                      </div>
+                      <span style={{ background: '#F0FDF4', color: '#16A34A', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
+                        {r.statut || 'PLANIFIEE'}
+                      </span>
+                    </div>
                   </div>
-                  <span style={{ background: '#F0FDF4', color: '#16A34A', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
-                    {r.statut || 'PLANIFIEE'}
-                  </span>
-                </div>
-              </div>
-            ))}
+                ))}
+                <Pagination
+                  currentPage={pageReunions}
+                  totalPages={totalPagesReunions}
+                  totalItems={reunions.length}
+                  itemsPerPage={limitReunions}
+                  onPageChange={setPageReunions}
+                  onLimitChange={(l) => { setLimitReunions(l); setPageReunions(1); }}
+                />
+              </>
+            )}
           </div>
         </>
       )}

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Calculator, TrendingUp, TrendingDown, DollarSign,
   Plus, Trash2, RefreshCw, Filter, X, ChevronDown,
@@ -8,6 +8,7 @@ import api from '../../../core/api/axios';
 import PermissionGuard from '../../../components/PermissionGuard';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Modal from '../../../components/Modal';
+import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
 import { usePermissions } from '../../../hooks/usePermissions';
 
@@ -81,10 +82,25 @@ function ComptabilitePageContent() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // ── Filtrage catégorie côté client ─────────────────────────────────────────
-  const depensesFiltrees = catFilter
-    ? depenses.filter(d => d.categorie === catFilter)
-    : depenses;
+  // ── Pagination des dépenses ───────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+
+  const depensesFiltrees = useMemo(() => {
+    return depenses.filter(d => {
+      if (catFilter && d.categorie !== catFilter) return false;
+      return true;
+    });
+  }, [depenses, catFilter]);
+
+  const paginatedDepenses = useMemo(() => {
+    const start = (page - 1) * limit;
+    return depensesFiltrees.slice(start, start + limit);
+  }, [depensesFiltrees, page, limit]);
+
+  const totalPages = Math.ceil(depensesFiltrees.length / limit) || 1;
+
+  const totalDepFiltrees = depensesFiltrees.reduce((sum, d) => sum + (Number(d.montant) || 0), 0);
 
   // ── Ajout dépense ──────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
@@ -126,9 +142,6 @@ function ComptabilitePageContent() {
       toast.error('Erreur lors de la suppression');
     }
   };
-
-  // ── Totaux filtrés ─────────────────────────────────────────────────────────
-  const totalDepFiltrees = depensesFiltrees.reduce((s, d) => s + (d.montant || 0), 0);
 
   // ── UI ─────────────────────────────────────────────────────────────────────
   return (
@@ -325,7 +338,7 @@ function ComptabilitePageContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {depensesFiltrees.map(d => (
+                  {paginatedDepenses.map(d => (
                     <tr key={d.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-3 text-gray-500 whitespace-nowrap">{fmtDate(d.dateDepense || d.date_depense)}</td>
                       <td className="px-5 py-3">
@@ -360,7 +373,16 @@ function ComptabilitePageContent() {
               </table>
             </div>
 
-            {/* Total filtré */}
+            {/* Pagination & Total filtré */}
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={depensesFiltrees.length}
+              itemsPerPage={limit}
+              onPageChange={setPage}
+              onLimitChange={(l) => { setLimit(l); setPage(1); }}
+            />
+
             <div className="flex justify-end items-center gap-3 px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-xl">
               <span className="text-sm text-gray-500">Total affiché :</span>
               <span className="font-bold text-red-600 text-base">{fmt(totalDepFiltrees)}</span>

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import ShopPaymentModal from './ShopPaymentModal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import Pagination from '../../../components/Pagination';
 import shopService from '../../../services/shopService';
 import { toast } from '../../../components/Toast';
 import { usePermissions } from '../../../hooks/usePermissions';
@@ -386,37 +387,15 @@ export default function OrdersManagement() {
               </table>
             </div>
 
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <div className="text-sm text-gray-500">
-                  Affichage de {Math.min((pagination.currentPage - 1) * pagination.itemsPerPage + 1, pagination.totalItems)} à{' '}
-                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} sur {pagination.totalItems} commandes
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
-                    disabled={pagination.currentPage === 1}
-                    className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    Précédent
-                  </button>
-
-                  <span className="px-3 py-1 text-sm">
-                    Page {pagination.currentPage} sur {pagination.totalPages}
-                  </span>
-
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
-                    disabled={pagination.currentPage === pagination.totalPages}
-                    className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    Suivant
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Pagination unifiée */}
+            <Pagination
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              itemsPerPage={pagination.itemsPerPage}
+              onPageChange={(page) => setPagination(prev => ({ ...prev, currentPage: page }))}
+              onLimitChange={(limit) => setPagination(prev => ({ ...prev, itemsPerPage: limit, currentPage: 1 }))}
+            />
           </>
         )}
       </div>

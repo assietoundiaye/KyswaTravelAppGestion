@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { Calendar, Clock, Users, TrendingUp, Plus, FileText, MessageSquare } from 'lucide-react';
 import api from '../../../core/api/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { toast } from '../../../components/Toast';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import Pagination from '../../../components/Pagination';
 
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
@@ -58,17 +59,28 @@ function Countdown({ dateDepart }) {
 export default function BilanPage() {
   const [bilans, setBilans] = useState([]);
   const [bilansPersonnalises, setBilansPersonnalises] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState('');
-  const [packages, setPackages] = useState([]);
+  const [editingBilan, setEditingBilan] = useState(null);
+
+  // ── Pagination pour les bilans de départ ──────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  const paginatedBilans = useMemo(() => {
+    const start = (page - 1) * limit;
+    return bilans.slice(start, start + limit);
+  }, [bilans, page, limit]);
+
+  const totalPages = Math.ceil(bilans.length / limit) || 1;
   const [form, setForm] = useState({
     commentaires: '',
     observations: '',
     actionsSuivi: ['']
   });
   const [saving, setSaving] = useState(false);
-  const [editingBilan, setEditingBilan] = useState(null);
   const { user } = useAuth();
 
   // Vérifier si l'utilisateur peut créer/modifier des bilans (seulement comptable)
@@ -461,7 +473,7 @@ export default function BilanPage() {
         </div>
       )}
 
-      {bilans.map(({ package: pkg, nbInscrits, quotaMax, tauxRemplissage, totalDu, totalEncaisse, resteTotal, parStatut }) => {
+      {paginatedBilans.map(({ package: pkg, nbInscrits, quotaMax, tauxRemplissage, totalDu, totalEncaisse, resteTotal, parStatut }) => {
         const statutStyle = {
           OUVERT:  { bg: '#F0FDF4', color: '#16A34A', border: '#BBF7D0' },
           COMPLET: { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' },
@@ -552,6 +564,16 @@ export default function BilanPage() {
           </div>
         );
       })}
+
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={bilans.length}
+        itemsPerPage={limit}
+        onPageChange={setPage}
+        onLimitChange={(l) => { setLimit(l); setPage(1); }}
+        limitOptions={[5, 10, 20]}
+      />
     </div>
   );
 }

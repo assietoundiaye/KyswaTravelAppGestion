@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
 import Modal from '../../../components/Modal';
+import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
 
 const statutColors = { PROSPECT: 'badge-neutral', INTERESSE: 'badge-info', CONFIRME: 'badge-success', PARTI: 'badge-primary', ANNULE: 'badge-danger' };
@@ -18,6 +19,10 @@ export default function ZiarraPage() {
   const [search, setSearch] = useState('');
   const [filterStatut, setFilterStatut] = useState('');
 
+  // ── Pagination ────────────────────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+
   const prospectsFiltres = useMemo(() => {
     let result = prospects;
     if (filterStatut) result = result.filter(p => p.statut === filterStatut);
@@ -31,6 +36,13 @@ export default function ZiarraPage() {
     }
     return result;
   }, [prospects, search, filterStatut]);
+
+  const paginatedProspects = useMemo(() => {
+    const start = (page - 1) * limit;
+    return prospectsFiltres.slice(start, start + limit);
+  }, [prospectsFiltres, page, limit]);
+
+  const totalPages = Math.ceil(prospectsFiltres.length / limit) || 1;
 
   const fetchProspects = async () => {
     setLoading(true);
@@ -115,7 +127,17 @@ export default function ZiarraPage() {
         </select>
       </div>
 
-      <div className="premium-card"><DataTable columns={cols} data={prospectsFiltres} loading={loading} /></div>
+      <div className="premium-card">
+        <DataTable columns={cols} data={paginatedProspects} loading={loading} />
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={prospectsFiltres.length}
+          itemsPerPage={limit}
+          onPageChange={setPage}
+          onLimitChange={(l) => { setLimit(l); setPage(1); }}
+        />
+      </div>
 
       <Modal open={showForm} onClose={() => { setShowForm(false); setEditId(null); }} title={editId ? 'Modifier le prospect' : 'Nouveau prospect Ziarra'} size="md">
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
+import Pagination from '../../../components/Pagination';
 
 const fmt = (n) => {
   if (!n) return '0 FCFA';
@@ -20,11 +21,22 @@ export default function SupplementsPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
+  // ── Pagination ────────────────────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+
   const supplementsFiltres = useMemo(() => {
     if (!search.trim()) return supplements;
     const q = search.toLowerCase();
     return supplements.filter(s => (s.nom || '').toLowerCase().includes(q));
   }, [supplements, search]);
+
+  const paginatedSupplements = useMemo(() => {
+    const start = (page - 1) * limit;
+    return supplementsFiltres.slice(start, start + limit);
+  }, [supplementsFiltres, page, limit]);
+
+  const totalPages = Math.ceil(supplementsFiltres.length / limit) || 1;
 
   const fetchSupplements = async () => {
     setLoading(true);
@@ -129,7 +141,15 @@ export default function SupplementsPage() {
       )}
 
       <div className="premium-card">
-        <DataTable columns={cols} data={supplementsFiltres} loading={loading} />
+        <DataTable columns={cols} data={paginatedSupplements} loading={loading} />
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={supplementsFiltres.length}
+          itemsPerPage={limit}
+          onPageChange={setPage}
+          onLimitChange={(l) => { setLimit(l); setPage(1); }}
+        />
       </div>
     </div>
   );

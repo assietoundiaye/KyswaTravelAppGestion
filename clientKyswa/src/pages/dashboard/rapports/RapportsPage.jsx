@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import api from '../../../core/api/axios';
+import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -28,6 +29,10 @@ export default function RapportsPage() {
   const [saving, setSaving] = useState(false);
   const [todayRapport, setTodayRapport] = useState(null);
 
+  // ── Pagination historique ──────────────────────────────────────────────────
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
   const isCommercial = role === 'commercial';
   const isSocial = role === 'social';
   const isInformatique = role === 'administrateur';
@@ -41,30 +46,17 @@ export default function RapportsPage() {
     try {
       const r = await api.get('/rapports');
       const list = r.data.rapports || [];
-      console.log('Rapports récupérés:', list);
-      
       setRapports(list);
-      
-      // Chercher rapport du jour de l'agent connecté
+
       const mine = list.find(r => {
         const agentId = r.agentId?._id || r.agentId?.id || r.agentId;
         const sameAgent = agentId?.toString() === user?.id?.toString();
         const sameDay = new Date(r.date).toISOString().split('T')[0] === today;
-        console.log('Vérification rapport:', {
-          rapportId: r._id,
-          agentId: agentId,
-          userId: user?.id,
-          sameAgent,
-          rapportDate: new Date(r.date).toISOString().split('T')[0],
-          today,
-          sameDay
-        });
         return sameAgent && sameDay;
       });
-      
-      console.log('Rapport du jour trouvé:', mine);
+
       setTodayRapport(mine || null);
-      
+
       if (mine) {
         setEditId(mine._id);
         loadRapport(mine);
@@ -116,23 +108,16 @@ export default function RapportsPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    
+
     try {
-      // Préparer les données avec la date du jour pour l'UPSERT
       const submitData = {
         ...form,
-        date: today // Force la date à aujourd'hui
+        date: today
       };
-      
-      console.log('Soumission rapport avec données:', submitData);
-      
-      // Utiliser POST pour la logique UPSERT côté serveur
+
       const response = await api.post('/rapports', submitData);
-      
       const { action, message, rapport } = response.data;
-      
-      console.log('Réponse serveur:', { action, message, rapport });
-      
+
       if (action === 'UPDATE') {
         toast(message || 'Rapport mis à jour avec succès');
         setTodayRapport(rapport);
@@ -142,20 +127,25 @@ export default function RapportsPage() {
         setTodayRapport(rapport);
         setEditId(rapport._id);
       }
-      
-      // Rafraîchir la liste des rapports
+
       await fetchRapports();
-    } catch (err) { 
+    } catch (err) {
       console.error('Erreur soumission rapport:', err);
-      const errorMessage = err.response?.data?.message || 'Erreur lors de la soumission';
-      toast(errorMessage, 'error'); 
-    } finally { 
-      setSaving(false); 
+      toast(err.response?.data?.message || 'Erreur lors de la soumission', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
+  const paginatedRapports = useMemo(() => {
+    const start = (page - 1) * limit;
+    return rapports.slice(start, start + limit);
+  }, [rapports, page, limit]);
+
+  const totalPages = Math.ceil(rapports.length / limit) || 1;
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }} className="grid-responsive-2">
 
       {/* Colonne gauche : formulaire */}
       <div>
@@ -173,10 +163,10 @@ export default function RapportsPage() {
             }}>✓</span>
             <div>
               <div style={{ color: '#166534', marginBottom: 2 }}>
-                Rapport soumis avec succès le {new Date(todayRapport.dateCreation).toLocaleDateString('fr-FR')}
+                Rapport soumis avec succès le {new Date(todayRapport.dateCreation || todayRapport.date).toLocaleDateString('fr-FR')}
               </div>
               <div style={{ color: '#16A34A', fontSize: 11 }}>
-                Vous pouvez modifier ce rapport pendant {Math.max(0, 7 - Math.floor((new Date() - new Date(todayRapport.dateCreation)) / (1000 * 60 * 60 * 24)))} jour(s) restant(s)
+                Vous pouvez modifier ce rapport pendant {Math.max(0, 7 - Math.floor((new Date() - new Date(todayRapport.dateCreation || todayRapport.date)) / (1000 * 60 * 60 * 24)))} jour(s) restant(s)
               </div>
             </div>
           </div>
@@ -188,11 +178,6 @@ export default function RapportsPage() {
             padding: '12px 16px', marginBottom: 16, fontSize: 13, fontWeight: 600,
             display: 'flex', alignItems: 'center', gap: 8
           }}>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              width: 20, height: 20, borderRadius: '50%', background: '#FB923C', color: 'white',
-              fontSize: 12, fontWeight: 700
-            }}></span>
             <span style={{ color: '#9A3412' }}>
               Aucun rapport soumis aujourd'hui — Veuillez remplir le formulaire ci-dessous
             </span>
@@ -230,72 +215,13 @@ export default function RapportsPage() {
 
               {/* Commercial */}
               {isCommercial && (
-                <>
-                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                      <div style={{ width: 4, height: 16, borderRadius: 4, background: '#2563EB' }} />
-                      <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-main)' }}>Indicateurs commerciaux</p>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                      {[['appelsClients', 'Appels clients'], ['inscriptionsCreees', 'Inscriptions'], ['paiementsEncaisses', 'Paiements (FCFA)']].map(([k, l]) => (
-                        <div key={k}>
-                          <label className="input-label">{l}</label>
-                          <input type="number" min="0" value={form[k]} onChange={setNum(k)} className="premium-input" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="input-label">Suivi commercial</label>
-                    <textarea value={form.suiviCommercial} onChange={set('suiviCommercial')} className="premium-input" rows={2} />
-                  </div>
-                  <div>
-                    <label className="input-label">Constats / Suggestions</label>
-                    <textarea value={form.constats} onChange={set('constats')} className="premium-input" rows={2} />
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <label className="input-label" style={{ margin: 0 }}>Appels clients ({form.appelsDetail.length})</label>
-                      <button type="button" onClick={addAppel}
-                        style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', color: 'var(--primary)', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Plus size={12} /> Ajouter
-                      </button>
-                    </div>
-                    {form.appelsDetail.map((a, i) => (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 6, marginBottom: 6, alignItems: 'end' }}>
-                        <input placeholder="Nom" value={a.nom} onChange={e => updateAppel(i, 'nom', e.target.value)} className="premium-input" style={{ fontSize: 12 }} />
-                        <input placeholder="Téléphone" value={a.telephone} onChange={e => updateAppel(i, 'telephone', e.target.value)} className="premium-input" style={{ fontSize: 12 }} />
-                        <input placeholder="Motif" value={a.motif} onChange={e => updateAppel(i, 'motif', e.target.value)} className="premium-input" style={{ fontSize: 12 }} />
-                        <button type="button" onClick={() => removeAppel(i)}
-                          style={{ background: 'rgba(220,38,38,0.08)', border: 'none', borderRadius: 6, padding: '6px 8px', color: '#DC2626', cursor: 'pointer' }}>
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Social */}
-              {isSocial && (
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <div style={{ width: 4, height: 16, borderRadius: 4, background: '#7C3AED' }} />
-                    <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-main)' }}>Indicateurs social media</p>
-                  </div>
-                  <div style={{ marginBottom: 10 }}>
-                    <label className="input-label">Plateformes utilisées</label>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
-                      {PLATEFORMES.map(p => (
-                        <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13 }}>
-                          <input type="checkbox" checked={form.plateformes.includes(p)} onChange={() => togglePlateforme(p)} />
-                          {p}
-                        </label>
-                      ))}
-                    </div>
+                    <div style={{ width: 4, height: 16, borderRadius: 4, background: '#2563EB' }} />
+                    <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-main)' }}>Indicateurs commerciaux</p>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                    {[['publications', 'Publications'], ['vues', 'Vues'], ['abonnesGagnes', 'Abonnés gagnés'], ['likes', 'Likes'], ['campagnesActives', 'Campagnes'], ['budgetCampagne', 'Budget (FCFA)']].map(([k, l]) => (
+                    {[['appelsClients', 'Appels clients'], ['inscriptionsCreees', 'Inscriptions'], ['paiementsEncaisses', 'Paiements (FCFA)']].map(([k, l]) => (
                       <div key={k}>
                         <label className="input-label">{l}</label>
                         <input type="number" min="0" value={form[k]} onChange={setNum(k)} className="premium-input" />
@@ -322,14 +248,6 @@ export default function RapportsPage() {
                       <input type="number" min="0" value={form.packagesMAJ} onChange={setNum('packagesMAJ')} className="premium-input" />
                     </div>
                   </div>
-                  <div style={{ marginTop: 10 }}>
-                    <label className="input-label">État du site</label>
-                    <input value={form.etatSite} onChange={set('etatSite')} className="premium-input" placeholder="Opérationnel, maintenance..." />
-                  </div>
-                  <div style={{ marginTop: 10 }}>
-                    <label className="input-label">Problèmes réglés</label>
-                    <textarea value={form.problemesRegles} onChange={set('problemesRegles')} className="premium-input" rows={2} />
-                  </div>
                 </div>
               )}
 
@@ -343,12 +261,12 @@ export default function RapportsPage() {
         </div>
       </div>
 
-      {/* Colonne droite : historique */}
+      {/* Colonne droite : historique avec pagination */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <div style={{ width: 4, height: 16, borderRadius: 4, background: 'var(--primary)' }} />
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 800, color: 'var(--text-main)' }}>
-            Historique des rapports
+            Historique des rapports ({rapports.length})
           </h2>
         </div>
 
@@ -360,7 +278,7 @@ export default function RapportsPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {rapports.map(r => {
+            {paginatedRapports.map(r => {
               const agentId = r.agentId?._id || r.agentId?.id || r.agentId;
               const isMine = agentId?.toString() === user?.id?.toString();
               const editable = canEdit(r);
@@ -408,6 +326,16 @@ export default function RapportsPage() {
                 </div>
               );
             })}
+
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={rapports.length}
+              itemsPerPage={limit}
+              onPageChange={setPage}
+              onLimitChange={(l) => { setLimit(l); setPage(1); }}
+              limitOptions={[10, 20, 50]}
+            />
           </div>
         )}
       </div>
