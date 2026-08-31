@@ -21,7 +21,13 @@ const ACTION_STYLES = {
 };
 
 // Valeurs réelles des modules dans la DB
-const MODULES_DB = ['tous', 'auth', 'inscriptions', 'paiements', 'clients', 'departs', 'rapports', 'comptabilite', 'taches', 'utilisateurs', 'ziarra', 'visas', 'secretaire', 'reunion'];
+const MODULES_DB = [
+  'tous', 'inscriptions', 'paiements', 'clients', 'departs',
+  'visas', 'billets', 'billets-groupe', 'recouvrement', 'desistements',
+  'factures', 'comptabilite', 'reunions', 'documents', 'rapports',
+  'shop', 'utilisateurs', 'supplements', 'ziarra', 'simulateur',
+  'statistiques', 'taches', 'auth', 'systeme'
+];
 const ACTIONS_DB = ['tous', 'CONNEXION', 'DECONNEXION', 'CREATION', 'MODIFICATION', 'SUPPRESSION', 'IMPORT', 'DESACTIVATION'];
 
 const MODULE_LABELS = {
@@ -37,12 +43,16 @@ const MODULE_LABELS = {
   ziarra: 'Ziarra', ZIARRA: 'Ziarra',
   visas: 'Visas', VISAS: 'Visas',
   secretaire: 'Secrétariat', documents: 'Documents', DOCUMENTS: 'Documents',
-  reunion: 'Réunions', REUNIONS: 'Réunions',
+  reunions: 'Réunions', reunion: 'Réunions', REUNIONS: 'Réunions',
   shop: 'Kyswa Shop', SHOP: 'Kyswa Shop',
   billets: 'Billets', BILLETS: 'Billets',
+  'billets-groupe': 'Billets Groupe',
+  factures: 'Factures', FACTURES: 'Factures',
   supplements: 'Suppléments', SUPPLEMENTS: 'Suppléments',
   recouvrement: 'Recouvrement', RECOUVREMENT: 'Recouvrement',
   desistements: 'Désistements', DESISTEMENTS: 'Désistements',
+  simulateur: 'Simulateur', SIMULATEUR: 'Simulateur',
+  statistiques: 'Statistiques', STATISTIQUES: 'Statistiques',
   systeme: 'Système', SYSTEME: 'Système', SYSTEM: 'Système',
 };
 
