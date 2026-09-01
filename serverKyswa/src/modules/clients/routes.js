@@ -14,86 +14,40 @@ const cloudinary = require('../../../config/cloudinary');
 const { scanPassport, scanCNI } = require('../../services/ocrService');
 const ocrMetrics = require('../../services/ocrMetricsService');
 
+const storageService = require('../../core/services/storageService');
+
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    if (['image/jpeg', 'image/png', 'image/webp', 'image/tiff'].includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Format non accepté (jpg, png, webp, tiff uniquement)'));
+    if (['image/jpeg', 'image/png', 'image/webp', 'image/tiff', 'application/pdf'].includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Format non accepté (jpg, png, webp, tiff, pdf uniquement)'));
   },
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-async function saveExtractedPhoto(photoData, fullDocumentBuffer, clientInfo) {
+async function saveExtractedPhoto(photoData, fullDocumentBuffer, clientInfo = {}) {
   try {
     const zonePhotoBuffer = photoData?.zonePhoto?.buffer;
-    if (!zonePhotoBuffer || !Buffer.isBuffer(zonePhotoBuffer) || zonePhotoBuffer.length === 0) {
+    const documentBuffer = fullDocumentBuffer || photoData?.documentComplet;
+
+    if (!zonePhotoBuffer && !documentBuffer) {
       return null;
     }
 
-    const documentBuffer = fullDocumentBuffer || photoData?.documentComplet;
-    const timestamp = Date.now();
-    const cleanName = (clientInfo.nom || 'client')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^A-Za-z0-9]/g, '')
-      .toLowerCase();
-    const baseFilename = `passport_${cleanName}_${timestamp}`;
+    // 1. Sauvegarde locale prioritaire et souveraine sur le disque du serveur
+    const localResult = await storageService.savePassportPhotos(
+      zonePhotoBuffer,
+      documentBuffer,
+      clientInfo
+    );
 
-    const documentPhotoBuffer = documentBuffer || zonePhotoBuffer;
-    const fullPhotoUpload = new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'image',
-          public_id: `clients/documents/${baseFilename}_full`,
-          folder: 'clients/documents',
-          transformation: [{ quality: 'auto:good' }],
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      uploadStream.end(documentPhotoBuffer);
-    });
-
-    const profilePhotoUpload = new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'image',
-          public_id: `clients/photos/${baseFilename}_profile`,
-          folder: 'clients/photos',
-          transformation: [
-            { width: 400, height: 400, crop: 'fill', gravity: 'west', quality: 'auto:good' },
-          ],
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      uploadStream.end(zonePhotoBuffer);
-    });
-
-    const [fullPhoto, profilePhoto] = await Promise.allSettled([fullPhotoUpload, profilePhotoUpload]);
-    let result = {};
-
-    if (fullPhoto.status === 'fulfilled') {
-      result.documentPhotoUrl = fullPhoto.value.secure_url;
-      result.documentPhotoPublicId = fullPhoto.value.public_id;
-    }
-    if (profilePhoto.status === 'fulfilled') {
-      result.photoUrl = profilePhoto.value.secure_url;
-      result.photoPublicId = profilePhoto.value.public_id;
+    if (localResult) {
+      return localResult;
     }
 
-    if (result.photoUrl || result.documentPhotoUrl) {
-      result.extractedFrom = 'passport';
-      result.extractedAt = new Date().toISOString();
-      return result;
-    }
     return null;
   } catch (error) {
-    console.error('Erreur sauvegarde photo OCR:', error.message);
+    console.error('[ClientsRoutes] Erreur sauvegarde photo OCR:', error.message);
     return null;
   }
 }

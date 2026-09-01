@@ -4,7 +4,7 @@
  */
 const express = require('express');
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
+const storageService = require('../../core/services/storageService');
 const prisma = require('../../database/client');
 const { protect } = require('../../core/middleware/auth');
 const { checkPermission } = require('../../core/middleware/checkPermission');
@@ -106,19 +106,10 @@ function createDocumentsRoutes(dependencies) {
       let fichier_url = null;
       let fichier_nom = null;
 
-      // Upload vers Cloudinary si un fichier est fourni
+      // Upload local sur le disque du serveur si un fichier est fourni
       if (req.file) {
-        const uploadResult = await new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            { folder: 'kyswa-travel/documents', resource_type: 'auto' },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          stream.end(req.file.buffer);
-        });
-        fichier_url = uploadResult.secure_url;
+        const saved = await storageService.saveDocument(req.file.buffer, req.file.originalname, 'documents');
+        fichier_url = saved.url;
         fichier_nom = req.file.originalname;
       }
 

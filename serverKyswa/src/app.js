@@ -8,6 +8,7 @@
  */
 
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
@@ -57,6 +58,16 @@ class App {
 
     // Audit automatique des actions (connexions & mutations)
     this.app.use(auditMiddleware);
+
+    // Servir le dossier uploads local pour les photos de passeports et documents
+    const uploadsPath = path.resolve(__dirname, '../uploads');
+    this.app.use('/uploads', express.static(uploadsPath, {
+      maxAge: '30d',
+      setHeaders: (res) => {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+      }
+    }));
 
     // Health check
     this.app.get('/api/health', (req, res) => {
