@@ -111,11 +111,13 @@ export default function ClientsPage() {
 
   // ── Sélection du fichier ────────────────────────────────────────────────────
   const handleFileSelect = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files && e.target.files[0];
     if (!file) return;
     setScanFile(file);
     setScanPreview(URL.createObjectURL(file));
     setScanStep('upload');
+    // Réinitialiser pour garantir le déclenchement immédiat de onChange même sur ré-sélection
+    e.target.value = '';
   };
 
   // ── Lancer le scan OCR ──────────────────────────────────────────────────────
@@ -259,6 +261,14 @@ export default function ClientsPage() {
       </div>
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title="Nouveau client">
+        {/* Input fichier unique et permanent (monté en continu tant que le modal est ouvert) */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,application/pdf"
+          style={{ display: 'none' }}
+          onChange={handleFileSelect}
+        />
 
         {/* ── ÉTAPE 1 : Demander si document disponible ── */}
         {scanStep === 'ask' && (
@@ -304,7 +314,11 @@ export default function ClientsPage() {
               ].map(({ key, label, desc }) => (
                 <button
                   key={key}
-                  onClick={() => { setScanDocType(key); setScanStep('upload'); fileInputRef.current?.click(); }}
+                  type="button"
+                  onClick={() => {
+                    setScanDocType(key);
+                    fileInputRef.current?.click();
+                  }}
                   style={{
                     flex: 1, padding: '16px', borderRadius: 'var(--radius-lg)',
                     border: `2px solid ${scanDocType === key ? 'var(--primary)' : 'var(--border)'}`,
@@ -317,8 +331,6 @@ export default function ClientsPage() {
                 </button>
               ))}
             </div>
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf"
-              style={{ display: 'none' }} onChange={handleFileSelect} />
             <button onClick={() => setScanStep('ask')} className="btn-secondary" style={{ alignSelf: 'flex-start', fontSize: 12 }}>
               Retour
             </button>
@@ -332,21 +344,24 @@ export default function ClientsPage() {
               <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>
                 {scanDocType === 'passport' ? 'Passeport' : 'Carte CNI'} sélectionné
               </p>
-              <button onClick={() => fileInputRef.current?.click()}
-                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
                 Changer
               </button>
             </div>
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf"
-              style={{ display: 'none' }} onChange={handleFileSelect} />
 
             {scanPreview ? (
               <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)', maxHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F9FAFB' }}>
                 <img src={scanPreview} alt="Document" style={{ maxWidth: '100%', maxHeight: 200, objectFit: 'contain' }} />
               </div>
             ) : (
-              <div style={{ borderRadius: 10, border: '2px dashed var(--border)', padding: 32, textAlign: 'center', color: 'var(--text-muted)', cursor: 'pointer' }}
-                onClick={() => fileInputRef.current?.click()}>
+              <div
+                style={{ borderRadius: 10, border: '2px dashed var(--border)', padding: 32, textAlign: 'center', color: 'var(--text-muted)', cursor: 'pointer' }}
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <Upload size={24} style={{ margin: '0 auto 8px' }} />
                 <p style={{ fontSize: 13 }}>Cliquer pour sélectionner une image</p>
               </div>
