@@ -18,7 +18,7 @@ export default function SimulateurPage() {
   }, []);
 
   const onPkgChange = (id) => {
-    const pkg = packages.find(p => p._id === id);
+    const pkg = packages.find(p => (p.id === id || p._id === id));
     setSelectedPkg(pkg);
     setForm(f => ({ ...f, packageKId: id }));
     setResult(null);
@@ -26,7 +26,11 @@ export default function SimulateurPage() {
 
   const getPrixClasse = () => {
     if (!selectedPkg) return 0;
-    const map = { ECO: selectedPkg.prixEco, CONFORT: selectedPkg.prixCont, VIP: selectedPkg.prixVip };
+    const map = {
+      ECO: selectedPkg.prixEco || selectedPkg.prix_eco,
+      CONFORT: selectedPkg.prixCont || selectedPkg.prix_confort,
+      VIP: selectedPkg.prixVip || selectedPkg.prix_vip
+    };
     const raw = map[form.classeVol];
     return parseFloat(raw?.$numberDecimal ?? raw ?? 0);
   };
@@ -35,7 +39,13 @@ export default function SimulateurPage() {
     if (!selectedPkg) return;
     const prixClasse = getPrixClasse();
     const totalGeneral = prixClasse * form.nombrePersonnes;
-    setResult({ prixClasse, totalGeneral, nombrePersonnes: form.nombrePersonnes, classeVol: form.classeVol, package: selectedPkg.nomReference });
+    setResult({
+      prixClasse,
+      totalGeneral,
+      nombrePersonnes: form.nombrePersonnes,
+      classeVol: form.classeVol,
+      package: selectedPkg.nomReference || selectedPkg.nom_depart
+    });
   };
 
   return (
@@ -52,8 +62,10 @@ export default function SimulateurPage() {
           <label className="input-label">Package / Départ *</label>
           <select value={form.packageKId} onChange={e => onPkgChange(e.target.value)} className="premium-input">
             <option value="">Sélectionner un départ...</option>
-            {packages.filter(p => p.statut === 'OUVERT').map(p => (
-              <option key={p._id} value={p._id}>{p.nomReference} — {p.type}</option>
+            {packages.filter(p => p.statut === 'OUVERT' || p.actif !== false).map(p => (
+              <option key={p.id || p._id} value={p.id || p._id}>
+                {p.nomReference || p.nom_depart} — {p.type || p.service}
+              </option>
             ))}
           </select>
         </div>
