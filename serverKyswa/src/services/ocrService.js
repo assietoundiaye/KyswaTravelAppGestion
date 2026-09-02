@@ -48,68 +48,84 @@ async function preprocessFull(buffer) {
     .toBuffer();
 }
 
-// ── Extraction de la zone photo (recadrage zone visage selon norme ICAO) ──────────────────
-// Dans un passeport biométrique standard (ICAO 9303), la photo est toujours dans
-// la partie gauche de la page de données, approximativement :
-//   - X: 0% à 38% de la largeur
-//   - Y: 5% à 60% de la hauteur
-// Cette approche fonctionne sans OpenCV avec seulement Sharp.
+// ── Extraction de la zone photo — Adaptative (Portrait / Paysage) ─────────────
+//
+// Les passeports CEDEAO (Sénégal, etc.) sont photographiés de deux façons :
+//
+//  MODE PAYSAGE (width > height) — smartphone à l'horizontal devant la page :
+//    La photo du titulaire est dans le COIN SUPÉRIEUR GAUCHE
+//    Zone : LEFT 0–40%, TOP 3–65%
+//
+//  MODE PORTRAIT (height > width) — smartphone à la verticale :
+//    La photo est dans le COIN SUPÉRIEUR GAUCHE ÉGALEMENT
+//    mais les proportions changent car la page est tournée.
+//    Zone : LEFT 0–45%, TOP 3–55%
+//
+//  Dans tous les cas on retourne AUSSI le document complet pour archivage.
 async function extractPassportPhoto(buffer) {
   try {
-    const meta = await sharp(buffer).metadata();
+    // Toujours travailler en JPEG couleur pour la photo de profil
+    const jpegBuffer = await sharp(buffer).jpeg().toBuffer();
+    const meta = await sharp(jpegBuffer).metadata();
     const { width, height } = meta;
 
-    if (!width || !height) {
-      return {
-        zonePhoto: { buffer, metadata: { width: null, height: null } },
-        documentComplet: buffer,
-      };
+    if (!width || !height || width < 100 || height < 100) {
+      return { zonePhoto: { buffer: jpegBuffer, metadata: { width, height } }, documentComplet: jpegBuffer };
     }
 
-    // Zone visage ICAO standard : côté gauche, ~38% de la largeur, ~5% à 60% de la hauteur
-    const photoLeft   = 0;
-    const photoTop    = Math.floor(height * 0.05);
-    const photoWidth  = Math.floor(width * 0.38);
-    const photoHeight = Math.floor(height * 0.55);
+    const isLandscape = width >= height;
+    let left, top, cropWidth, cropHeight;
 
-    // S'assurer que les dimensions sont valides
-    const safePhotoWidth  = Math.min(photoWidth,  width  - photoLeft);
-    const safePhotoHeight = Math.min(photoHeight, height - photoTop);
-
-    if (safePhotoWidth < 50 || safePhotoHeight < 50) {
-      // Image trop petite pour recadrer, retourner l'image complète
-      return {
-        zonePhoto: { buffer, metadata: { width, height } },
-        documentComplet: buffer,
-      };
+    if (isLandscape) {
+      // PAYSAGE : passport page photographié à l'horizontal (le cas le plus courant avec un scanner)
+      // La photo du titulaire occupe ~35% de la largeur et ~62% de la hauteur de la moitié gauche
+      left       = 0;
+      top        = Math.floor(height * 0.03);
+      cropWidth  = Math.floor(width  * 0.35);
+      cropHeight = Math.floor(height * 0.62);
+    } else {
+      // PORTRAIT : passeport photographié à la verticale (smartphone tenu droit)
+      // Dans ce cas la page du passeport est en portrait — la photo est en haut à gauche
+      left       = 0;
+      top        = Math.floor(height * 0.03);
+      cropWidth  = Math.floor(width  * 0.45);
+      cropHeight = Math.floor(height * 0.42);
     }
 
-    const faceBuffer = await sharp(buffer)
-      .extract({
-        left:   photoLeft,
-        top:    photoTop,
-        width:  safePhotoWidth,
-        height: safePhotoHeight,
-      })
+    // Validation des dimensions
+    const safeWidth  = Math.min(cropWidth,  width  - left);
+    const safeHeight = Math.min(cropHeight, height - top);
+
+    if (safeWidth < 60 || safeHeight < 60) {
+      console.warn(`[OCR] Zone photo trop petite (${safeWidth}×${safeHeight}), retour image complète`);
+      return { zonePhoto: { buffer: jpegBuffer, metadata: { width, height } }, documentComplet: jpegBuffer };
+    }
+
+    const faceBuffer = await sharp(jpegBuffer)
+      .extract({ left, top, width: safeWidth, height: safeHeight })
       .jpeg({ quality: 95 })
       .toBuffer();
 
-    console.log(`[OCR] Zone visage extraite : ${safePhotoWidth}×${safePhotoHeight}px (original: ${width}×${height}px)`);
+    console.log(
+      `[OCR] Photo extraite (${isLandscape ? 'PAYSAGE' : 'PORTRAIT'}) : ` +
+      `zone ${left},${top} → ${safeWidth}×${safeHeight}px | image: ${width}×${height}px`
+    );
 
     return {
       zonePhoto: {
         buffer: faceBuffer,
-        metadata: { width: safePhotoWidth, height: safePhotoHeight },
+        metadata: { width: safeWidth, height: safeHeight },
       },
-      documentComplet: buffer,
+      documentComplet: jpegBuffer,
     };
   } catch (error) {
-    console.warn('[OCR] Erreur extraction zone visage, retour image complète :', error.message);
-    // Fallback propre : retourner l'image complète
-    return {
-      zonePhoto: { buffer, metadata: { width: null, height: null } },
-      documentComplet: buffer,
-    };
+    console.warn('[OCR] Erreur extraction zone visage :', error.message);
+    try {
+      const fallback = await sharp(buffer).jpeg().toBuffer();
+      return { zonePhoto: { buffer: fallback, metadata: {} }, documentComplet: fallback };
+    } catch {
+      return { zonePhoto: { buffer, metadata: {} }, documentComplet: buffer };
+    }
   }
 }
 
