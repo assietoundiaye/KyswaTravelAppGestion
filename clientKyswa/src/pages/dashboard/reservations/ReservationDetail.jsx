@@ -182,8 +182,8 @@ export default function ReservationDetail() {
   );
 
   const insc = inscription;
-  const depart = insc.departs || {};
-  const client = insc.clients || {};
+  const depart = (Array.isArray(insc.departs) ? insc.departs[0] : insc.departs) || insc.depart || insc.packageKId || {};
+  const client = (Array.isArray(insc.clients) ? insc.clients[0] : insc.clients) || insc.client || {};
   const paiements = insc.paiements || [];
   const lignesSupplements = insc.lignes_supplements || [];
 
@@ -301,7 +301,7 @@ export default function ReservationDetail() {
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 16 }}>
           Client
         </h2>
-        {client.id ? (
+        {(client.id || client._id) ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: 'var(--primary)' }}>
@@ -317,7 +317,7 @@ export default function ReservationDetail() {
               </div>
             </div>
             <button
-              onClick={() => navigate(`/dashboard/clients/${client.id}`)}
+              onClick={() => navigate(`/dashboard/clients/${client.id || client._id}`)}
               style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 12px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               Voir le dossier →
             </button>
