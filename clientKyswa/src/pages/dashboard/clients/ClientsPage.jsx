@@ -493,7 +493,7 @@ export default function ClientsPage() {
                       width: 90,
                       height: 120,
                       objectFit: 'cover',
-                      objectPosition: 'center top',
+                      objectPosition: 'left top',
                       borderRadius: 8,
                       border: '2px solid var(--primary)',
                       boxShadow: '0 2px 8px rgba(0,103,79,0.2)',

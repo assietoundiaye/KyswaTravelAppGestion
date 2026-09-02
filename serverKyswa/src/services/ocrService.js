@@ -75,7 +75,7 @@ async function extractPassportPhoto(buffer) {
     let workingBuffer = jpegBuffer;
     const ratio = width / height;
 
-    if (ratio > 1.7) {
+    if (ratio > 1.3) {
       // Double-page : la page biographique est sur la DROITE (couverture sur la gauche)
       const halfW = Math.floor(width / 2);
       workingBuffer = await sharp(jpegBuffer)
@@ -98,17 +98,19 @@ async function extractPassportPhoto(buffer) {
     let left, top, cropWidth, cropHeight;
 
     if (isLandscape) {
-      // Page biographique photographiée en PAYSAGE (plus large que haute)
+      // Page biographique en PAYSAGE
+      // La photo du titulaire occupe le COIN GAUCHE : ~30% largeur, entre 28% et 78% hauteur
       left       = 0;
-      top        = Math.floor(height * 0.28);   // Passe l'entête "REPUBLIQUE DU SENEGAL"
-      cropWidth  = Math.floor(width  * 0.38);
-      cropHeight = Math.floor(height * 0.50);   // 28%→78% de la hauteur
+      top        = Math.floor(height * 0.26);   // Passe l'entête "REPUBLIQUE DU SENEGAL"
+      cropWidth  = Math.floor(width  * 0.30);   // Strictement la zone photo, sans les données textuelles
+      cropHeight = Math.floor(height * 0.52);   // 26%→78%
     } else {
-      // Page biographique photographiée en PORTRAIT (plus haute que large)
+      // Page biographique en PORTRAIT
+      // La photo est dans le coin gauche : ~32% largeur, entre 22% et 68% hauteur
       left       = 0;
-      top        = Math.floor(height * 0.25);   // Passe l'entête
-      cropWidth  = Math.floor(width  * 0.44);
-      cropHeight = Math.floor(height * 0.45);   // 25%→70% de la hauteur
+      top        = Math.floor(height * 0.22);   // Passe l'entête
+      cropWidth  = Math.floor(width  * 0.32);   // Zone face uniquement, sans les données textuelles
+      cropHeight = Math.floor(height * 0.46);   // 22%→68%
     }
 
     const safeWidth  = Math.min(cropWidth,  width  - left);
