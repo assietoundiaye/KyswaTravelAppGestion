@@ -144,6 +144,20 @@ function transformInputData(data, tableName, model = null) {
     else if (key === 'quotaMax' || key === 'placesTotal') {
       dbKey = 'places_total';
     }
+    else if (key === 'prixEco' || key === 'prix_eco') dbKey = 'prix_eco';
+    else if (key === 'prixCont' || key === 'prixConfort' || key === 'prix_confort') dbKey = 'prix_confort';
+    else if (key === 'prixVip' || key === 'prix_vip') dbKey = 'prix_vip';
+    else if (key === 'compagnieAerienne' || key === 'compagnie') dbKey = 'compagnie_aerienne';
+    else if (key === 'numeroVol') dbKey = 'numero_vol';
+    else if (key === 'villeDepart') dbKey = 'ville_depart';
+    else if (key === 'villeArrivee') dbKey = 'ville_arrivee';
+    else if (key === 'hotel') {
+      dbKey = 'hotel';
+      if (Array.isArray(value)) {
+        transformed[dbKey] = value.join(', ');
+        continue;
+      }
+    }
     else if (key === 'type' || key === 'service') {
       dbKey = 'service';
       const t = String(value).toUpperCase();
@@ -320,6 +334,27 @@ function normalizeItem(item) {
   }
   if (normalized.actif !== undefined && normalized.statut === undefined) {
     normalized.statut = normalized.actif ? 'OUVERT' : 'TERMINE';
+  }
+  if (normalized.prix_eco !== undefined && !normalized.prixEco) {
+    normalized.prixEco = Number(normalized.prix_eco || 0);
+  }
+  if (normalized.prix_confort !== undefined && !normalized.prixCont) {
+    normalized.prixCont = Number(normalized.prix_confort || 0);
+  }
+  if (normalized.prix_vip !== undefined && !normalized.prixVip) {
+    normalized.prixVip = Number(normalized.prix_vip || 0);
+  }
+  if (normalized.compagnie_aerienne && !normalized.compagnieAerienne) {
+    normalized.compagnieAerienne = normalized.compagnie_aerienne;
+  }
+  if (normalized.numero_vol && !normalized.numeroVol) {
+    normalized.numeroVol = normalized.numero_vol;
+  }
+  if (normalized.ville_depart && !normalized.villeDepart) {
+    normalized.villeDepart = normalized.ville_depart;
+  }
+  if (normalized.ville_arrivee && !normalized.villeArrivee) {
+    normalized.villeArrivee = normalized.ville_arrivee;
   }
   if (normalized.billets_groupe) {
     if (normalized.billets_groupe.compagnie && !normalized.compagnieAerienne) {

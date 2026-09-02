@@ -762,6 +762,14 @@ model departs {
   places_total       Int?                 @default(30)
   places_restantes   Int?                 @default(30)
   actif              Boolean?             @default(true)
+  prix_eco           Decimal?             @default(0) @db.Decimal(12, 2)
+  prix_confort       Decimal?             @default(0) @db.Decimal(12, 2)
+  prix_vip           Decimal?             @default(0) @db.Decimal(12, 2)
+  compagnie_aerienne String?
+  numero_vol         String?
+  ville_depart       String?
+  ville_arrivee      String?
+  hotel              String?
   created_at         DateTime?            @default(now()) @db.Timestamptz(6)
   billets_groupe     billets_groupe?
   billets_pelerins   billets_pelerins[]
