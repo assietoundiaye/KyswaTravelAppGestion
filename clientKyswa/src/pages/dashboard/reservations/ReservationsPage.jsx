@@ -6,6 +6,7 @@ import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Pagination from '../../../components/Pagination';
 import { toast } from '../../../components/Toast';
+import NumberInput from '../../../components/NumberInput';
 
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
@@ -892,7 +893,14 @@ export default function ReservationsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label className="input-label">Montant total dû (FCFA) *</label>
-              <input type="number" min="0" value={form.montantTotalDu} onChange={set('montantTotalDu')} className="premium-input" required />
+              <NumberInput
+                value={form.montantTotalDu}
+                onChange={v => setForm(f => ({ ...f, montantTotalDu: v === '' ? '' : String(v) }))}
+                className="premium-input"
+                placeholder="0"
+                min={0}
+                required
+              />
             </div>
             <div>
               <label className="input-label">Statut client</label>

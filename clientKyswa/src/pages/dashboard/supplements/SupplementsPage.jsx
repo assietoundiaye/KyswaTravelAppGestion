@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import api from '../../../core/api/axios';
 import DataTable from '../../../components/DataTable';
 import Pagination from '../../../components/Pagination';
+import NumberInput from '../../../components/NumberInput';
 
 const fmt = (n) => {
   if (!n) return '0 FCFA';
@@ -123,8 +124,8 @@ export default function SupplementsPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Prix (FCFA) *</label>
-              <input type="number" min="0" value={form.prix} onChange={e => setForm(f => ({...f, prix: e.target.value}))}
-                className="premium-input" />
+              <NumberInput value={form.prix} onChange={v => setForm(f => ({...f, prix: v}))}
+                className="premium-input" min={0} />
             </div>
           </div>
           <div className="flex gap-2">

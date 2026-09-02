@@ -9,6 +9,7 @@ import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
 import { usePermissions } from '../../../hooks/usePermissions';
 import PermissionGuard from '../../../components/PermissionGuard';
+import NumberInput from '../../../components/NumberInput';
 
 const MODES = ['ESPECES','VIREMENT','CHEQUE','CARTE_BANCAIRE','ORANGE_MONEY','WAVE','MONEY','AUTRE'];
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
@@ -580,26 +581,10 @@ function PaiementsPageContent() {
                   return <span style={{ color: reste > 0 ? '#DC2626' : '#16A34A', fontWeight: 700, marginLeft: 8 }}>max : {fmt(reste)}</span>;
                 })()}
               </label>
-              <input
-                type="number" min="1"
-                max={(() => {
-                  if (entiteType === 'reservation' && form.reservationId) {
-                    const r = reservations.find(x => x._id === form.reservationId);
-                    if (r) {
-                      const dejaRecu = (r.paiements || []).reduce((s, p) => s + parseMontant(p.montant), 0);
-                      return (r.montantTotalDu || 0) - dejaRecu;
-                    }
-                  } else if (entiteType === 'billet' && form.billetId) {
-                    const b = billets.find(x => x._id === form.billetId);
-                    if (b) {
-                      const dejaRecu = (b.paiements || []).reduce((s, p) => s + parseMontant(p.montant), 0);
-                      return (b.prix || 0) - dejaRecu;
-                    }
-                  }
-                  return undefined;
-                })()}
+              <NumberInput
+                min={1}
                 value={form.montant}
-                onChange={e => setForm(f => ({ ...f, montant: e.target.value }))}
+                onChange={v => setForm(f => ({ ...f, montant: v }))}
                 className="premium-input"
                 required
               />
@@ -756,9 +741,9 @@ function PaiementsPageContent() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label className="input-label">Montant (FCFA) *</label>
-              <input type="number" min="1" value={editForm.montant}
-                onChange={e => setEditForm(f => ({ ...f, montant: e.target.value }))}
-                className="premium-input" required />
+              <NumberInput value={editForm.montant}
+                onChange={v => setEditForm(f => ({ ...f, montant: v }))}
+                className="premium-input" min={1} required />
             </div>
             <div>
               <label className="input-label">Date règlement *</label>

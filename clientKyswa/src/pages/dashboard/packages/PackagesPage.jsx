@@ -7,6 +7,7 @@ import { toast } from '../../../components/Toast';
 import Modal from '../../../components/Modal';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Pagination from '../../../components/Pagination';
+import NumberInput from '../../../components/NumberInput';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
 const fmt = (n) => {
@@ -279,7 +280,7 @@ export default function PackagesPage() {
             </div>
             <div>
               <label className="input-label">Quota max (places) *</label>
-              <input type="number" min="1" value={form.quotaMax} onChange={set('quotaMax')} className="premium-input" required />
+              <NumberInput value={form.quotaMax} onChange={v => setForm(f => ({ ...f, quotaMax: v }))} className="premium-input" placeholder="30" min={1} required />
             </div>
             <div>
               <label className="input-label">Hôtel(s) <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(séparés par virgule)</span></label>
@@ -293,7 +294,7 @@ export default function PackagesPage() {
             {[['prixEco', 'Éco'], ['prixCont', 'Confort'], ['prixVip', 'VIP']].map(([k, l]) => (
               <div key={k}>
                 <label className="input-label">{l}</label>
-                <input type="number" min="0" value={form[k]} onChange={set(k)} className="premium-input" placeholder="0" />
+                <NumberInput value={form[k]} onChange={v => setForm(f => ({ ...f, [k]: v }))} className="premium-input" placeholder="0" min={0} />
               </div>
             ))}
           </div>
