@@ -7,7 +7,7 @@ import {
 import api from '../../../core/api/axios';
 import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
-import { ROLE_LABELS, ROLE_COLORS, ALL_MENU_ITEMS } from '../../../utils/roles';
+import { ROLE_LABELS, ROLE_COLORS, ALL_MENU_ITEMS, MENU_BY_ROLE } from '../../../utils/roles';
 
 export default function ProfilPage() {
   const { role: authRole } = useAuth();
@@ -554,46 +554,112 @@ export default function ProfilPage() {
           )}
 
           {/* ONGLET 3 : DROITS & PERMISSIONS */}
-          {activeTab === 'permissions' && (
-            <div className="premium-card">
-              <div style={{ marginBottom: 20 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)' }}>Modules & Droits d'accès</h2>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                  Modules accessibles avec votre rôle <strong style={{ color: roleColor }}>{roleLabel}</strong>
-                </p>
-              </div>
+          {activeTab === 'permissions' && (() => {
+            const isSuper = ['dg', 'administrateur', 'informatique', 'admin'].includes(userRole);
+            const userAllowedMenus = MENU_BY_ROLE[userRole] || [];
+            
+            const isAllowed = (item) => {
+              if (isSuper) return true;
+              if (!item.module) return true; // Dashboard accessible à tous
+              return userAllowedMenus.some(m => m.to === item.to || (m.module && m.module === item.module));
+            };
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                {ALL_MENU_ITEMS.map((item, idx) => {
-                  const ItemIcon = item.icon;
-                  return (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: '12px 14px',
-                        borderRadius: 10,
-                        border: '1px solid var(--border)',
-                        background: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,103,79,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
-                          <ItemIcon size={16} />
-                        </div>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{item.label}</span>
-                      </div>
-                      <span style={{ background: '#F0FDF4', color: '#16A34A', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12 }}>
-                        Autorisé
-                      </span>
+            const allowedItems = ALL_MENU_ITEMS.filter(isAllowed);
+            const restrictedItems = ALL_MENU_ITEMS.filter(item => !isAllowed(item));
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {/* Modules Autorisés */}
+                <div className="premium-card">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <div>
+                      <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <CheckCircle2 size={18} color="#16A34A" /> Modules Autorisés ({allowedItems.length})
+                      </h2>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Fonctionnalités accessibles avec votre profil <strong style={{ color: roleColor }}>{roleLabel}</strong>
+                      </p>
                     </div>
-                  );
-                })}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {allowedItems.map((item, idx) => {
+                      const ItemIcon = item.icon;
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: 10,
+                            border: '1px solid #BBF7D0',
+                            background: '#F0FDF4',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(22,163,74,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16A34A' }}>
+                              <ItemIcon size={16} />
+                            </div>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>{item.label}</span>
+                          </div>
+                          <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 12, border: '1px solid #86EFAC' }}>
+                            ✓ Autorisé
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Modules Non Accessibles (si applicables) */}
+                {restrictedItems.length > 0 && (
+                  <div className="premium-card" style={{ background: '#FAFAFA' }}>
+                    <div style={{ marginBottom: 16 }}>
+                      <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Lock size={16} color="#9CA3AF" /> Modules Restreints ({restrictedItems.length})
+                      </h3>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                        Ces modules nécessitent des privilèges supérieurs (Comptabilité, Direction, Administration).
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      {restrictedItems.map((item, idx) => {
+                        const ItemIcon = item.icon;
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              padding: '10px 12px',
+                              borderRadius: 10,
+                              border: '1px solid var(--border)',
+                              background: 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              opacity: 0.65,
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 28, height: 28, borderRadius: 6, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF' }}>
+                                <ItemIcon size={14} />
+                              </div>
+                              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>{item.label}</span>
+                            </div>
+                            <span style={{ background: '#F3F4F6', color: '#6B7280', fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 10 }}>
+                              Non accessible
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
         </div>
       </div>
