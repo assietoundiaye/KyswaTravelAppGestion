@@ -166,15 +166,35 @@ class App {
    */
   setupSocketIO(server) {
     const config = this.config.getConfig();
+    const jwt = require('jsonwebtoken');
     this.io = socketIo(server, {
       cors: {
-        origin: config.corsOrigin,
+        origin: config.corsOrigin || '*',
         credentials: true,
       },
     });
 
+    this.app.set('io', this.io);
+
     this.io.on('connection', (socket) => {
-      console.log(`[Socket.IO] Client connecté: ${socket.id}`);
+      // Authentification socket via token
+      const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+      let userId = null;
+      if (token) {
+        try {
+          const secret = process.env.JWT_SECRET || 'kyswa-secret-key-change-in-production';
+          const decoded = jwt.verify(token.replace(/^Bearer\s+/i, ''), secret);
+          userId = decoded.id || decoded.userId;
+          if (userId) {
+            socket.join(`user_${userId}`);
+            console.log(`[Socket.IO] Utilisateur authentifié dans room user_${userId}`);
+          }
+        } catch (err) {
+          // Token invalide ou expiré
+        }
+      }
+
+      console.log(`[Socket.IO] Client connecté: ${socket.id} (user: ${userId || 'anonyme'})`);
 
       socket.on('disconnect', () => {
         console.log(`[Socket.IO] Client déconnecté: ${socket.id}`);
