@@ -1,60 +1,69 @@
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { 
+  User, Mail, Phone, Shield, KeyRound, Lock, Eye, EyeOff, 
+  CheckCircle2, AlertCircle, Calendar, ShieldCheck, 
+  Sparkles, Layers, Activity, Clock
+} from 'lucide-react';
 import api from '../../../core/api/axios';
 import { toast } from '../../../components/Toast';
 import { useAuth } from '../../../context/AuthContext';
-import { ROLE_LABELS, ROLE_COLORS } from '../../../utils/roles';
-
-const ROLE_BG = {
-  administrateur: '#7C3AED', dg: '#7C3AED',
-  commercial: '#059669', oumra: '#059669',
-  comptable: '#EA580C',
-  secretaire: '#2563EB',
-  gestionnaire: '#0891B2',
-};
+import { ROLE_LABELS, ROLE_COLORS, ALL_MENU_ITEMS } from '../../../utils/roles';
 
 export default function ProfilPage() {
-  const { role } = useAuth();
+  const { role: authRole } = useAuth();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('infos'); // 'infos' | 'security' | 'permissions'
 
-  // Édition infos
+  // Édition informations
   const [editingInfo, setEditingInfo] = useState(false);
   const [form, setForm] = useState({ nom: '', prenom: '', email: '', telephone: '' });
-  const [saving, setSaving] = useState(false);
+  const [savingInfo, setSavingInfo] = useState(false);
 
-  // Changement mot de passe
-  const [editingPw, setEditingPw] = useState(false);
+  // Modification mot de passe
   const [pwForm, setPwForm] = useState({ ancienPassword: '', nouveauPassword: '', confirm: '' });
   const [savingPw, setSavingPw] = useState(false);
   const [showPw, setShowPw] = useState({ ancien: false, nouveau: false, confirm: false });
 
   const fetchProfil = async () => {
     try {
-      const res = await api.get('/profile/me');
-      setUser(res.data.user);
-      const u = res.data.user;
-      setForm({ nom: u.nom || '', prenom: u.prenom || '', email: u.email || '', telephone: u.telephone || '' });
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      const res = await api.get('/users/me').catch(() => api.get('/profile/me'));
+      const u = res.data.user || res.data.data;
+      setUser(u);
+      setForm({
+        nom: u?.nom || '',
+        prenom: u?.prenom || '',
+        email: u?.email || '',
+        telephone: u?.telephone || '',
+      });
+    } catch (e) {
+      console.error('Erreur chargement profil:', e);
+      toast('Impossible de charger le profil', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchProfil(); }, []);
+  useEffect(() => {
+    fetchProfil();
+  }, []);
 
-  const handleSubmit = async (e) => {
+  const handleUpdateInfo = async (e) => {
     e.preventDefault();
-    setSaving(true);
+    setSavingInfo(true);
     try {
-      await api.patch('/profile/me', form);
+      await api.patch('/users/me', form).catch(() => api.patch('/profile/me', form));
       await fetchProfil();
       setEditingInfo(false);
-      toast('Profil mis à jour');
+      toast('Informations mises à jour avec succès', 'success');
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur', 'error');
-    } finally { setSaving(false); }
+      toast(err.response?.data?.message || 'Erreur lors de la mise à jour', 'error');
+    } finally {
+      setSavingInfo(false);
+    }
   };
 
-  const handlePassword = async (e) => {
+  const handleChangePassword = async (e) => {
     e.preventDefault();
     if (pwForm.nouveauPassword !== pwForm.confirm) {
       return toast('Les mots de passe ne correspondent pas', 'error');
@@ -64,216 +73,529 @@ export default function ProfilPage() {
     }
     setSavingPw(true);
     try {
-      await api.patch('/profile/me/password', {
+      await api.patch('/users/me/password', {
         ancienPassword: pwForm.ancienPassword,
         nouveauPassword: pwForm.nouveauPassword,
-      });
-      setEditingPw(false);
+      }).catch(() => api.patch('/profile/me/password', {
+        ancienPassword: pwForm.ancienPassword,
+        nouveauPassword: pwForm.nouveauPassword,
+      }));
       setPwForm({ ancienPassword: '', nouveauPassword: '', confirm: '' });
-      toast('Mot de passe modifié');
+      toast('Mot de passe modifié avec succès', 'success');
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur', 'error');
-    } finally { setSavingPw(false); }
+      toast(err.response?.data?.message || 'Erreur lors du changement de mot de passe', 'error');
+    } finally {
+      setSavingPw(false);
+    }
   };
 
-  const roleColor = ROLE_BG[role?.toLowerCase()] || '#6B7280';
-  const roleLabel = ROLE_LABELS?.[role] || role || '—';
-  const initiales = `${user?.prenom?.[0] || ''}${user?.nom?.[0] || ''}`.toUpperCase();
+  const userRole = (user?.role || authRole || '').toLowerCase();
+  const roleColor = ROLE_COLORS[userRole] || '#00674F';
+  const roleLabel = ROLE_LABELS[userRole] || user?.role || 'Utilisateur';
+  const initiales = `${user?.prenom?.[0] || ''}${user?.nom?.[0] || ''}`.toUpperCase() || 'U';
 
-  if (loading) return <p style={{ color: 'var(--text-muted)', padding: 32 }}>Chargement...</p>;
+  // Calcul score force mot de passe
+  const calculatePasswordStrength = (pwd) => {
+    if (!pwd) return 0;
+    let score = 0;
+    if (pwd.length >= 6) score += 1;
+    if (pwd.length >= 10) score += 1;
+    if (/[A-Z]/.test(pwd) && /[0-9]/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+    return score;
+  };
+
+  const pwStrength = calculatePasswordStrength(pwForm.nouveauPassword);
+  const strengthLabels = ['Très faible', 'Faible', 'Moyen', 'Fort', 'Excellent'];
+  const strengthColors = ['#E5E7EB', '#DC2626', '#D97706', '#2563EB', '#16A34A'];
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+        <div style={{ width: 32, height: 32, border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 680 }}>
-
-      {/* Header */}
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-main)' }}>
-        Mon profil
-      </h1>
-
-      {/* Carte identité */}
-      <div className="premium-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          {/* Avatar */}
-          <div style={{
-            width: 80, height: 80, borderRadius: '50%', flexShrink: 0,
-            background: `linear-gradient(135deg, ${roleColor}, ${roleColor}bb)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 30, color: 'white',
-            boxShadow: `0 4px 20px ${roleColor}40`,
-          }}>
-            {initiales || '?'}
-          </div>
-
-          {/* Infos principales */}
-          <div style={{ flex: 1 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--text-main)', marginBottom: 4 }}>
-              {user?.prenom} {user?.nom}
-            </h2>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 10 }}>{user?.email}</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{
-                background: `${roleColor}18`, color: roleColor,
-                border: `1px solid ${roleColor}30`,
-                borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-              }}>
-                {roleLabel}
-              </span>
-              <span style={{
-                background: user?.etat === 'ACTIF' ? '#F0FDF4' : '#FEF2F2',
-                color: user?.etat === 'ACTIF' ? '#16A34A' : '#DC2626',
-                borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700,
-              }}>
-                {user?.etat || 'ACTIF'}
-              </span>
-            </div>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1100, margin: '0 auto' }}>
+      
+      {/* ── BANNIÈRE HERO PROFIL ────────────────────────────────────────────── */}
+      <div className="premium-card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--border)' }}>
+        {/* Fond dégradé */}
+        <div style={{
+          height: 120,
+          background: 'linear-gradient(135deg, #00674F 0%, #0A4D3C 50%, #042E25 100%)',
+          position: 'relative',
+        }}>
+          <div style={{ position: 'absolute', right: 24, top: 20, opacity: 0.15, color: 'white' }}>
+            <Sparkles size={80} />
           </div>
         </div>
-      </div>
 
-      {/* Informations personnelles */}
-      <div className="premium-card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>Informations personnelles</h3>
-          {!editingInfo && (
-            <button onClick={() => setEditingInfo(true)} className="btn-secondary" style={{ fontSize: 13 }}>
-              Modifier
-            </button>
-          )}
-        </div>
-
-        {!editingInfo ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-            {[
-              ['Prénom', user?.prenom || '—'],
-              ['Nom', user?.nom || '—'],
-              ['Email', user?.email || '—'],
-              ['Téléphone', user?.telephone || '—'],
-              ['Rôle', roleLabel],
-              ['Membre depuis', user?.createdAt ? new Date(user.createdAt).toLocaleDateString('fr-FR') : '—'],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{label}</p>
-                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>{value}</p>
+        {/* Contenu principal Hero */}
+        <div style={{ padding: '0 28px 24px 28px', marginTop: -48, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20 }}>
+            {/* Avatar stylisé */}
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                width: 96,
+                height: 96,
+                borderRadius: '50%',
+                background: `linear-gradient(135deg, ${roleColor}, #00674F)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 900,
+                fontSize: 34,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                border: '4px solid white',
+              }}>
+                {initiales}
               </div>
-            ))}
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label className="input-label">Prénom *</label>
-                <input value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))}
-                  className="premium-input" required />
-              </div>
-              <div>
-                <label className="input-label">Nom *</label>
-                <input value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
-                  className="premium-input" required />
-              </div>
-              <div>
-                <label className="input-label">Email *</label>
-                <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="premium-input" required />
-              </div>
-              <div>
-                <label className="input-label">Téléphone</label>
-                <input value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
-                  className="premium-input" placeholder="+221 7X XXX XX XX" />
-              </div>
+              {/* Badge En ligne */}
+              <div style={{
+                position: 'absolute',
+                bottom: 4,
+                right: 4,
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                background: '#16A34A',
+                border: '3px solid white',
+              }} title="Session active" />
             </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => { setEditingInfo(false); }} className="btn-secondary">Annuler</button>
-              <button type="submit" disabled={saving} className="btn-primary">
-                {saving ? 'Enregistrement...' : 'Sauvegarder'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
 
-      {/* Sécurité — changement mot de passe */}
-      <div className="premium-card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: editingPw ? 18 : 0 }}>
-          <div>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>Sécurité</h3>
-            {!editingPw && (
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                Modifier votre mot de passe de connexion
+            {/* Infos texte */}
+            <div style={{ paddingBottom: 4 }}>
+              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                {user?.prenom} {user?.nom}
+              </h1>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Mail size={13} /> {user?.email}
               </p>
-            )}
+            </div>
           </div>
-          {!editingPw && (
-            <button onClick={() => setEditingPw(true)} className="btn-secondary" style={{ fontSize: 13 }}>
-              Changer le mot de passe
-            </button>
-          )}
+
+          {/* Badges de rôle et statut */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 4 }}>
+            <span style={{
+              background: `${roleColor}15`,
+              color: roleColor,
+              border: `1px solid ${roleColor}30`,
+              borderRadius: 20,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              <Shield size={13} /> {roleLabel}
+            </span>
+            <span style={{
+              background: user?.actif !== false ? '#F0FDF4' : '#FEF2F2',
+              color: user?.actif !== false ? '#16A34A' : '#DC2626',
+              border: `1px solid ${user?.actif !== false ? '#BBF7D0' : '#FECACA'}`,
+              borderRadius: 20,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              <CheckCircle2 size={13} /> {user?.actif !== false ? 'Compte Actif' : 'Compte Inactif'}
+            </span>
+          </div>
         </div>
 
-        {editingPw && (
-          <form onSubmit={handlePassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {[
-              ['ancienPassword', 'Ancien mot de passe *', 'ancien'],
-              ['nouveauPassword', 'Nouveau mot de passe *', 'nouveau'],
-              ['confirm', 'Confirmer le nouveau mot de passe *', 'confirm'],
-            ].map(([key, label, showKey]) => (
-              <div key={key}>
-                <label className="input-label">{label}</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showPw[showKey] ? 'text' : 'password'}
-                    value={pwForm[key]}
-                    onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
-                    className="premium-input"
-                    placeholder="••••••••"
-                    style={{ paddingRight: 40 }}
-                    required
-                  />
+        {/* ── BARRE D'ONGLETS ──────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: 4, padding: '0 24px', borderTop: '1px solid var(--border)', background: '#FAFAFA' }}>
+          {[
+            { id: 'infos', label: 'Informations personnelles', icon: User },
+            { id: 'security', label: 'Sécurité & Mot de passe', icon: KeyRound },
+            { id: 'permissions', label: 'Droits & Permissions', icon: Layers },
+          ].map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: `3px solid ${isActive ? 'var(--primary)' : 'transparent'}`,
+                  padding: '14px 18px',
+                  fontSize: 13,
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Icon size={16} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── CONTENU EN 2 COLONNES ─────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, alignItems: 'start' }}>
+        
+        {/* ── COLONNE GAUCHE : APERÇU RAPIDE ───────────────────────────────── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          
+          {/* Carte récapitulatif */}
+          <div className="premium-card">
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 14 }}>
+              Aperçu du compte
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,103,79,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                  <User size={16} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Nom complet</p>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)' }}>{user?.prenom} {user?.nom}</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,103,79,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                  <Mail size={16} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Adresse e-mail</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{user?.email}</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,103,79,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                  <Phone size={16} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Téléphone</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{user?.telephone || 'Non renseigné'}</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,103,79,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                  <Calendar size={16} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Membre depuis</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+                    {user?.created_at || user?.createdAt ? new Date(user.created_at || user.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Carte sécurité */}
+          <div className="premium-card" style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #F9FAFB 100%)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <ShieldCheck size={20} color="#16A34A" />
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-main)' }}>Sécurité du compte</h3>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 14 }}>
+              Votre session est chiffrée via SSL/TLS et protégée par un jeton d'authentification sécurisé.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Authentification :</span>
+                <span style={{ fontWeight: 600, color: '#16A34A' }}>Active (JWT)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Connexion :</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Sécurisée</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── COLONNE DROITE : CONTENU DES ONGLETS ─────────────────────────── */}
+        <div>
+          {/* ONGLET 1 : INFORMATIONS PERSONNELLES */}
+          {activeTab === 'infos' && (
+            <div className="premium-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                  <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)' }}>Informations personnelles</h2>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Gérez vos informations de contact et d'identité
+                  </p>
+                </div>
+                {!editingInfo && (
                   <button
-                    type="button"
-                    onClick={() => setShowPw(s => ({ ...s, [showKey]: !s[showKey] }))}
-                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, display: 'flex', alignItems: 'center' }}
+                    onClick={() => setEditingInfo(true)}
+                    className="btn-primary"
+                    style={{ fontSize: 13, padding: '6px 16px' }}
                   >
-                    {showPw[showKey] ? <EyeOff size={15} /> : <Eye size={15} />}
+                    Modifier mes infos
+                  </button>
+                )}
+              </div>
+
+              {!editingInfo ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                  <div style={{ background: 'var(--bg-main)', padding: '14px 16px', borderRadius: 10 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Prénom</p>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>{user?.prenom || '—'}</p>
+                  </div>
+                  <div style={{ background: 'var(--bg-main)', padding: '14px 16px', borderRadius: 10 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Nom</p>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>{user?.nom || '—'}</p>
+                  </div>
+                  <div style={{ background: 'var(--bg-main)', padding: '14px 16px', borderRadius: 10 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Adresse e-mail</p>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>{user?.email || '—'}</p>
+                  </div>
+                  <div style={{ background: 'var(--bg-main)', padding: '14px 16px', borderRadius: 10 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Numéro de téléphone</p>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-main)' }}>{user?.telephone || '—'}</p>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleUpdateInfo} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                      <label className="input-label">Prénom *</label>
+                      <input
+                        value={form.prenom}
+                        onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))}
+                        className="premium-input"
+                        placeholder="Votre prénom"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label">Nom *</label>
+                      <input
+                        value={form.nom}
+                        onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
+                        className="premium-input"
+                        placeholder="Votre nom"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label">Adresse e-mail *</label>
+                      <input
+                        type="email"
+                        value={form.email}
+                        onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                        className="premium-input"
+                        placeholder="exemple@kyswatravel.com"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label">Téléphone</label>
+                      <input
+                        value={form.telephone}
+                        onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
+                        className="premium-input"
+                        placeholder="+221 77 123 45 67"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => setEditingInfo(false)}
+                      className="btn-secondary"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingInfo}
+                      className="btn-primary"
+                    >
+                      {savingInfo ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* ONGLET 2 : SÉCURITÉ & MOT DE PASSE */}
+          {activeTab === 'security' && (
+            <div className="premium-card">
+              <div style={{ marginBottom: 20 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)' }}>Changer le mot de passe</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Pour garantir la sécurité de votre compte, choisissez un mot de passe robuste
+                </p>
+              </div>
+
+              <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label className="input-label">Ancien mot de passe *</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPw.ancien ? 'text' : 'password'}
+                      value={pwForm.ancienPassword}
+                      onChange={e => setPwForm(f => ({ ...f, ancienPassword: e.target.value }))}
+                      className="premium-input"
+                      placeholder="••••••••"
+                      style={{ paddingRight: 40 }}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPw(s => ({ ...s, ancien: !s.ancien }))}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      {showPw.ancien ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div>
+                    <label className="input-label">Nouveau mot de passe *</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showPw.nouveau ? 'text' : 'password'}
+                        value={pwForm.nouveauPassword}
+                        onChange={e => setPwForm(f => ({ ...f, nouveauPassword: e.target.value }))}
+                        className="premium-input"
+                        placeholder="••••••••"
+                        style={{ paddingRight: 40 }}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw(s => ({ ...s, nouveau: !s.nouveau }))}
+                        style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                      >
+                        {showPw.nouveau ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="input-label">Confirmer le nouveau mot de passe *</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showPw.confirm ? 'text' : 'password'}
+                        value={pwForm.confirm}
+                        onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))}
+                        className="premium-input"
+                        placeholder="••••••••"
+                        style={{ paddingRight: 40 }}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw(s => ({ ...s, confirm: !s.confirm }))}
+                        style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                      >
+                        {showPw.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Indicateur visuel de force */}
+                {pwForm.nouveauPassword && (
+                  <div style={{ background: 'var(--bg-main)', padding: 12, borderRadius: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Force du mot de passe :</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: strengthColors[pwStrength] }}>
+                        {strengthLabels[pwStrength]}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {[1, 2, 3, 4].map(level => (
+                        <div
+                          key={level}
+                          style={{
+                            flex: 1,
+                            height: 6,
+                            borderRadius: 3,
+                            background: level <= pwStrength ? strengthColors[pwStrength] : '#E5E7EB',
+                            transition: 'all 0.25s ease',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                  <button
+                    type="submit"
+                    disabled={savingPw}
+                    className="btn-primary"
+                    style={{ padding: '8px 24px' }}
+                  >
+                    {savingPw ? 'Modification en cours...' : 'Mettre à jour le mot de passe'}
                   </button>
                 </div>
-              </div>
-            ))}
-
-            {/* Indicateur de force */}
-            {pwForm.nouveauPassword && (
-              <div>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Force du mot de passe</p>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {[1, 2, 3, 4].map(i => {
-                    const score = [
-                      pwForm.nouveauPassword.length >= 6,
-                      pwForm.nouveauPassword.length >= 10,
-                      /[A-Z]/.test(pwForm.nouveauPassword) && /[0-9]/.test(pwForm.nouveauPassword),
-                      /[^A-Za-z0-9]/.test(pwForm.nouveauPassword),
-                    ].filter(Boolean).length;
-                    const colors = ['#DC2626', '#D97706', '#2563EB', '#16A34A'];
-                    return (
-                      <div key={i} style={{
-                        flex: 1, height: 4, borderRadius: 2,
-                        background: i <= score ? colors[score - 1] : '#E5E7EB',
-                        transition: 'background 0.2s',
-                      }} />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => { setEditingPw(false); setPwForm({ ancienPassword: '', nouveauPassword: '', confirm: '' }); }} className="btn-secondary">
-                Annuler
-              </button>
-              <button type="submit" disabled={savingPw} className="btn-primary">
-                {savingPw ? 'Modification...' : 'Confirmer'}
-              </button>
+              </form>
             </div>
-          </form>
-        )}
+          )}
+
+          {/* ONGLET 3 : DROITS & PERMISSIONS */}
+          {activeTab === 'permissions' && (
+            <div className="premium-card">
+              <div style={{ marginBottom: 20 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)' }}>Modules & Droits d'accès</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Modules accessibles avec votre rôle <strong style={{ color: roleColor }}>{roleLabel}</strong>
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {ALL_MENU_ITEMS.map((item, idx) => {
+                  const ItemIcon = item.icon;
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 10,
+                        border: '1px solid var(--border)',
+                        background: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,103,79,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                          <ItemIcon size={16} />
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{item.label}</span>
+                      </div>
+                      <span style={{ background: '#F0FDF4', color: '#16A34A', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12 }}>
+                        Autorisé
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
