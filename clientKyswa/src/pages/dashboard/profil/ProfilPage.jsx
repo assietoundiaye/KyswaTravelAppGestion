@@ -303,27 +303,6 @@ export default function ProfilPage() {
               </div>
             </div>
           </div>
-
-          {/* Carte sécurité */}
-          <div className="premium-card" style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #F9FAFB 100%)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <ShieldCheck size={20} color="#16A34A" />
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-main)' }}>Sécurité du compte</h3>
-            </div>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 14 }}>
-              Votre session est chiffrée via SSL/TLS et protégée par un jeton d'authentification sécurisé.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Authentification :</span>
-                <span style={{ fontWeight: 600, color: '#16A34A' }}>Active (JWT)</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                <span style={{ color: 'var(--text-muted)' }}>Connexion :</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Sécurisée</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* ── COLONNE DROITE : CONTENU DES ONGLETS ─────────────────────────── */}
