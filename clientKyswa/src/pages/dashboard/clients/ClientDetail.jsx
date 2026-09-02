@@ -56,12 +56,13 @@ export default function ClientDetail() {
         ville: c.ville || '',
         // Champs camelCase attendus par le template (mappés depuis snake_case Supabase)
         numeroPasseport: c.n_passeport || c.numeroPasseport || '',
-        numeroCNI: c.numeroCNI || '',
+        numeroCNI: c.numero_cni || c.numeroCNI || '',
         dateNaissance: c.date_naissance || c.dateNaissance || null,
         lieuNaissance: c.lieuNaissance || '',
         dateExpirationPasseport: c.expiration_passeport || c.dateExpirationPasseport || null,
         niveauFidelite: c.niveau_fidelite || c.niveauFidelite || 'Nouveau',
         photoUrl: c.photo_url || c.photoUrl || null,
+        passportUrl: c.passport_url || c.passportUrl || null,
         dateCreation: c.created_at || c.dateCreation || null,
         contactUrgence: c.contactUrgence || null,
         vip: c.vip || false,
@@ -69,7 +70,22 @@ export default function ClientDetail() {
       };
 
       setClient(normalized);
-      setDocuments(res.data.documents || []);
+      
+      // Synthétiser les documents en incluant le scan du passeport enregistré
+      const rawDocs = res.data.documents || [];
+      const hasPassport = rawDocs.some(d => d.type === 'PASSEPORT');
+      const allDocs = [...rawDocs];
+      if (!hasPassport && normalized.passportUrl) {
+        allDocs.unshift({
+          _id: 'doc-passport-' + c.id,
+          type: 'PASSEPORT',
+          nom: 'Passeport ' + (normalized.numeroPasseport || ''),
+          cheminFichier: normalized.passportUrl,
+          statut: 'VALIDE',
+          dateCreation: c.created_at || new Date().toISOString(),
+        });
+      }
+      setDocuments(allDocs);
       // Les inscriptions viennent de c.inscriptions (inclus par getClientFull)
       setReservations(c.inscriptions || res.data.reservations || []);
       setForm({
@@ -299,18 +315,32 @@ export default function ClientDetail() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {[
-            ['Passeport', client.numeroPasseport],
+            ['Passeport', (
+              <span>
+                {client.numeroPasseport || '—'}
+                {client.passportUrl && (
+                  <a
+                    href={client.passportUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ marginLeft: 8, fontSize: 11, color: 'var(--primary)', fontWeight: 700, textDecoration: 'none', background: 'rgba(0,103,79,0.08)', padding: '2px 8px', borderRadius: 12 }}
+                  >
+                    📄 Voir scan
+                  </a>
+                )}
+              </span>
+            )],
             ['CNI', client.numeroCNI || '—'],
             ['Téléphone', client.telephone || '—'],
             ['Email', client.email || '—'],
             ['Adresse', client.adresse || '—'],
             ['Date naissance', fmtDate(client.dateNaissance)],
-            ['Lieu naissance', client.lieuNaissance || '—'],
+            ['Expiration passeport', fmtDate(client.dateExpirationPasseport)],
             ['Créé le', fmtDate(client.dateCreation)],
           ].map(([label, value]) => (
             <div key={label}>
               <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</p>
-              <p style={{ fontSize: 14, color: 'var(--text-main)' }}>{value}</p>
+              <div style={{ fontSize: 14, color: 'var(--text-main)' }}>{value}</div>
             </div>
           ))}
         </div>

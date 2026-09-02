@@ -220,10 +220,35 @@ export default function ClientsPage() {
                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Chargement...</td></tr>
               ) : clients.length === 0 ? (
                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Aucun client</td></tr>
-              ) : clients.map(c => (
-                <tr key={c._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/dashboard/clients/${c._id}`)}>
-                  <td style={{ fontWeight: 600 }}>{c.nom} {c.prenom}</td>
-                  <td><span style={{ background: 'rgba(0,103,79,0.08)', color: 'var(--primary)', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>{c.numeroPasseport}</span></td>
+                <tr key={c._id || c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/dashboard/clients/${c._id || c.id}`)}>
+                  <td style={{ fontWeight: 600 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {c.photoUrl || c.photo_url ? (
+                        <img
+                          src={c.photoUrl || c.photo_url}
+                          alt=""
+                          style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)', flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,103,79,0.1)', color: 'var(--primary)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0
+                        }}>
+                          {(c.prenom?.[0] || '') + (c.nom?.[0] || '')}
+                        </div>
+                      )}
+                      <span>{c.nom} {c.prenom}</span>
+                    </div>
+                  </td>
+                  <td>
+                    {c.numeroPasseport || c.n_passeport ? (
+                      <span style={{ background: 'rgba(0,103,79,0.08)', color: 'var(--primary)', borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>
+                        {c.numeroPasseport || c.n_passeport}
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+                    )}
+                  </td>
                   <td style={{ fontSize: 12 }}>{c.telephone || '—'}</td>
                   <td style={{ fontSize: 12 }}>{c.email || '—'}</td>
                   <td>

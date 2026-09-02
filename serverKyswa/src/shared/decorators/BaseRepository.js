@@ -271,6 +271,19 @@ function normalizeItem(item) {
   if (normalized.date_naissance && !normalized.dateNaissance) {
     normalized.dateNaissance = normalized.date_naissance;
   }
+  if (normalized.photo_url && !normalized.photoUrl) {
+    normalized.photoUrl = normalized.photo_url;
+  }
+  if (normalized.passport_url && !normalized.passportUrl) {
+    normalized.passportUrl = normalized.passport_url;
+    normalized.documentPhotoUrl = normalized.passport_url;
+  }
+  if (normalized.numero_cni && !normalized.numeroCNI) {
+    normalized.numeroCNI = normalized.numero_cni;
+  }
+  if (normalized.niveau_fidelite && !normalized.niveauFidelite) {
+    normalized.niveauFidelite = normalized.niveau_fidelite;
+  }
 
   // Depart / Package fields
   if (normalized.nom_depart && !normalized.nomReference) {
