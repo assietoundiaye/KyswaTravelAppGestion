@@ -471,82 +471,75 @@ export default function ClientsPage() {
             {/* Documents */}
             <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Documents</p>
             
-{/* Affichage de la photo extraite si disponible */}
-             {form.photoUrl && (
-               <div style={{ 
-                 marginBottom: 12, 
-                 padding: 14, 
-                 background: 'rgba(0,103,79,0.04)', 
-                 borderRadius: 8,
-                 border: '1px solid rgba(0,103,79,0.12)',
-                 display: 'flex', 
-                 alignItems: 'flex-start', 
-                 gap: 14,
-                 width: '100%',
-                 boxSizing: 'border-box',
-               }}>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {/* Photo de profil (zone photo seule) */}
-                  <div style={{ textAlign: 'center' }}>
-                    <img 
-                      src={form.photoUrl} 
-                      alt="Photo de profil extraite"
-                      style={{ 
-                        width: 60, 
-                        height: 60, 
-                        objectFit: 'cover', 
-                        borderRadius: 6,
-                        border: '2px solid var(--primary)'
-                      }}
-                    />
-                    <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>Photo profil</p>
-                  </div>
-                  
-                  {/* Document photo (si disponible) */}
+            {/* Photo extraite du passeport */}
+            {form.photoUrl && (
+              <div style={{
+                marginBottom: 12,
+                padding: 14,
+                background: 'rgba(0,103,79,0.04)',
+                borderRadius: 10,
+                border: '1px solid rgba(0,103,79,0.15)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 14,
+              }}>
+
+                {/* Grande photo de profil */}
+                <div style={{ flexShrink: 0, textAlign: 'center' }}>
+                  <img
+                    src={form.photoUrl}
+                    alt="Photo de profil"
+                    style={{
+                      width: 90,
+                      height: 120,
+                      objectFit: 'cover',
+                      objectPosition: 'center top',
+                      borderRadius: 8,
+                      border: '2px solid var(--primary)',
+                      boxShadow: '0 2px 8px rgba(0,103,79,0.2)',
+                      display: 'block',
+                    }}
+                  />
+                  <p style={{ fontSize: 10, color: 'var(--primary)', fontWeight: 700, marginTop: 4 }}>Photo profil</p>
+                </div>
+
+                {/* Informations + document miniature */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)', marginBottom: 4 }}>
+                    ✓ Photo extraite automatiquement
+                  </p>
+                  <ul style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.8, margin: 0, paddingLeft: 14 }}>
+                    <li>Photo de profil recadrée sur le visage</li>
+                    {form.documentPhotoUrl && <li>Scan complet du passeport sauvegardé</li>}
+                  </ul>
+
                   {form.documentPhotoUrl && (
-                    <div style={{ textAlign: 'center' }}>
-                      <img 
-                        src={form.documentPhotoUrl} 
-                        alt="Document passeport"
-                        style={{ 
-                          width: 60, 
-                          height: 40, 
-                          objectFit: 'cover', 
-                          borderRadius: 4,
-                          border: '1px solid var(--border)'
-                        }}
-                      />
-                      <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>Document</p>
+                    <div style={{ marginTop: 8 }}>
+                      <a href={form.documentPhotoUrl} target="_blank" rel="noreferrer"
+                        style={{ display: 'inline-block', borderRadius: 4, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                        <img
+                          src={form.documentPhotoUrl}
+                          alt="Scan passeport"
+                          style={{ width: 80, height: 52, objectFit: 'cover', display: 'block' }}
+                        />
+                      </a>
+                      <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>Scan complet (cliquer pour agrandir)</p>
                     </div>
                   )}
                 </div>
-                
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)', marginBottom: 2 }}>
-                    Photo extraite automatiquement
-                  </p>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    • Photo complète du passeport (profil + document)<br/>
-                    {form.documentPhotoUrl && '• Document de référence sauvegardé'}
-                  </p>
-                </div>
-                <button 
+
+                {/* Bouton retirer */}
+                <button
                   type="button"
-                  onClick={() => setForm(f => ({ 
-                    ...f, 
-                    photoUrl: '', 
+                  onClick={() => setForm(f => ({
+                    ...f,
+                    photoUrl: '',
                     photoPublicId: '',
                     documentPhotoUrl: '',
-                    documentPhotoPublicId: ''
+                    documentPhotoPublicId: '',
                   }))}
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    color: 'var(--text-muted)', 
-                    cursor: 'pointer',
-                    padding: 4
-                  }}
-                  title="Supprimer les photos"
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, flexShrink: 0 }}
+                  title="Retirer les photos"
                 >
                   <X size={16} />
                 </button>
