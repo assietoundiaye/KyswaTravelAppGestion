@@ -138,16 +138,16 @@ function transformInputData(data, tableName, model = null) {
     let dbKey = key;
 
     // Mappages spécifiques pour les départs/packages
-    if (key === 'nomReference' || key === 'nom') dbKey = 'nom_depart';
-    else if (key === 'dateDepart') dbKey = 'date_depart';
-    else if (key === 'dateRetour') dbKey = 'date_retour';
-    else if (key === 'quotaMax' || key === 'placesTotal') {
+    if (key === 'nomReference' || (targetTable === 'departs' && key === 'nom')) dbKey = 'nom_depart';
+    else if (key === 'dateDepart' && targetTable === 'departs') dbKey = 'date_depart';
+    else if (key === 'dateRetour' && targetTable === 'departs') dbKey = 'date_retour';
+    else if (key === 'quotaMax' || (targetTable === 'departs' && key === 'placesTotal')) {
       dbKey = 'places_total';
     }
     else if (key === 'prixEco' || key === 'prix_eco') dbKey = 'prix_eco';
     else if (key === 'prixCont' || key === 'prixConfort' || key === 'prix_confort') dbKey = 'prix_confort';
     else if (key === 'prixVip' || key === 'prix_vip') dbKey = 'prix_vip';
-    else if (key === 'compagnieAerienne' || key === 'compagnie') dbKey = 'compagnie_aerienne';
+    else if (key === 'compagnieAerienne' || (targetTable === 'departs' && key === 'compagnie')) dbKey = 'compagnie_aerienne';
     else if (key === 'numeroVol') dbKey = 'numero_vol';
     else if (key === 'villeDepart') dbKey = 'ville_depart';
     else if (key === 'villeArrivee') dbKey = 'ville_arrivee';
@@ -158,7 +158,7 @@ function transformInputData(data, tableName, model = null) {
         continue;
       }
     }
-    else if (key === 'type' || key === 'service') {
+    else if (targetTable === 'departs' && (key === 'type' || key === 'service')) {
       dbKey = 'service';
       const t = String(value).toUpperCase();
       if (t === 'OUMRA') transformed[dbKey] = 'Oumra';
@@ -167,7 +167,7 @@ function transformInputData(data, tableName, model = null) {
       else transformed[dbKey] = value;
       continue;
     }
-    else if (key === 'statut' && (value === 'OUVERT' || value === 'COMPLET' || value === 'TERMINE' || value === 'ANNULE')) {
+    else if (targetTable === 'departs' && key === 'statut' && (value === 'OUVERT' || value === 'COMPLET' || value === 'TERMINE' || value === 'ANNULE')) {
       dbKey = 'actif';
       transformed[dbKey] = value === 'OUVERT' || value === 'COMPLET';
       continue;
