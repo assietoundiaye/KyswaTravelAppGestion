@@ -82,13 +82,13 @@ export default function PackagesPage() {
   const setUpper = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }));
 
   const openEdit = (pkg) => {
-    setEditId(pkg._id);
+    setEditId(pkg.id || pkg._id);
     setForm({
-      nomReference: pkg.nomReference || '',
-      type: pkg.type || 'OUMRA',
-      statut: pkg.statut || 'OUVERT',
-      dateDepart: pkg.dateDepart?.slice(0, 10) || '',
-      dateRetour: pkg.dateRetour?.slice(0, 10) || '',
+      nomReference: pkg.nomReference || pkg.nom_depart || '',
+      type: pkg.type || pkg.service?.toUpperCase() || 'OUMRA',
+      statut: pkg.statut || (pkg.actif !== false ? 'OUVERT' : 'TERMINE'),
+      dateDepart: (pkg.dateDepart || pkg.date_depart)?.slice(0, 10) || '',
+      dateRetour: (pkg.dateRetour || pkg.date_retour)?.slice(0, 10) || '',
       prixEco: pkg.prixEco || '',
       prixCont: pkg.prixCont || '',
       prixVip: pkg.prixVip || '',
@@ -97,7 +97,7 @@ export default function PackagesPage() {
       villeDepart: pkg.villeDepart || '',
       villeArrivee: pkg.villeArrivee || '',
       hotel: Array.isArray(pkg.hotel) ? pkg.hotel.join(', ') : (pkg.hotel || ''),
-      quotaMax: pkg.quotaMax || '',
+      quotaMax: pkg.quotaMax || pkg.places_total || '',
     });
     setShowModal(true);
   };
@@ -222,7 +222,7 @@ export default function PackagesPage() {
                             </button>
                           )}
                           {hasDelete && (
-                            <button onClick={() => { if ((p.placesReservees || 0) > 0) { toast('Impossible : des inscriptions existent', 'error'); return; } setConfirmId(p._id); }}
+                            <button onClick={() => { if ((p.placesReservees || 0) > 0) { toast('Impossible : des inscriptions existent', 'error'); return; } setConfirmId(p.id || p._id); }}
                               style={{ background: 'rgba(220,38,38,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                               Supprimer
                             </button>

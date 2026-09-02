@@ -138,10 +138,21 @@ function transformInputData(data, tableName, model = null) {
     let dbKey = key;
 
     // Mappages spécifiques pour les départs/packages
-    if (key === 'nomReference') dbKey = 'nom_depart';
+    if (key === 'nomReference' || key === 'nom') dbKey = 'nom_depart';
     else if (key === 'dateDepart') dbKey = 'date_depart';
     else if (key === 'dateRetour') dbKey = 'date_retour';
-    else if (key === 'quotaMax') dbKey = 'places_total';
+    else if (key === 'quotaMax' || key === 'placesTotal') {
+      dbKey = 'places_total';
+    }
+    else if (key === 'type' || key === 'service') {
+      dbKey = 'service';
+      const t = String(value).toUpperCase();
+      if (t === 'OUMRA') transformed[dbKey] = 'Oumra';
+      else if (t === 'HAJJ') transformed[dbKey] = 'Hajj';
+      else if (t === 'ZIYARA' || t.includes('ZIARA')) transformed[dbKey] = 'Ziara Fès';
+      else transformed[dbKey] = value;
+      continue;
+    }
     else if (key === 'statut' && (value === 'OUVERT' || value === 'COMPLET' || value === 'TERMINE' || value === 'ANNULE')) {
       dbKey = 'actif';
       transformed[dbKey] = value === 'OUVERT' || value === 'COMPLET';
@@ -286,6 +297,9 @@ function normalizeItem(item) {
   }
 
   // Depart / Package fields
+  if (normalized.service && !normalized.type) {
+    normalized.type = normalized.service.toUpperCase();
+  }
   if (normalized.nom_depart && !normalized.nomReference) {
     normalized.nomReference = normalized.nom_depart;
   }
@@ -306,6 +320,17 @@ function normalizeItem(item) {
   }
   if (normalized.actif !== undefined && normalized.statut === undefined) {
     normalized.statut = normalized.actif ? 'OUVERT' : 'TERMINE';
+  }
+  if (normalized.billets_groupe) {
+    if (normalized.billets_groupe.compagnie && !normalized.compagnieAerienne) {
+      normalized.compagnieAerienne = normalized.billets_groupe.compagnie;
+    }
+    if (normalized.billets_groupe.num_vol_aller && !normalized.numeroVol) {
+      normalized.numeroVol = normalized.billets_groupe.num_vol_aller;
+    }
+    if (normalized.billets_groupe.aeroport_depart && !normalized.villeDepart) {
+      normalized.villeDepart = normalized.billets_groupe.aeroport_depart;
+    }
   }
 
   // Inscription / Reservation fields

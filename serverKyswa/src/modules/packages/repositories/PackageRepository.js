@@ -27,15 +27,84 @@ class PackageRepository extends BaseRepository {
     this.packagesModel = prismaClient.packages;
     // Spécifier le nom de la table pour le filtrage des champs
     this.tableName = 'departs';
+    this.defaultInclude = {
+      billets_groupe: true,
+    };
   }
 
   // ─────────────────────────────────────────────────────
   // DÉPARTS KYSWA (departs)
   // ─────────────────────────────────────────────────────
 
+  async create(data) {
+    const createData = { ...data };
+    if (createData.type) {
+      const t = String(createData.type).toUpperCase();
+      if (t === 'OUMRA') createData.service = 'Oumra';
+      else if (t === 'HAJJ') createData.service = 'Hajj';
+      else if (t === 'ZIYARA' || t.includes('ZIARA')) createData.service = 'Ziara Fès';
+    }
+    if (!createData.service) createData.service = 'Oumra';
+
+    const created = await super.create(createData);
+
+    if (created?.id && (data.compagnieAerienne || data.numeroVol || data.villeDepart)) {
+      try {
+        await prismaClient.billets_groupe.create({
+          data: {
+            depart_id: created.id,
+            compagnie: data.compagnieAerienne || null,
+            num_vol_aller: data.numeroVol || null,
+            aeroport_depart: data.villeDepart || 'DSS — Dakar',
+          }
+        });
+      } catch (e) {
+        console.warn('[PackageRepository] Erreur creation billets_groupe:', e.message);
+      }
+    }
+
+    return await this.findById(created.id);
+  }
+
+  async updateById(id, data) {
+    const updateData = { ...data };
+    if (updateData.type) {
+      const t = String(updateData.type).toUpperCase();
+      if (t === 'OUMRA') updateData.service = 'Oumra';
+      else if (t === 'HAJJ') updateData.service = 'Hajj';
+      else if (t === 'ZIYARA' || t.includes('ZIARA')) updateData.service = 'Ziara Fès';
+    }
+
+    await super.updateById(id, updateData);
+
+    if (data.compagnieAerienne !== undefined || data.numeroVol !== undefined || data.villeDepart !== undefined) {
+      try {
+        await prismaClient.billets_groupe.upsert({
+          where: { depart_id: id },
+          create: {
+            depart_id: id,
+            compagnie: data.compagnieAerienne || null,
+            num_vol_aller: data.numeroVol || null,
+            aeroport_depart: data.villeDepart || 'DSS — Dakar',
+          },
+          update: {
+            compagnie: data.compagnieAerienne || undefined,
+            num_vol_aller: data.numeroVol || undefined,
+            aeroport_depart: data.villeDepart || undefined,
+          }
+        });
+      } catch (e) {
+        console.warn('[PackageRepository] Erreur maj billets_groupe:', e.message);
+      }
+    }
+
+    return await this.findById(id);
+  }
+
   async findActifs() {
     const raw = await this.model.findMany({
       where: { actif: true },
+      include: this.defaultInclude,
       orderBy: { date_depart: 'asc' }
     });
     return raw.map(item => normalizeItem(item));
@@ -44,6 +113,7 @@ class PackageRepository extends BaseRepository {
   async findByService(service) {
     const raw = await this.model.findMany({
       where: { service },
+      include: this.defaultInclude,
       orderBy: { date_depart: 'desc' }
     });
     return raw.map(item => normalizeItem(item));
