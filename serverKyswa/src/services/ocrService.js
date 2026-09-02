@@ -76,30 +76,30 @@ async function extractPassportPhoto(buffer) {
     // ── Cas 1 : Livret vertical ouvert (smartphone en portrait - cas 95% des utilisateurs) ──
     // Ratio < 0.95 (ex: 769x1080 = 0.71, 828x1244 = 0.67)
     // Page 1 en haut (0 à 50% de hauteur), Page biographique en bas (50% à 100% de hauteur)
-    // Photo du titulaire : en bas à gauche (X: 2%..40%, Y: 56%..90% de la hauteur totale)
+    // Photo du titulaire : cadrage précis sur le portrait sans le texte "Passeport" en haut ni la colonne texte à droite
     if (ratio <= 0.95) {
-      left       = Math.floor(width  * 0.02);
-      top        = Math.floor(height * 0.56);
-      cropWidth  = Math.floor(width  * 0.38);
-      cropHeight = Math.floor(height * 0.33);
+      left       = Math.floor(width  * 0.025);
+      top        = Math.floor(height * 0.585);
+      cropWidth  = Math.floor(width  * 0.31);
+      cropHeight = Math.floor(height * 0.31);
       console.log(`[OCR] Détection: LIVRET OUVERT VERTICAL (Haut/Bas, ratio: ${ratio.toFixed(2)})`);
     }
     // ── Cas 2 : Livret horizontal ouvert (double page côte à côte) ──────────────────────────
     // Ratio > 1.25 (ex: scanner ou photo en paysage)
     else if (ratio > 1.25) {
       // Page biographique à droite
-      left       = Math.floor(width  * 0.52);
-      top        = Math.floor(height * 0.25);
-      cropWidth  = Math.floor(width  * 0.20);
-      cropHeight = Math.floor(height * 0.55);
+      left       = Math.floor(width  * 0.525);
+      top        = Math.floor(height * 0.28);
+      cropWidth  = Math.floor(width  * 0.17);
+      cropHeight = Math.floor(height * 0.50);
       console.log(`[OCR] Détection: LIVRET OUVERT HORIZONTAL (Gauche/Droite, ratio: ${ratio.toFixed(2)})`);
     }
     // ── Cas 3 : Page biographique seule / recadrée ──────────────────────────────────────────
     else {
-      left       = Math.floor(width  * 0.02);
-      top        = Math.floor(height * 0.22);
-      cropWidth  = Math.floor(width  * 0.38);
-      cropHeight = Math.floor(height * 0.52);
+      left       = Math.floor(width  * 0.025);
+      top        = Math.floor(height * 0.25);
+      cropWidth  = Math.floor(width  * 0.33);
+      cropHeight = Math.floor(height * 0.48);
       console.log(`[OCR] Détection: PAGE UNIQUE RECADREE (ratio: ${ratio.toFixed(2)})`);
     }
 
