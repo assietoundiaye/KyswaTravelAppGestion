@@ -48,23 +48,68 @@ async function preprocessFull(buffer) {
     .toBuffer();
 }
 
-// ── Extraction de la zone photo (retourne l'image complète) ───────────────────
-// NOTE: Sans OpenCV, on ne peut pas détecter le visage automatiquement.
-// Le recadrage vers le côté gauche sera fait par Cloudinary (gravity: west)
+// ── Extraction de la zone photo (recadrage zone visage selon norme ICAO) ──────────────────
+// Dans un passeport biométrique standard (ICAO 9303), la photo est toujours dans
+// la partie gauche de la page de données, approximativement :
+//   - X: 0% à 38% de la largeur
+//   - Y: 5% à 60% de la hauteur
+// Cette approche fonctionne sans OpenCV avec seulement Sharp.
 async function extractPassportPhoto(buffer) {
   try {
-    // Simple: retourner le buffer complet
-    // Le recadrage gauche sera fait à l'upload Cloudinary
+    const meta = await sharp(buffer).metadata();
+    const { width, height } = meta;
+
+    if (!width || !height) {
+      return {
+        zonePhoto: { buffer, metadata: { width: null, height: null } },
+        documentComplet: buffer,
+      };
+    }
+
+    // Zone visage ICAO standard : côté gauche, ~38% de la largeur, ~5% à 60% de la hauteur
+    const photoLeft   = 0;
+    const photoTop    = Math.floor(height * 0.05);
+    const photoWidth  = Math.floor(width * 0.38);
+    const photoHeight = Math.floor(height * 0.55);
+
+    // S'assurer que les dimensions sont valides
+    const safePhotoWidth  = Math.min(photoWidth,  width  - photoLeft);
+    const safePhotoHeight = Math.min(photoHeight, height - photoTop);
+
+    if (safePhotoWidth < 50 || safePhotoHeight < 50) {
+      // Image trop petite pour recadrer, retourner l'image complète
+      return {
+        zonePhoto: { buffer, metadata: { width, height } },
+        documentComplet: buffer,
+      };
+    }
+
+    const faceBuffer = await sharp(buffer)
+      .extract({
+        left:   photoLeft,
+        top:    photoTop,
+        width:  safePhotoWidth,
+        height: safePhotoHeight,
+      })
+      .jpeg({ quality: 95 })
+      .toBuffer();
+
+    console.log(`[OCR] Zone visage extraite : ${safePhotoWidth}×${safePhotoHeight}px (original: ${width}×${height}px)`);
+
     return {
       zonePhoto: {
-        buffer: buffer,
-        metadata: { width: null, height: null }
+        buffer: faceBuffer,
+        metadata: { width: safePhotoWidth, height: safePhotoHeight },
       },
-      documentComplet: buffer
+      documentComplet: buffer,
     };
   } catch (error) {
-    console.warn('Erreur extraction zone photo:', error.message);
-    return null;
+    console.warn('[OCR] Erreur extraction zone visage, retour image complète :', error.message);
+    // Fallback propre : retourner l'image complète
+    return {
+      zonePhoto: { buffer, metadata: { width: null, height: null } },
+      documentComplet: buffer,
+    };
   }
 }
 

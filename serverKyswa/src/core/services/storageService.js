@@ -109,13 +109,18 @@ async function savePassportPhotos(zonePhotoBuffer, fullDocumentBuffer, clientInf
       result.documentPhotoPublicId = `local:${fullSave.filename}`;
     }
 
-    // 2. Sauvegarder la photo de profil (visage rogné)
+    // 2. Sauvegarder la photo de profil (zone visage recadrée par l'OCR)
     if (zonePhotoBuffer && Buffer.isBuffer(zonePhotoBuffer) && zonePhotoBuffer.length > 0) {
       let profileBuffer = zonePhotoBuffer;
       try {
+        // On utilise 'contain' pour ne pas déformer le visage, avec fond blanc
         profileBuffer = await sharp(zonePhotoBuffer)
-          .resize(400, 400, { fit: 'cover', position: 'center' })
-          .jpeg({ quality: 90 })
+          .resize(400, 500, {
+            fit: 'contain',        // Préserve les proportions sans recadrage brutal
+            position: 'centre',
+            background: { r: 255, g: 255, b: 255, alpha: 1 },
+          })
+          .jpeg({ quality: 92 })
           .toBuffer();
       } catch (err) {
         console.warn('[StorageService] Redimensionnement profil échoué, conservation buffer original:', err.message);
