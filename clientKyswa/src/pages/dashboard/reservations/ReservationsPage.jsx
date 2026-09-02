@@ -296,9 +296,9 @@ export default function ReservationsPage() {
   };
 
   const filtered = useMemo(() => {
-    // Filtrer par départ sélectionné — support depart_id (PostgreSQL) et packageKId (legacy Mongo)
+    // Filtrer par départ sélectionné (si ce n'est pas la vue globale ALL)
     let base = reservations;
-    if (selectedPkg) {
+    if (selectedPkg && selectedPkg.id !== 'ALL') {
       const pkgId = selectedPkg.id || selectedPkg._id;
       base = reservations.filter(r => {
         const rDepartId = r.depart_id || r.departs?.id;
