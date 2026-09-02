@@ -21,6 +21,11 @@ class ReservationRepository extends BaseRepository {
       clients: true,
       departs: true,
       paiements: true,
+      lignes_supplements: {
+        include: {
+          supplements: true,
+        },
+      },
     };
   }
 
@@ -61,20 +66,25 @@ class ReservationRepository extends BaseRepository {
   // ─────────────────────────────────────────────────────
 
   /**
-   * Inscription complète avec client, départ, paiements, visa
+   * Inscription complète avec client, départ, paiements, visa, suppléments
    */
   async findWithDetails(id) {
     return await this.model.findUnique({
       where: { id },
       include: {
-        clients:          true,
-        departs:          true,
-        paiements:        { orderBy: { date_paiement: 'desc' } },
-        visas:            true,
-        desistements:     true,
-        billets_pelerins: true,
-        recouvrement:     true,
-        profiles:         { select: { id: true, nom: true, prenom: true, role: true } },
+        clients:            true,
+        departs:            true,
+        paiements:          { orderBy: { date_paiement: 'desc' } },
+        lignes_supplements: {
+          include: {
+            supplements: true,
+          },
+        },
+        visas:              true,
+        desistements:       true,
+        billets_pelerins:   true,
+        recouvrement:       true,
+        profiles:           { select: { id: true, nom: true, prenom: true, role: true } },
       }
     });
   }

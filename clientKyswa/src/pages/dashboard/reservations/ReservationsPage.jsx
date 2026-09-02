@@ -121,6 +121,7 @@ const EMPTY_FORM = {
   packageKId: '', niveauConfort: 'ECO',
   dateDepart: '', dateRetour: '', montantTotalDu: '', notes: '',
   statutClient: 'INSCRIT', clients: [],
+  selectedSupplements: {},
 };
 
 const buildPackageForm = (pkg, base = EMPTY_FORM) => {
@@ -129,14 +130,17 @@ const buildPackageForm = (pkg, base = EMPTY_FORM) => {
   const prixMap = { ECO: pkg.prixEco, CONFORT: pkg.prixCont, VIP: pkg.prixVip };
   const defaultNiveau = ['ECO', 'CONFORT', 'VIP'].find(n => prixMap[n]) || 'ECO';
   const suggestedPrice = prixMap[defaultNiveau] || '';
+  const basePrice = suggestedPrice ? Number(suggestedPrice) : 0;
+  const suppTotal = Object.values(base.selectedSupplements || {}).reduce((acc, s) => acc + (s.quantite || 1) * Number(s.prix || 0), 0);
+  const total = basePrice + suppTotal;
 
   return {
     ...base,
-    packageKId: pkg._id,
+    packageKId: pkg._id || pkg.id,
     niveauConfort: defaultNiveau,
     dateDepart: pkg.dateDepart ? pkg.dateDepart.slice(0, 10) : base.dateDepart,
     dateRetour: pkg.dateRetour ? pkg.dateRetour.slice(0, 10) : base.dateRetour,
-    montantTotalDu: suggestedPrice ? String(Math.round(Number(suggestedPrice))) : base.montantTotalDu,
+    montantTotalDu: total > 0 ? String(Math.round(total)) : base.montantTotalDu,
   };
 };
 
@@ -145,6 +149,7 @@ export default function ReservationsPage() {
   const [reservations, setReservations] = useState([]);
   const [packages, setPackages] = useState([]);
   const [clients, setClients] = useState([]);
+  const [supplementsList, setSupplementsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [page, setPage] = useState(1);
@@ -173,10 +178,11 @@ export default function ReservationsPage() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [r, p, c] = await Promise.all([
+      const [r, p, c, s] = await Promise.all([
         api.get('/reservations', { params: { limit: 2000 } }),
         api.get('/packages', { params: { limit: 200 } }),
         api.get('/clients', { params: { limit: 2000 } }),
+        api.get('/supplements').catch(() => ({ data: { supplements: [] } })),
       ]);
       const allReservations = r.data.reservations || r.data.data || [];
       // Calcul du nombre d'inscriptions par départ
@@ -194,6 +200,7 @@ export default function ReservationsPage() {
       setReservations(allReservations);
       setPackages(pkgsWithCount);
       setClients(c.data.clients || c.data.data || []);
+      setSupplementsList(s.data.supplements || s.data.data || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -202,7 +209,7 @@ export default function ReservationsPage() {
 
   // Auto-fill dates AND prix when package is selected
   const handlePackageChange = (pkgId) => {
-    const pkg = packages.find(p => p._id === pkgId);
+    const pkg = packages.find(p => (p._id || p.id) === pkgId);
     setForm(buildPackageForm(pkg));
   };
 
@@ -214,18 +221,78 @@ export default function ReservationsPage() {
 
   // Recalculate price when niveau confort changes
   const handleConfortChange = (niveauConfort) => {
-    const pkg = packages.find(p => p._id === form.packageKId);
+    const pkg = packages.find(p => (p._id || p.id) === form.packageKId);
+    let basePrice = 0;
     if (pkg) {
       const prixMap = { ECO: pkg.prixEco, CONFORT: pkg.prixCont, VIP: pkg.prixVip };
-      const prix = prixMap[niveauConfort];
-      setForm(f => ({
-        ...f,
-        niveauConfort,
-        montantTotalDu: prix ? String(Math.round(Number(prix))) : f.montantTotalDu,
-      }));
-    } else {
-      setForm(f => ({ ...f, niveauConfort }));
+      basePrice = Number(prixMap[niveauConfort] || 0);
     }
+    const suppTotal = Object.values(form.selectedSupplements || {}).reduce((acc, s) => acc + (s.quantite || 1) * Number(s.prix || 0), 0);
+    const newTotal = basePrice + suppTotal;
+
+    setForm(f => ({
+      ...f,
+      niveauConfort,
+      montantTotalDu: newTotal > 0 ? String(Math.round(newTotal)) : f.montantTotalDu,
+    }));
+  };
+
+  // Basculer un supplément sélectionné
+  const toggleSupplement = (supp) => {
+    const suppId = supp._id || supp.id;
+    const current = { ...(form.selectedSupplements || {}) };
+    const suppPrix = Number(supp.prix?.$numberDecimal || supp.prix || 0);
+
+    if (current[suppId]) {
+      delete current[suppId];
+    } else {
+      current[suppId] = {
+        id: suppId,
+        nom: supp.nom,
+        prix: suppPrix,
+        quantite: 1,
+      };
+    }
+
+    const pkg = packages.find(p => (p._id || p.id) === form.packageKId);
+    let basePrice = 0;
+    if (pkg) {
+      const prixMap = { ECO: pkg.prixEco, CONFORT: pkg.prixCont, VIP: pkg.prixVip };
+      basePrice = Number(prixMap[form.niveauConfort] || 0);
+    } else {
+      basePrice = Number(form.montantTotalDu || 0);
+    }
+    const suppTotal = Object.values(current).reduce((acc, s) => acc + (s.quantite || 1) * Number(s.prix || 0), 0);
+    const newTotal = basePrice + suppTotal;
+
+    setForm(f => ({
+      ...f,
+      selectedSupplements: current,
+      montantTotalDu: newTotal > 0 ? String(Math.round(newTotal)) : f.montantTotalDu,
+    }));
+  };
+
+  // Ajuster la quantité d'un supplément
+  const updateSupplementQuantity = (suppId, delta) => {
+    const current = { ...(form.selectedSupplements || {}) };
+    if (!current[suppId]) return;
+    const newQte = Math.max(1, (current[suppId].quantite || 1) + delta);
+    current[suppId] = { ...current[suppId], quantite: newQte };
+
+    const pkg = packages.find(p => (p._id || p.id) === form.packageKId);
+    let basePrice = 0;
+    if (pkg) {
+      const prixMap = { ECO: pkg.prixEco, CONFORT: pkg.prixCont, VIP: pkg.prixVip };
+      basePrice = Number(prixMap[form.niveauConfort] || 0);
+    }
+    const suppTotal = Object.values(current).reduce((acc, s) => acc + (s.quantite || 1) * Number(s.prix || 0), 0);
+    const newTotal = basePrice + suppTotal;
+
+    setForm(f => ({
+      ...f,
+      selectedSupplements: current,
+      montantTotalDu: newTotal > 0 ? String(Math.round(newTotal)) : f.montantTotalDu,
+    }));
   };
 
   const filtered = useMemo(() => {
@@ -288,6 +355,12 @@ export default function ReservationsPage() {
     if (!form.packageKId) { toast('Sélectionnez un départ', 'error'); return; }
     setSaving(true);
     try {
+      const supplementsPayload = Object.values(form.selectedSupplements || {}).map(s => ({
+        supplementId: s.id,
+        quantite: s.quantite || 1,
+        prixUnitaire: Number(s.prix || 0),
+      }));
+
       const payload = {
         packageKId: form.packageKId,
         niveauConfort: form.niveauConfort || undefined,
@@ -296,6 +369,7 @@ export default function ReservationsPage() {
         montantTotalDu: Number(form.montantTotalDu),
         nombrePlaces: form.clients.length,
         clients: form.clients,
+        supplements: supplementsPayload,
         statutClient: form.statutClient || 'INSCRIT',
         notes: form.notes || undefined,
       };
@@ -304,7 +378,7 @@ export default function ReservationsPage() {
       setForm(EMPTY_FORM);
       setClientSearch('');
       fetchAll();
-      toast('Inscription créée');
+      toast('Inscription créée avec succès');
     } catch (err) {
       toast(err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Erreur', 'error');
     } finally { setSaving(false); }
@@ -801,6 +875,85 @@ export default function ReservationsPage() {
               <label className="input-label">Notes internes</label>
               <textarea value={form.notes} onChange={set('notes')} className="premium-input" rows={2} placeholder="Remarques, besoins spéciaux..." />
             </div>
+          </div>
+
+          {/* Suppléments / Options payantes */}
+          <div style={{ marginTop: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Suppléments / Options ({Object.keys(form.selectedSupplements || {}).length} sélectionné(s))
+              </p>
+              {Object.keys(form.selectedSupplements || {}).length > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)' }}>
+                  + {Object.values(form.selectedSupplements || {}).reduce((acc, s) => acc + (s.quantite || 1) * Number(s.prix || 0), 0).toLocaleString('fr-FR')} FCFA
+                </span>
+              )}
+            </div>
+
+            {supplementsList.length === 0 ? (
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', background: 'var(--bg-main)', padding: '8px 12px', borderRadius: 8 }}>
+                Aucun supplément configuré dans le système.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: 8 }}>
+                {supplementsList.filter(s => s.actif !== false).map(s => {
+                  const suppId = s._id || s.id;
+                  const isSelected = !!form.selectedSupplements?.[suppId];
+                  const suppPrix = Number(s.prix?.$numberDecimal || s.prix || 0);
+                  const qte = form.selectedSupplements?.[suppId]?.quantite || 1;
+
+                  return (
+                    <div
+                      key={suppId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 10px',
+                        borderRadius: 6,
+                        background: isSelected ? 'rgba(0,103,79,0.06)' : '#FAFAFA',
+                        border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                      }}
+                    >
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flex: 1, margin: 0 }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSupplement(s)}
+                        />
+                        <div>
+                          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-main)' }}>{s.nom}</span>
+                          <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 700, marginLeft: 8 }}>
+                            {suppPrix.toLocaleString('fr-FR')} FCFA
+                          </span>
+                        </div>
+                      </label>
+
+                      {isSelected && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Qté:</span>
+                          <button
+                            type="button"
+                            onClick={() => updateSupplementQuantity(suppId, -1)}
+                            style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'white', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            -
+                          </button>
+                          <span style={{ fontWeight: 700, fontSize: 12, minWidth: 16, textAlign: 'center' }}>{qte}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateSupplementQuantity(suppId, 1)}
+                            style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid var(--border)', background: 'white', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Clients */}

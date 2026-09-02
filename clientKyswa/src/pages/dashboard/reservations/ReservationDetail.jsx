@@ -52,6 +52,12 @@ export default function ReservationDetail() {
   });
   const [savingPaiement, setSavingPaiement] = useState(false);
 
+  // Suppléments
+  const [showAddSupplement, setShowAddSupplement] = useState(false);
+  const [availableSupplements, setAvailableSupplements] = useState([]);
+  const [suppForm, setSuppForm] = useState({ supplementId: '', quantite: 1 });
+  const [savingSupp, setSavingSupp] = useState(false);
+
   const fetchAll = async () => {
     try {
       // Le backend retourne { success: true, data: { ...inscription, departs, clients, paiements } }
@@ -103,6 +109,46 @@ export default function ReservationDetail() {
     }
   };
 
+  const openAddSuppModal = async () => {
+    try {
+      const res = await api.get('/supplements');
+      const all = res.data.supplements || res.data.data || [];
+      const actives = all.filter(s => s.actif !== false);
+      setAvailableSupplements(actives);
+      if (actives.length > 0) {
+        setSuppForm({ supplementId: actives[0]._id || actives[0].id || '', quantite: 1 });
+      }
+      setShowAddSupplement(true);
+    } catch (err) {
+      toast('Erreur lors du chargement des suppléments', 'error');
+    }
+  };
+
+  const handleAddSupplement = async (e) => {
+    e.preventDefault();
+    if (!suppForm.supplementId) return toast('Sélectionnez un supplément', 'error');
+    setSavingSupp(true);
+    try {
+      await api.post(`/reservations/${id}/supplements`, suppForm);
+      toast('Supplément ajouté avec succès');
+      setShowAddSupplement(false);
+      fetchAll();
+    } catch (err) {
+      toast(err.response?.data?.message || 'Erreur lors de l\'ajout du supplément', 'error');
+    } finally { setSavingSupp(false); }
+  };
+
+  const handleDeleteSupplement = async (ligneId) => {
+    if (!window.confirm('Retirer ce supplément de la réservation ?')) return;
+    try {
+      await api.delete(`/reservations/${id}/supplements/${ligneId}`);
+      toast('Supplément retiré');
+      fetchAll();
+    } catch (err) {
+      toast(err.response?.data?.message || 'Erreur lors de la suppression', 'error');
+    }
+  };
+
   const handleDeleteInscription = async () => {
     setDeleting(true);
     try {
@@ -139,6 +185,7 @@ export default function ReservationDetail() {
   const depart = insc.departs || {};
   const client = insc.clients || {};
   const paiements = insc.paiements || [];
+  const lignesSupplements = insc.lignes_supplements || [];
 
   // Calcul finances
   const prixTotal = insc.prix_total || 0;
@@ -345,6 +392,59 @@ export default function ReservationDetail() {
         )}
       </div>
 
+      {/* Suppléments */}
+      <div className="premium-card" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            Suppléments ({lignesSupplements.length})
+          </h2>
+          <button onClick={openAddSuppModal} className="btn-primary" style={{ fontSize: 12, padding: '5px 12px' }}>
+            + Ajouter un supplément
+          </button>
+        </div>
+
+        {lignesSupplements.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, fontStyle: 'italic' }}>Aucun supplément associé à cette inscription</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Option</th>
+                  <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quantité</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prix unit.</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</th>
+                  <th style={{ width: 40 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {lignesSupplements.map((ls, i) => (
+                  <tr key={ls.id || i} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 600 }}>{ls.supplements?.nom || 'Supplément'}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                      <span style={{ background: 'var(--bg-main)', borderRadius: 12, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
+                        x{ls.quantite || 1}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>{fmt(ls.prix_unitaire)}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>{fmt(ls.prix_total)}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                      <button
+                        onClick={() => handleDeleteSupplement(ls.id)}
+                        style={{ background: 'none', border: 'none', color: '#DC2626', fontSize: 13, cursor: 'pointer', padding: 4 }}
+                        title="Retirer ce supplément"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Changement de statut client */}
       <div className="premium-card" style={{ marginBottom: 16 }}>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: 'var(--text-main)', marginBottom: 12 }}>
@@ -372,6 +472,45 @@ export default function ReservationDetail() {
           })}
         </div>
       </div>
+
+      {/* Modal ajouter supplément */}
+      <Modal open={showAddSupplement} onClose={() => setShowAddSupplement(false)} title="Ajouter un supplément à l'inscription">
+        <form onSubmit={handleAddSupplement} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label className="input-label">Supplément / Prestation *</label>
+            <select
+              value={suppForm.supplementId}
+              onChange={e => setSuppForm(f => ({ ...f, supplementId: e.target.value }))}
+              className="premium-input"
+              required
+            >
+              {availableSupplements.map(s => (
+                <option key={s._id || s.id} value={s._id || s.id}>
+                  {s.nom} — {Number(s.prix?.$numberDecimal || s.prix || 0).toLocaleString('fr-FR')} FCFA
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="input-label">Quantité *</label>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={suppForm.quantite}
+              onChange={e => setSuppForm(f => ({ ...f, quantite: parseInt(e.target.value, 10) || 1 }))}
+              className="premium-input"
+              required
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+            <button type="button" onClick={() => setShowAddSupplement(false)} className="btn-secondary">Annuler</button>
+            <button type="submit" disabled={savingSupp} className="btn-primary">
+              {savingSupp ? 'Ajout...' : 'Ajouter le supplément'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal ajouter paiement */}
       <Modal open={showPaiement} onClose={() => setShowPaiement(false)} title="Enregistrer un paiement">

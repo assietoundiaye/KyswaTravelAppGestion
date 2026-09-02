@@ -98,16 +98,114 @@ function createReservationsRoutes(dependencies) {
       console.log('Creating inscription with data:', transformedData);
       
       const item = await repository.create(transformedData);
+
+      // Créer les lignes de suppléments associées si fournies
+      const prismaClient = require('../../database/client');
+      if (Array.isArray(data.supplements) && data.supplements.length > 0) {
+        for (const s of data.supplements) {
+          const suppId = s.supplementId || s.supplement_id || s.id;
+          const qte = parseInt(s.quantite, 10) || 1;
+          const prixUnit = Number(s.prixUnitaire ?? s.prix_unitaire ?? s.prix ?? 0);
+          const prixTot = qte * prixUnit;
+
+          if (suppId) {
+            try {
+              await prismaClient.lignes_supplements.create({
+                data: {
+                  inscription_id: item.id,
+                  client_id: data.clients?.[0] || null,
+                  supplement_id: suppId,
+                  quantite: qte,
+                  prix_unitaire: prixUnit,
+                  prix_total: prixTot,
+                  created_by: req.user?.id || null,
+                }
+              });
+            } catch (suppErr) {
+              console.warn('[Reservations] Erreur création ligne supplément:', suppErr.message);
+            }
+          }
+        }
+      }
+
+      // Recharger l'inscription complète avec ses suppléments
+      const fullItem = await repository.findById(item.id);
+
       res.status(201).json({ 
         success: true, 
-        data: item, 
-        reservation: item,
+        data: fullItem || item, 
+        reservation: fullItem || item,
         message: 'Inscription créée avec succès'
       });
     } catch (e) { 
       console.error('Error creating inscription:', e);
       next(e); 
     }
+  });
+
+  // POST ajouter un supplément à une inscription existante
+  router.post('/:id/supplements', protect, checkPermission('reservations', 'edit'), async (req, res, next) => {
+    try {
+      const { supplementId, supplement_id, quantite = 1, prixUnitaire, prix_unitaire } = req.body;
+      const suppId = supplementId || supplement_id;
+      const qte = parseInt(quantite, 10) || 1;
+      
+      const prismaClient = require('../../database/client');
+      
+      // Récupérer le supplément pour son prix par défaut si non spécifié
+      let unitPrice = prixUnitaire ?? prix_unitaire;
+      if (unitPrice === undefined || unitPrice === null) {
+        const supp = await prismaClient.supplements.findUnique({ where: { id: suppId } });
+        unitPrice = supp ? Number(supp.prix) : 0;
+      }
+      
+      const prixTotal = qte * Number(unitPrice);
+      
+      const inscription = await repository.findById(req.params.id);
+      if (!inscription) return res.status(404).json({ success: false, message: 'Inscription non trouvée' });
+
+      const ligne = await prismaClient.lignes_supplements.create({
+        data: {
+          inscription_id: req.params.id,
+          client_id: inscription.client_id || null,
+          supplement_id: suppId,
+          quantite: qte,
+          prix_unitaire: Number(unitPrice),
+          prix_total: prixTotal,
+          created_by: req.user?.id || null,
+        },
+        include: {
+          supplements: true
+        }
+      });
+
+      // Mettre à jour le prix_total de l'inscription
+      const nouveauPrixTotal = Number(inscription.prix_total || 0) + prixTotal;
+      await repository.updateById(req.params.id, { prix_total: nouveauPrixTotal });
+
+      res.status(201).json({ success: true, data: ligne, message: 'Supplément ajouté avec succès' });
+    } catch (e) { next(e); }
+  });
+
+  // DELETE supprimer un supplément d'une inscription
+  router.delete('/:id/supplements/:ligneId', protect, checkPermission('reservations', 'edit'), async (req, res, next) => {
+    try {
+      const prismaClient = require('../../database/client');
+      const ligne = await prismaClient.lignes_supplements.findUnique({ where: { id: req.params.ligneId } });
+      
+      if (!ligne) return res.status(404).json({ success: false, message: 'Ligne de supplément non trouvée' });
+      
+      const montantADeduire = Number(ligne.prix_total || 0);
+      await prismaClient.lignes_supplements.delete({ where: { id: req.params.ligneId } });
+
+      const inscription = await repository.findById(req.params.id);
+      if (inscription) {
+        const nouveauPrixTotal = Math.max(0, Number(inscription.prix_total || 0) - montantADeduire);
+        await repository.updateById(req.params.id, { prix_total: nouveauPrixTotal });
+      }
+
+      res.json({ success: true, message: 'Supplément retiré avec succès' });
+    } catch (e) { next(e); }
   });
 
   // PATCH mettre à jour
