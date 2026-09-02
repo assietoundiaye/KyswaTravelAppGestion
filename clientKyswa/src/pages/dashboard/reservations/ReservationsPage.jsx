@@ -127,19 +127,23 @@ const EMPTY_FORM = {
 const buildPackageForm = (pkg, base = EMPTY_FORM) => {
   if (!pkg) return EMPTY_FORM;
 
-  const prixMap = { ECO: pkg.prixEco, CONFORT: pkg.prixCont, VIP: pkg.prixVip };
-  const defaultNiveau = ['ECO', 'CONFORT', 'VIP'].find(n => prixMap[n]) || 'ECO';
-  const suggestedPrice = prixMap[defaultNiveau] || '';
-  const basePrice = suggestedPrice ? Number(suggestedPrice) : 0;
+  const prixMap = {
+    ECO: Number(pkg.prixEco || pkg.prix_eco || 0),
+    CONFORT: Number(pkg.prixCont || pkg.prix_confort || 0),
+    VIP: Number(pkg.prixVip || pkg.prix_vip || 0),
+  };
+  const defaultNiveau = ['ECO', 'CONFORT', 'VIP'].find(n => prixMap[n] > 0) || 'ECO';
+  const suggestedPrice = prixMap[defaultNiveau] || 0;
+  const basePrice = suggestedPrice > 0 ? suggestedPrice : 0;
   const suppTotal = Object.values(base.selectedSupplements || {}).reduce((acc, s) => acc + (s.quantite || 1) * Number(s.prix || 0), 0);
   const total = basePrice + suppTotal;
 
   return {
     ...base,
-    packageKId: pkg._id || pkg.id,
+    packageKId: pkg.id || pkg._id,
     niveauConfort: defaultNiveau,
-    dateDepart: pkg.dateDepart ? pkg.dateDepart.slice(0, 10) : base.dateDepart,
-    dateRetour: pkg.dateRetour ? pkg.dateRetour.slice(0, 10) : base.dateRetour,
+    dateDepart: (pkg.dateDepart || pkg.date_depart) ? (pkg.dateDepart || pkg.date_depart).slice(0, 10) : base.dateDepart,
+    dateRetour: (pkg.dateRetour || pkg.date_retour) ? (pkg.dateRetour || pkg.date_retour).slice(0, 10) : base.dateRetour,
     montantTotalDu: total > 0 ? String(Math.round(total)) : base.montantTotalDu,
   };
 };
@@ -209,22 +213,27 @@ export default function ReservationsPage() {
 
   // Auto-fill dates AND prix when package is selected
   const handlePackageChange = (pkgId) => {
-    const pkg = packages.find(p => (p._id || p.id) === pkgId);
-    setForm(buildPackageForm(pkg));
+    const pkg = packages.find(p => (p.id === pkgId || p._id === pkgId));
+    setForm(f => buildPackageForm(pkg, f));
   };
 
   const openForm = (pkg = selectedPkg) => {
-    setForm(buildPackageForm(pkg));
+    const targetPkg = (pkg && pkg.id !== 'ALL') ? pkg : null;
+    setForm(buildPackageForm(targetPkg));
     setClientSearch('');
     setShowForm(true);
   };
 
   // Recalculate price when niveau confort changes
   const handleConfortChange = (niveauConfort) => {
-    const pkg = packages.find(p => (p._id || p.id) === form.packageKId);
+    const pkg = packages.find(p => (p.id === form.packageKId || p._id === form.packageKId));
     let basePrice = 0;
     if (pkg) {
-      const prixMap = { ECO: pkg.prixEco, CONFORT: pkg.prixCont, VIP: pkg.prixVip };
+      const prixMap = {
+        ECO: Number(pkg.prixEco || pkg.prix_eco || 0),
+        CONFORT: Number(pkg.prixCont || pkg.prix_confort || 0),
+        VIP: Number(pkg.prixVip || pkg.prix_vip || 0),
+      };
       basePrice = Number(prixMap[niveauConfort] || 0);
     }
     const suppTotal = Object.values(form.selectedSupplements || {}).reduce((acc, s) => acc + (s.quantite || 1) * Number(s.prix || 0), 0);
@@ -793,29 +802,31 @@ export default function ReservationsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="input-label">Package / Départ *</label>
-              {selectedPkg ? (
+              {(selectedPkg && selectedPkg.id !== 'ALL') ? (
                 <div className="premium-input" style={{ minHeight: 42, display: 'flex', alignItems: 'center' }}>
-                  {selectedPkg.nomReference} — {selectedPkg.type} — {fmtDate(selectedPkg.dateDepart)}
-                  {selectedPkg.quotaMax && ` (${selectedPkg.placesReservees || 0}/${selectedPkg.quotaMax} places)`}
+                  {selectedPkg.nomReference || selectedPkg.nom_depart} — {selectedPkg.type || selectedPkg.service} — {fmtDate(selectedPkg.dateDepart || selectedPkg.date_depart)}
+                  {(selectedPkg.quotaMax || selectedPkg.places_total) && ` (${selectedPkg.placesReservees || 0}/${selectedPkg.quotaMax || selectedPkg.places_total} places)`}
                 </div>
               ) : (
                 <select value={form.packageKId} onChange={e => handlePackageChange(e.target.value)} className="premium-input" required>
                   <option value="">Sélectionner un départ...</option>
-                  {packages.filter(p => p.statut === 'OUVERT').map(p => (
-                    <option key={p._id} value={p._id}>
-                      {p.nomReference} — {p.type} — {fmtDate(p.dateDepart)}
-                      {p.quotaMax && ` (${p.placesReservees || 0}/${p.quotaMax} places)`}
+                  {packages.filter(p => p.statut === 'OUVERT' || p.actif !== false).map(p => (
+                    <option key={p.id || p._id} value={p.id || p._id}>
+                      {p.nomReference || p.nom_depart} — {p.type || p.service} — {fmtDate(p.dateDepart || p.date_depart)}
+                      {(p.quotaMax || p.places_total) && ` (${p.placesReservees || 0}/${p.quotaMax || p.places_total} places)`}
                     </option>
                   ))}
                 </select>
               )}
               {/* Prix du package sélectionné */}
               {form.packageKId && (() => {
-                const pkg = packages.find(p => p._id === form.packageKId);
+                const pkg = packages.find(p => (p.id === form.packageKId || p._id === form.packageKId));
                 if (!pkg) return null;
                 const prix = [
-                  ['Éco', pkg.prixEco], ['Confort', pkg.prixCont], ['VIP', pkg.prixVip],
-                ].filter(([, v]) => v);
+                  ['Éco', pkg.prixEco || pkg.prix_eco],
+                  ['Confort', pkg.prixCont || pkg.prix_confort],
+                  ['VIP', pkg.prixVip || pkg.prix_vip],
+                ].filter(([, v]) => Number(v) > 0);
                 if (!prix.length) return null;
                 return (
                   <div style={{ marginTop: 8, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -827,7 +838,7 @@ export default function ReservationsPage() {
                     ))}
                     {pkg.compagnieAerienne && (
                       <span style={{ background: '#EFF6FF', borderRadius: 8, padding: '4px 10px', fontSize: 12, color: '#2563EB', fontWeight: 600 }}>
-                        {pkg.compagnieAerienne} {pkg.villeDepart && `· ${pkg.villeDepart} → ${pkg.villeArrivee}`}
+                        {pkg.compagnieAerienne} {pkg.villeDepart && `· ${pkg.villeDepart} → ${pkg.villeArrivee || ''}`}
                       </span>
                     )}
                   </div>
@@ -848,8 +859,10 @@ export default function ReservationsPage() {
           <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Classe / Confort</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             {[['ECO', 'prixEco'], ['CONFORT', 'prixCont'], ['VIP', 'prixVip']].map(([niveau, key]) => {
-              const pkg = packages.find(p => p._id === form.packageKId);
-              const prix = pkg?.[key];
+              const pkg = packages.find(p => (p.id === form.packageKId || p._id === form.packageKId));
+              const fallbackKey = key === 'prixEco' ? 'prix_eco' : key === 'prixCont' ? 'prix_confort' : 'prix_vip';
+              const rawPrix = pkg?.[key] || pkg?.[fallbackKey];
+              const prix = Number(rawPrix) > 0 ? rawPrix : null;
               const isSelected = form.niveauConfort === niveau;
               return (
                 <button
