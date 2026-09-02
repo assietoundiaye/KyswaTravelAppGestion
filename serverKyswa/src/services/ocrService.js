@@ -48,67 +48,85 @@ async function preprocessFull(buffer) {
     .toBuffer();
 }
 
-// ── Extraction de la zone photo — Adaptative (Portrait / Paysage) ─────────────
+// ── Extraction de la zone photo — Passeport sénégalais / CEDEAO ──────────────
 //
-// Les passeports CEDEAO (Sénégal, etc.) sont photographiés de deux façons :
+// Layout de la page biographique du passeport sénégalais biométrique (CEDEAO) :
 //
-//  MODE PAYSAGE (width > height) — smartphone à l'horizontal devant la page :
-//    La photo du titulaire est dans le COIN SUPÉRIEUR GAUCHE
-//    Zone : LEFT 0–40%, TOP 3–65%
+//   [ENTÊTE]   REPUBLIQUE DU SENEGAL / emblème CEDEAO  ← ~0–28% hauteur
+//   [PHOTO]    Photo du titulaire (coin gauche)        ← ~28–75% hauteur, 0–42% largeur
+//   [MRZ]      2 lignes MRZ                            ← ~75–100% hauteur
 //
-//  MODE PORTRAIT (height > width) — smartphone à la verticale :
-//    La photo est dans le COIN SUPÉRIEUR GAUCHE ÉGALEMENT
-//    mais les proportions changent car la page est tournée.
-//    Zone : LEFT 0–45%, TOP 3–55%
+// CAS DOUBLE-PAGE : si le ratio largeur/hauteur > 1.7, l'image montre
+//   2 pages côte à côte → on prend d'abord la MOITIÉ DROITE (page biographique)
+//   puis on applique les mêmes coordonnées relatives sur cette moitié.
 //
-//  Dans tous les cas on retourne AUSSI le document complet pour archivage.
 async function extractPassportPhoto(buffer) {
   try {
-    // Toujours travailler en JPEG couleur pour la photo de profil
     const jpegBuffer = await sharp(buffer).jpeg().toBuffer();
     const meta = await sharp(jpegBuffer).metadata();
-    const { width, height } = meta;
+    let { width, height } = meta;
 
     if (!width || !height || width < 100 || height < 100) {
       return { zonePhoto: { buffer: jpegBuffer, metadata: { width, height } }, documentComplet: jpegBuffer };
     }
 
+    // ── Étape 1 : détecter un scan double-page (deux pages côte à côte) ────────
+    // Ratio > 1.7 en paysage → très probablement double-page
+    let workingBuffer = jpegBuffer;
+    const ratio = width / height;
+
+    if (ratio > 1.7) {
+      // Double-page : la page biographique est sur la DROITE (couverture sur la gauche)
+      const halfW = Math.floor(width / 2);
+      workingBuffer = await sharp(jpegBuffer)
+        .extract({ left: halfW, top: 0, width: width - halfW, height })
+        .jpeg({ quality: 95 })
+        .toBuffer();
+
+      const newMeta = await sharp(workingBuffer).metadata();
+      width  = newMeta.width;
+      height = newMeta.height;
+      console.log(`[OCR] Double-page détectée — moitié droite extraite : ${width}×${height}px`);
+    }
+
+    // ── Étape 2 : extraire la zone visage selon le layout CEDEAO ────────────────
+    // La photo est TOUJOURS dans la zone CENTRE-GAUCHE (après l'entête du pays)
+    //   Horizontalement : 0 → ~40% de la largeur
+    //   Verticalement   : ~28% → ~78% de la hauteur (sous l'entête, avant la MRZ)
     const isLandscape = width >= height;
+
     let left, top, cropWidth, cropHeight;
 
     if (isLandscape) {
-      // PAYSAGE : passport page photographié à l'horizontal (le cas le plus courant avec un scanner)
-      // La photo du titulaire occupe ~35% de la largeur et ~62% de la hauteur de la moitié gauche
+      // Page biographique photographiée en PAYSAGE (plus large que haute)
       left       = 0;
-      top        = Math.floor(height * 0.03);
-      cropWidth  = Math.floor(width  * 0.35);
-      cropHeight = Math.floor(height * 0.62);
+      top        = Math.floor(height * 0.28);   // Passe l'entête "REPUBLIQUE DU SENEGAL"
+      cropWidth  = Math.floor(width  * 0.38);
+      cropHeight = Math.floor(height * 0.50);   // 28%→78% de la hauteur
     } else {
-      // PORTRAIT : passeport photographié à la verticale (smartphone tenu droit)
-      // Dans ce cas la page du passeport est en portrait — la photo est en haut à gauche
+      // Page biographique photographiée en PORTRAIT (plus haute que large)
       left       = 0;
-      top        = Math.floor(height * 0.03);
-      cropWidth  = Math.floor(width  * 0.45);
-      cropHeight = Math.floor(height * 0.42);
+      top        = Math.floor(height * 0.25);   // Passe l'entête
+      cropWidth  = Math.floor(width  * 0.44);
+      cropHeight = Math.floor(height * 0.45);   // 25%→70% de la hauteur
     }
 
-    // Validation des dimensions
     const safeWidth  = Math.min(cropWidth,  width  - left);
     const safeHeight = Math.min(cropHeight, height - top);
 
     if (safeWidth < 60 || safeHeight < 60) {
       console.warn(`[OCR] Zone photo trop petite (${safeWidth}×${safeHeight}), retour image complète`);
-      return { zonePhoto: { buffer: jpegBuffer, metadata: { width, height } }, documentComplet: jpegBuffer };
+      return { zonePhoto: { buffer: workingBuffer, metadata: { width, height } }, documentComplet: jpegBuffer };
     }
 
-    const faceBuffer = await sharp(jpegBuffer)
+    const faceBuffer = await sharp(workingBuffer)
       .extract({ left, top, width: safeWidth, height: safeHeight })
       .jpeg({ quality: 95 })
       .toBuffer();
 
     console.log(
-      `[OCR] Photo extraite (${isLandscape ? 'PAYSAGE' : 'PORTRAIT'}) : ` +
-      `zone ${left},${top} → ${safeWidth}×${safeHeight}px | image: ${width}×${height}px`
+      `[OCR] Zone visage extraite (${isLandscape ? 'PAYSAGE' : 'PORTRAIT'}) : ` +
+      `zone left=${left} top=${top} → ${safeWidth}×${safeHeight}px | page: ${width}×${height}px`
     );
 
     return {
