@@ -220,6 +220,7 @@ export default function ClientsPage() {
                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Chargement...</td></tr>
               ) : clients.length === 0 ? (
                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>Aucun client</td></tr>
+              ) : clients.map(c => (
                 <tr key={c._id || c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/dashboard/clients/${c._id || c.id}`)}>
                   <td style={{ fontWeight: 600 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
