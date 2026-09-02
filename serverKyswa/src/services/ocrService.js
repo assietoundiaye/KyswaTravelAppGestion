@@ -61,63 +61,105 @@ async function preprocessFull(buffer) {
 //   puis on applique les mêmes coordonnées relatives sur cette moitié.
 //
 async function extractPassportPhoto(buffer) {
+  const fs = require('fs');
+  const path = require('path');
+  const debugDir = path.join(__dirname, '../../../uploads/debug');
+  if (!fs.existsSync(debugDir)) fs.mkdirSync(debugDir, { recursive: true });
+
   try {
     const jpegBuffer = await sharp(buffer).jpeg().toBuffer();
     const meta = await sharp(jpegBuffer).metadata();
     let { width, height } = meta;
 
+    console.log(`\n[OCR DEBUG] ════ extractPassportPhoto ════`);
+    console.log(`[OCR DEBUG] Image reçue : ${width}×${height}px | ratio W/H = ${(width/height).toFixed(2)}`);
+
+    // Sauvegarder l'image originale reçue pour debug
+    await sharp(jpegBuffer).toFile(path.join(debugDir, 'step0_original.jpg'));
+    console.log(`[OCR DEBUG] step0_original.jpg sauvegardé`);
+
     if (!width || !height || width < 100 || height < 100) {
       return { zonePhoto: { buffer: jpegBuffer, metadata: { width, height } }, documentComplet: jpegBuffer };
     }
 
-    // ── Étape 1 : détecter un scan double-page (deux pages côte à côte) ────────
-    // Ratio > 1.7 en paysage → très probablement double-page
     let workingBuffer = jpegBuffer;
     const ratio = width / height;
 
+    // ── Détection double-page ────────────────────────────────────────────────
     if (ratio > 1.3) {
-      // Double-page : la page biographique est sur la DROITE (couverture sur la gauche)
+      // Scan PAYSAGE large → essayer les deux moitiés et choisir celle avec plus de variance
       const halfW = Math.floor(width / 2);
-      workingBuffer = await sharp(jpegBuffer)
+
+      const leftHalf = await sharp(jpegBuffer)
+        .extract({ left: 0, top: 0, width: halfW, height })
+        .jpeg({ quality: 90 }).toBuffer();
+
+      const rightHalf = await sharp(jpegBuffer)
         .extract({ left: halfW, top: 0, width: width - halfW, height })
-        .jpeg({ quality: 95 })
-        .toBuffer();
+        .jpeg({ quality: 90 }).toBuffer();
+
+      // Sauvegarder les deux moitiés pour debug
+      await sharp(leftHalf).toFile(path.join(debugDir, 'step1_left_half.jpg'));
+      await sharp(rightHalf).toFile(path.join(debugDir, 'step1_right_half.jpg'));
+
+      // Calculer la variance de chaque moitié (la page biographique a plus de couleurs variées que l'emblème)
+      const statsLeft  = await sharp(leftHalf).stats();
+      const statsRight = await sharp(rightHalf).stats();
+      const varLeft    = statsLeft.channels.reduce((s, c) => s + c.stdev, 0);
+      const varRight   = statsRight.channels.reduce((s, c) => s + c.stdev, 0);
+
+      console.log(`[OCR DEBUG] Variance gauche=${varLeft.toFixed(1)} | Variance droite=${varRight.toFixed(1)}`);
+
+      // La page avec le visage a généralement PLUS de variance (couleurs de peau, fond, etc.)
+      workingBuffer = varLeft >= varRight ? leftHalf : rightHalf;
+      const chosen = varLeft >= varRight ? 'GAUCHE' : 'DROITE';
 
       const newMeta = await sharp(workingBuffer).metadata();
       width  = newMeta.width;
       height = newMeta.height;
-      console.log(`[OCR] Double-page détectée — moitié droite extraite : ${width}×${height}px`);
+      console.log(`[OCR DEBUG] Moitié choisie : ${chosen} (${width}×${height}px)`);
+      await sharp(workingBuffer).toFile(path.join(debugDir, 'step2_chosen_half.jpg'));
+
+    } else if (ratio < 0.7) {
+      // Scan PORTRAIT très allongé → deux pages empilées verticalement → prendre la moitié BASSE
+      const halfH = Math.floor(height / 2);
+      workingBuffer = await sharp(jpegBuffer)
+        .extract({ left: 0, top: halfH, width, height: height - halfH })
+        .jpeg({ quality: 90 }).toBuffer();
+
+      const newMeta = await sharp(workingBuffer).metadata();
+      width  = newMeta.width;
+      height = newMeta.height;
+      console.log(`[OCR DEBUG] Double-page VERTICAL → moitié basse : ${width}×${height}px`);
+      await sharp(workingBuffer).toFile(path.join(debugDir, 'step2_chosen_half.jpg'));
+    } else {
+      console.log(`[OCR DEBUG] Page simple détectée (ratio=${ratio.toFixed(2)})`);
+      await sharp(workingBuffer).toFile(path.join(debugDir, 'step2_chosen_half.jpg'));
     }
 
-    // ── Étape 2 : extraire la zone visage selon le layout CEDEAO ────────────────
-    // La photo est TOUJOURS dans la zone CENTRE-GAUCHE (après l'entête du pays)
-    //   Horizontalement : 0 → ~40% de la largeur
-    //   Verticalement   : ~28% → ~78% de la hauteur (sous l'entête, avant la MRZ)
+    // ── Extraction zone visage ───────────────────────────────────────────────
     const isLandscape = width >= height;
-
     let left, top, cropWidth, cropHeight;
 
     if (isLandscape) {
-      // Page biographique en PAYSAGE
-      // La photo du titulaire occupe le COIN GAUCHE : ~30% largeur, entre 28% et 78% hauteur
       left       = 0;
-      top        = Math.floor(height * 0.26);   // Passe l'entête "REPUBLIQUE DU SENEGAL"
-      cropWidth  = Math.floor(width  * 0.30);   // Strictement la zone photo, sans les données textuelles
-      cropHeight = Math.floor(height * 0.52);   // 26%→78%
+      top        = Math.floor(height * 0.26);
+      cropWidth  = Math.floor(width  * 0.32);
+      cropHeight = Math.floor(height * 0.52);
     } else {
-      // Page biographique en PORTRAIT
-      // La photo est dans le coin gauche : ~32% largeur, entre 22% et 68% hauteur
       left       = 0;
-      top        = Math.floor(height * 0.22);   // Passe l'entête
-      cropWidth  = Math.floor(width  * 0.32);   // Zone face uniquement, sans les données textuelles
-      cropHeight = Math.floor(height * 0.46);   // 22%→68%
+      top        = Math.floor(height * 0.22);
+      cropWidth  = Math.floor(width  * 0.35);
+      cropHeight = Math.floor(height * 0.46);
     }
 
     const safeWidth  = Math.min(cropWidth,  width  - left);
     const safeHeight = Math.min(cropHeight, height - top);
 
+    console.log(`[OCR DEBUG] Zone visage : left=${left} top=${top} w=${safeWidth} h=${safeHeight} (${isLandscape?'PAYSAGE':'PORTRAIT'})`);
+
     if (safeWidth < 60 || safeHeight < 60) {
-      console.warn(`[OCR] Zone photo trop petite (${safeWidth}×${safeHeight}), retour image complète`);
+      console.warn(`[OCR DEBUG] Zone trop petite — retour page complète`);
       return { zonePhoto: { buffer: workingBuffer, metadata: { width, height } }, documentComplet: jpegBuffer };
     }
 
@@ -126,16 +168,13 @@ async function extractPassportPhoto(buffer) {
       .jpeg({ quality: 95 })
       .toBuffer();
 
-    console.log(
-      `[OCR] Zone visage extraite (${isLandscape ? 'PAYSAGE' : 'PORTRAIT'}) : ` +
-      `zone left=${left} top=${top} → ${safeWidth}×${safeHeight}px | page: ${width}×${height}px`
-    );
+    // Sauvegarder la zone visage finale pour debug
+    await sharp(faceBuffer).toFile(path.join(debugDir, 'step3_face_zone.jpg'));
+    console.log(`[OCR DEBUG] step3_face_zone.jpg sauvegardé → taille: ${faceBuffer.length} bytes`);
+    console.log(`[OCR DEBUG] ═══════════════════════════════════\n`);
 
     return {
-      zonePhoto: {
-        buffer: faceBuffer,
-        metadata: { width: safeWidth, height: safeHeight },
-      },
+      zonePhoto: { buffer: faceBuffer, metadata: { width: safeWidth, height: safeHeight } },
       documentComplet: jpegBuffer,
     };
   } catch (error) {
@@ -148,6 +187,7 @@ async function extractPassportPhoto(buffer) {
     }
   }
 }
+
 
 // ── Recadrer le bas de l'image (zone MRZ = ~28% inférieurs) ──────────────────
 async function cropMrzZone(buffer) {
