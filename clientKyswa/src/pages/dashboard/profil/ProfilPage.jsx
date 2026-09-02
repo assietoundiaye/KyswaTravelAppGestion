@@ -565,98 +565,49 @@ export default function ProfilPage() {
             };
 
             const allowedItems = ALL_MENU_ITEMS.filter(isAllowed);
-            const restrictedItems = ALL_MENU_ITEMS.filter(item => !isAllowed(item));
 
             return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                {/* Modules Autorisés */}
-                <div className="premium-card">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                    <div>
-                      <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <CheckCircle2 size={18} color="#16A34A" /> Modules Autorisés ({allowedItems.length})
-                      </h2>
-                      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Fonctionnalités accessibles avec votre profil <strong style={{ color: roleColor }}>{roleLabel}</strong>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    {allowedItems.map((item, idx) => {
-                      const ItemIcon = item.icon;
-                      return (
-                        <div
-                          key={idx}
-                          style={{
-                            padding: '12px 14px',
-                            borderRadius: 10,
-                            border: '1px solid #BBF7D0',
-                            background: '#F0FDF4',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(22,163,74,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16A34A' }}>
-                              <ItemIcon size={16} />
-                            </div>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>{item.label}</span>
-                          </div>
-                          <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 12, border: '1px solid #86EFAC' }}>
-                            ✓ Autorisé
-                          </span>
-                        </div>
-                      );
-                    })}
+              <div className="premium-card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <div>
+                    <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckCircle2 size={18} color="#16A34A" /> Modules & Droits d'accès ({allowedItems.length})
+                    </h2>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                      Fonctionnalités et espaces accessibles avec votre profil <strong style={{ color: roleColor }}>{roleLabel}</strong>
+                    </p>
                   </div>
                 </div>
 
-                {/* Modules Non Accessibles (si applicables) */}
-                {restrictedItems.length > 0 && (
-                  <div className="premium-card" style={{ background: '#FAFAFA' }}>
-                    <div style={{ marginBottom: 16 }}>
-                      <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Lock size={16} color="#9CA3AF" /> Modules Restreints ({restrictedItems.length})
-                      </h3>
-                      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Ces modules nécessitent des privilèges supérieurs (Comptabilité, Direction, Administration).
-                      </p>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      {restrictedItems.map((item, idx) => {
-                        const ItemIcon = item.icon;
-                        return (
-                          <div
-                            key={idx}
-                            style={{
-                              padding: '10px 12px',
-                              borderRadius: 10,
-                              border: '1px solid var(--border)',
-                              background: 'white',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              opacity: 0.65,
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <div style={{ width: 28, height: 28, borderRadius: 6, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF' }}>
-                                <ItemIcon size={14} />
-                              </div>
-                              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>{item.label}</span>
-                            </div>
-                            <span style={{ background: '#F3F4F6', color: '#6B7280', fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 10 }}>
-                              Non accessible
-                            </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {allowedItems.map((item, idx) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: '12px 16px',
+                          borderRadius: 10,
+                          border: '1px solid #BBF7D0',
+                          background: '#F0FDF4',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(22,163,74,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16A34A' }}>
+                            <ItemIcon size={18} />
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>{item.label}</span>
+                        </div>
+                        <span style={{ background: '#DCFCE7', color: '#15803D', fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 12, border: '1px solid #86EFAC' }}>
+                          ✓ Autorisé
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })()}
