@@ -560,10 +560,19 @@ export default function ReservationsPage() {
                 Inscriptions
               </h1>
               <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>
-                Sélectionnez un départ pour voir les inscriptions
+                Sélectionnez un départ pour voir ses inscriptions ou consultez la liste globale ({reservations.length} au total)
               </p>
             </div>
-            <button onClick={() => openForm()} className="btn-primary">+ Nouvelle inscription</button>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => { setSelectedPkg({ id: 'ALL', nomReference: 'Toutes les inscriptions' }); setSearch(''); setPage(1); }}
+                className="btn-secondary"
+                style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <Users size={14} /> Toutes les inscriptions ({reservations.length})
+              </button>
+              <button onClick={() => openForm()} className="btn-primary">+ Nouvelle inscription</button>
+            </div>
           </div>
 
           {loading ? (
@@ -591,7 +600,7 @@ export default function ReservationsPage() {
         </>
       ) : (
 
-        /* ── VUE LISTE DES INSCRIPTIONS D'UN DÉPART ── */
+        /* ── VUE LISTE DES INSCRIPTIONS D'UN DÉPART OU GLOBALE ── */
         <>
           {/* Header avec retour */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
@@ -600,28 +609,29 @@ export default function ReservationsPage() {
                 onClick={() => { setSelectedPkg(null); setSearch(''); setPage(1); }}
                 style={{ background: 'white', border: '1.5px solid var(--border)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}
               >
-                <ChevronLeft size={15} /> Retour
+                <ChevronLeft size={15} /> Départs
               </button>
               <div>
                 <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--text-main)' }}>
                   {selectedPkg.nomReference}
                 </h1>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    <Calendar size={11} style={{ display: 'inline', marginRight: 4 }} />
-                    {fmtDate(selectedPkg.dateDepart)} → {fmtDate(selectedPkg.dateRetour)}
-                  </span>
-                  {selectedPkg.compagnieAerienne && (
+                {selectedPkg.id !== 'ALL' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      <Plane size={11} style={{ display: 'inline', marginRight: 4 }} />
-                      {selectedPkg.compagnieAerienne}
+                      <Calendar size={11} style={{ display: 'inline', marginRight: 4 }} />
+                      {fmtDate(selectedPkg.dateDepart)} → {fmtDate(selectedPkg.dateRetour)}
                     </span>
-                  )}
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)' }}>
-                    <Users size={11} style={{ display: 'inline', marginRight: 4 }} />
-                    {filtered.length} inscription(s)
-                  </span>
-                </div>
+                    {selectedPkg.compagnieAerienne && (
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        <Plane size={11} style={{ display: 'inline', marginRight: 4 }} />
+                        {selectedPkg.compagnieAerienne}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)' }}>
+                      {countByPkg[selectedPkg.id] || countByPkg[selectedPkg._id] || 0} inscription(s)
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -704,6 +714,7 @@ export default function ReservationsPage() {
                     <th>N°</th>
                     <th>Client(s)</th>
                     <th>Téléphone</th>
+                    {selectedPkg?.id === 'ALL' && <th>Départ</th>}
                     <th>Classe</th>
                     <th>Prix total</th>
                     <th>Reçu</th>
@@ -715,9 +726,9 @@ export default function ReservationsPage() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Chargement...</td></tr>
+                    <tr><td colSpan={11} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Chargement...</td></tr>
                   ) : paginated.length === 0 ? (
-                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Aucune inscription pour ce départ</td></tr>
+                    <tr><td colSpan={11} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Aucune inscription trouvée</td></tr>
                   ) : paginated.map(r => {
                     const recu = (r.montantTotalDu || 0) - (r.resteAPayer || 0);
                     // clients peut être un tableau (legacy) ou un objet (PostgreSQL 1-1)
@@ -725,11 +736,16 @@ export default function ReservationsPage() {
                     const nomClients = clientsList.map(c => `${c.nom || ''} ${c.prenom || ''}`.trim()).filter(Boolean).join(', ') || '—';
                     const tel = clientsList[0]?.telephone || '—';
                     const typeChambre = r.type_chambre || r.typeChambre || r.niveauConfort || '—';
+                    const nomDepart = r.departs?.nom_depart || r.packageKId?.nomReference || r.service || '—';
+                    const rowId = r.id || r._id;
                     return (
-                      <tr key={r.id || r._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/dashboard/reservations/${r.id || r._id}`)}>
+                      <tr key={rowId} style={{ cursor: 'pointer' }} onClick={() => navigate(`/dashboard/reservations/${rowId}`)}>
                         <td><span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: 'var(--primary)' }}>{r.numero || r.idReservation}</span></td>
                         <td style={{ fontWeight: 600 }}>{nomClients}</td>
                         <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{tel}</td>
+                        {selectedPkg?.id === 'ALL' && (
+                          <td style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary)' }}>{nomDepart}</td>
+                        )}
                         <td style={{ fontSize: 12 }}>{typeChambre}</td>
                         <td style={{ fontWeight: 600 }}>{fmt(r.montantTotalDu)}</td>
                         <td style={{ color: '#16A34A', fontWeight: 600 }}>{fmt(recu)}</td>
@@ -738,11 +754,11 @@ export default function ReservationsPage() {
                         <td onClick={e => e.stopPropagation()}><Badge val={r.statutPaiement || 'EN_ATTENTE'} map={STATUT_PAIEMENT} /></td>
                         <td onClick={e => e.stopPropagation()}>
                           <div style={{ display: 'flex', gap: 6 }}>
-                            <button onClick={() => navigate(`/dashboard/reservations/${r._id}`)}
+                            <button onClick={() => navigate(`/dashboard/reservations/${rowId}`)}
                               style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '4px 12px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                               Voir
                             </button>
-                            <button onClick={() => setConfirmDeleteId(r._id)}
+                            <button onClick={() => setConfirmDeleteId(rowId)}
                               style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, padding: '4px 12px', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                               Supprimer
                             </button>
