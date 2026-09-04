@@ -32,6 +32,17 @@ class ClientService {
    * @param {String} userId - UUID du profil agent qui crée
    */
   /**
+   * Normalise le genre selon la contrainte PostgreSQL CHECK (genre IN ('M', 'F'))
+   */
+  normalizeGenre(raw) {
+    if (!raw) return null;
+    const str = String(raw).trim().toUpperCase();
+    if (str.startsWith('F') || str === 'FEMME' || str === 'FEMININ') return 'F';
+    if (str.startsWith('M') || str.startsWith('H') || str === 'HOMME' || str === 'MASCULIN') return 'M';
+    return null;
+  }
+
+  /**
    * Normalise les champs entrants du frontend (camelCase) → snake_case BDD
    * Supporte les deux formats : camelCase frontend et snake_case direct
    */
@@ -40,7 +51,7 @@ class ClientService {
       // Identité
       nom: data.nom || null,
       prenom: data.prenom || null,
-      genre: data.genre || data.sexe || null,
+      genre: this.normalizeGenre(data.genre || data.sexe),
       telephone: data.telephone || null,
       email: data.email || null,
       adresse: data.adresse || null,

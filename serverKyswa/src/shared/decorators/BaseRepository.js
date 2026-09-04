@@ -250,6 +250,15 @@ function transformInputData(data, tableName, model = null) {
       } else if (typeof value === 'string' || typeof value === 'number') {
         transformedValue = typeof value === 'number' ? value : (parseFloat(value) || 0);
       }
+    } else if (dbKey === 'genre' && typeof value === 'string') {
+      const g = value.trim().toUpperCase();
+      if (g.startsWith('F') || g === 'FEMME' || g === 'FEMININ') {
+        transformedValue = 'F';
+      } else if (g.startsWith('M') || g.startsWith('H') || g === 'HOMME' || g === 'MASCULIN') {
+        transformedValue = 'M';
+      } else {
+        transformedValue = null;
+      }
     }
 
     transformed[dbKey] = transformedValue;

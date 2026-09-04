@@ -56,12 +56,16 @@ export default function ClientDetail() {
       if (!c) throw new Error('Réponse inattendue du serveur');
 
       // Normalisation snake_case → camelCase pour rétrocompatibilité avec le template
+      const rawGenre = String(c.genre || c.sexe || '').trim().toUpperCase();
+      const isFemme = rawGenre.startsWith('F') || rawGenre === 'FEMME';
+      const normalizedGenre = isFemme ? 'FEMME' : 'HOMME';
+
       const normalized = {
         ...c,
         // Identité
         nom: c.nom || '',
         prenom: c.prenom || '',
-        genre: c.genre || c.sexe || 'HOMME',
+        genre: normalizedGenre,
         telephone: c.telephone || '',
         email: c.email || '',
         adresse: c.adresse || '',
@@ -108,7 +112,7 @@ export default function ClientDetail() {
       setForm({
         nom: normalized.nom,
         prenom: normalized.prenom,
-        genre: (normalized.genre || 'HOMME').toUpperCase(),
+        genre: normalized.genre,
         telephone: normalized.telephone,
         email: normalized.email,
         adresse: normalized.adresse,
@@ -140,10 +144,11 @@ export default function ClientDetail() {
 
   const handleOpenEdit = () => {
     if (client) {
+      const isFemme = String(client.genre || client.sexe || '').trim().toUpperCase().startsWith('F');
       setForm({
         nom: client.nom || '',
         prenom: client.prenom || '',
-        genre: (client.genre || client.sexe || 'HOMME').toUpperCase(),
+        genre: isFemme ? 'FEMME' : 'HOMME',
         telephone: client.telephone || '',
         email: client.email || '',
         adresse: client.adresse || '',
@@ -172,11 +177,12 @@ export default function ClientDetail() {
     e.preventDefault();
     setSaving(true);
     try {
+      const gValue = String(form.genre || '').toUpperCase().startsWith('F') ? 'F' : 'M';
       await api.patch(`/clients/${id}`, {
         nom: form.nom,
         prenom: form.prenom,
-        genre: form.genre,
-        sexe: form.genre,
+        genre: gValue,
+        sexe: gValue,
         telephone: form.telephone,
         email: form.email,
         adresse: form.adresse,
