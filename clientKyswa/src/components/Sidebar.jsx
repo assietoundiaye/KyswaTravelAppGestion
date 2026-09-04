@@ -27,6 +27,9 @@ export default function Sidebar({ onCollapseChange }) {
     ? (MENU_BY_ROLE[role] || ALL_MENU_ITEMS)
     : ALL_MENU_ITEMS.filter(item => {
         if (!item.module) return true; // Liens globaux comme Dashboard
+        if (item.module === 'rooming' && ['commercial', 'oumra', 'oumra_ziara', 'dg', 'administrateur', 'informatique', 'admin', 'secretaire'].includes(role?.toLowerCase())) {
+          return true;
+        }
         return canViewModule(item.module);
       });
   const roleLabel = ROLE_LABELS[role] || role;

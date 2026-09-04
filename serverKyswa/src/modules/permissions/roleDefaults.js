@@ -16,7 +16,7 @@ const ALL_MODULES = [
   'billets-groupe', 'comptabilite', 'desistements', 'recouvrement',
   'packages', 'rapports', 'documents', 'reunions', 'statistiques',
   'utilisateurs', 'audit', 'shop', 'simulateur', 'ziarra',
-  'supplements'
+  'supplements', 'rooming'
 ];
 
 /**
@@ -34,6 +34,7 @@ const ROLE_DEFAULT_PERMISSIONS = {
     billets:       { canView: true,  canCreate: false, canEdit: false, canDelete: false },
     'billets-groupe': { canView: true, canCreate: false, canEdit: false, canDelete: false },
     packages:      { canView: true,  canCreate: false, canEdit: false, canDelete: false },
+    rooming:       { canView: true,  canCreate: true,  canEdit: true,  canDelete: true },
     rapports:      { canView: true,  canCreate: true,  canEdit: true,  canDelete: false },
     recouvrement:  { canView: true,  canCreate: false, canEdit: false, canDelete: false },
     shop:          { canView: true,  canCreate: false, canEdit: false, canDelete: false },
@@ -60,6 +61,7 @@ const ROLE_DEFAULT_PERMISSIONS = {
     shop:          { canView: true,  canCreate: false, canEdit: false, canDelete: false },
     supplements:   { canView: true,  canCreate: false, canEdit: false, canDelete: false },
     packages:      { canView: true,  canCreate: false, canEdit: false, canDelete: false },
+    rooming:       { canView: true,  canCreate: false, canEdit: false, canDelete: false },
     billets:       { canView: false, canCreate: false, canEdit: false, canDelete: false },
     'billets-groupe': { canView: false, canCreate: false, canEdit: false, canDelete: false },
     visas:         { canView: false, canCreate: false, canEdit: false, canDelete: false },
@@ -80,6 +82,8 @@ const ROLE_DEFAULT_PERMISSIONS = {
     rapports:      { canView: true,  canCreate: true,  canEdit: true,  canDelete: false },
     shop:          { canView: true,  canCreate: false, canEdit: false, canDelete: false },
     supplements:   { canView: true,  canCreate: true,  canEdit: true,  canDelete: false },
+    packages:      { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    rooming:       { canView: true,  canCreate: false, canEdit: false, canDelete: false },
     paiements:     { canView: false, canCreate: false, canEdit: false, canDelete: false },
     visas:         { canView: false, canCreate: false, canEdit: false, canDelete: false },
     billets:       { canView: false, canCreate: false, canEdit: false, canDelete: false },
@@ -87,7 +91,6 @@ const ROLE_DEFAULT_PERMISSIONS = {
     comptabilite:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     desistements:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     recouvrement:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
-    packages:      { canView: false, canCreate: false, canEdit: false, canDelete: false },
     statistiques:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     utilisateurs:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     audit:         { canView: false, canCreate: false, canEdit: false, canDelete: false },
@@ -106,6 +109,7 @@ const ROLE_DEFAULT_PERMISSIONS = {
     supplements:   { canView: true,  canCreate: true,  canEdit: true,  canDelete: false },
     rapports:      { canView: true,  canCreate: true,  canEdit: true,  canDelete: false },
     packages:      { canView: true,  canCreate: false, canEdit: false, canDelete: false },
+    rooming:       { canView: true,  canCreate: true,  canEdit: true,  canDelete: true },
     comptabilite:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     desistements:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     recouvrement:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
@@ -133,6 +137,7 @@ const ROLE_DEFAULT_PERMISSIONS = {
     desistements:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     recouvrement:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     packages:      { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    rooming:       { canView: false, canCreate: false, canEdit: false, canDelete: false },
     documents:     { canView: false, canCreate: false, canEdit: false, canDelete: false },
     statistiques:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     utilisateurs:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
@@ -156,6 +161,7 @@ const ROLE_DEFAULT_PERMISSIONS = {
     desistements:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     recouvrement:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     packages:      { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    rooming:       { canView: false, canCreate: false, canEdit: false, canDelete: false },
     documents:     { canView: false, canCreate: false, canEdit: false, canDelete: false },
     reunions:      { canView: false, canCreate: false, canEdit: false, canDelete: false },
     statistiques:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
@@ -178,6 +184,7 @@ const ROLE_DEFAULT_PERMISSIONS = {
     desistements:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     recouvrement:  { canView: false, canCreate: false, canEdit: false, canDelete: false },
     packages:      { canView: false, canCreate: false, canEdit: false, canDelete: false },
+    rooming:       { canView: false, canCreate: false, canEdit: false, canDelete: false },
     documents:     { canView: false, canCreate: false, canEdit: false, canDelete: false },
     reunions:      { canView: false, canCreate: false, canEdit: false, canDelete: false },
     statistiques:  { canView: false, canCreate: false, canEdit: false, canDelete: false },

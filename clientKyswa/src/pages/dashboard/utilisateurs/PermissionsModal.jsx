@@ -15,6 +15,8 @@ const MODULES = [
   { key: 'desistements', label: '⚠️ Désistements' },
   { key: 'recouvrement', label: '💰 Recouvrement' },
   { key: 'packages', label: '🧳 Départs' },
+  { key: 'rooming', label: '🏨 Rooming / Chambres' },
+  { key: 'supplements', label: '➕ Suppléments' },
   { key: 'rapports', label: '📝 Rapports' },
   { key: 'documents', label: '📁 Secrétariat' },
   { key: 'reunions', label: '🤝 Réunions' },

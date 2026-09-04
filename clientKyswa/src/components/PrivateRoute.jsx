@@ -17,15 +17,15 @@ export function PrivateRoute({ children, roles, module }) {
   // Super-admin a toujours accès
   if (isSuper) return children;
 
-  // Si un module spécifique est indiqué, vérifier la permission dynamique
-  if (module) {
-    if (canViewModule(module)) return children;
-    return <Navigate to={DEFAULT_REDIRECT[role] || '/dashboard'} replace />;
-  }
-
-  // Si des rôles sont spécifiés, vérifier l'accès
+  // Vérifier si le rôle est explicitement autorisé par la route
   const isAllowed = !roles || roles.includes(role) ||
     ((role === 'informatique' || role === 'admin') && (roles.includes('administrateur') || roles.includes('informatique')));
+
+  // Si un module spécifique est indiqué, autoriser si permission dynamique OK ou rôle OK
+  if (module) {
+    if (canViewModule(module) || isAllowed) return children;
+    return <Navigate to={DEFAULT_REDIRECT[role] || '/dashboard'} replace />;
+  }
 
   if (!isAllowed) {
     return <Navigate to={DEFAULT_REDIRECT[role] || '/dashboard'} replace />;

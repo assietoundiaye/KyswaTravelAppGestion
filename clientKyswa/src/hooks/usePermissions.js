@@ -143,7 +143,7 @@ export const usePermissions = () => {
         'clients', 'packages', 'reservations', 'paiements', 'billets',
         'billets-groupe', 'visas', 'desistements', 'rapports', 'comptabilite', 'reunions',
         'recouvrement', 'messages', 'users', 'supplements', 'shop',
-        'audit', 'ziarra', 'documents', 'factures', 'statistiques', 'simulateur'
+        'audit', 'ziarra', 'documents', 'factures', 'statistiques', 'simulateur', 'rooming'
       ];
     }
 

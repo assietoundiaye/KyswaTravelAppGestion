@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
 import LoadingScreen from './LoadingScreen';
 
@@ -16,6 +17,7 @@ const PAGE_TITLES = {
   '/dashboard/paiements': 'Paiements',
   '/dashboard/reste-a-payer': 'Reste à Payer',
   '/dashboard/packages': 'Départs',
+  '/dashboard/rooming': 'Rooming / Chambres',
   '/dashboard/supplements': 'Suppléments',
   '/dashboard/documents': 'Documents',
   '/dashboard/factures': 'Factures',
@@ -45,6 +47,7 @@ const ROUTE_TO_MODULE = {
   '/dashboard/billets-groupe': 'billets-groupe',
   '/dashboard/paiements': 'paiements',
   '/dashboard/packages': 'packages',
+  '/dashboard/rooming': 'rooming',
   '/dashboard/supplements': 'supplements',
   '/dashboard/documents': 'documents',
   '/dashboard/factures': 'factures',
@@ -74,6 +77,7 @@ export default function DashboardLayout() {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const { role } = useAuth();
   const { canViewModule, loading: permissionsLoading } = usePermissions();
   const title = getTitle(location.pathname);
 
@@ -85,9 +89,14 @@ export default function DashboardLayout() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const isSuper = ['dg', 'administrateur', 'informatique', 'admin'].includes(role?.toLowerCase());
+
   // Vérifier si l'utilisateur a accès à la page actuelle
   const currentModule = ROUTE_TO_MODULE[location.pathname];
-  const hasAccess = !currentModule || canViewModule(currentModule);
+  const isRoleAllowed = currentModule === 'rooming'
+    ? ['commercial', 'oumra', 'oumra_ziara', 'dg', 'administrateur', 'informatique', 'admin', 'secretaire', 'comptable'].includes(role?.toLowerCase())
+    : false;
+  const hasAccess = isSuper || !currentModule || canViewModule(currentModule) || isRoleAllowed;
 
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
