@@ -236,6 +236,34 @@ class ClientRepository extends BaseRepository {
     docs.push(url);
     return await this.updateById(clientId, { documents_urls: docs });
   }
+
+  /**
+   * Récupérer les clients ayant une date de naissance ou date d'expiration de passeport pour les alertes
+   */
+  async getClientsForAlerts() {
+    return await this.model.findMany({
+      where: {
+        OR: [
+          { date_naissance: { not: null } },
+          { expiration_passeport: { not: null } },
+        ],
+      },
+      select: {
+        id: true,
+        nom: true,
+        prenom: true,
+        telephone: true,
+        email: true,
+        photo_url: true,
+        n_passeport: true,
+        date_naissance: true,
+        expiration_passeport: true,
+        niveau_fidelite: true,
+        vip: true,
+      },
+      orderBy: { nom: 'asc' },
+    });
+  }
 }
 
 module.exports = ClientRepository;

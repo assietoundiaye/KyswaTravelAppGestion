@@ -327,6 +327,146 @@ class ClientService {
     };
   }
 
+  /**
+   * Alertes CRM : Anniversaires et expirations de passeports
+   */
+  async getAlerts() {
+    const clients = await this.repository.getClientsForAlerts();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-indexé
+    const currentDay = today.getDate();
+
+    const anniversairesAujourdhui = [];
+    const anniversairesSemaine = [];
+    const anniversairesMois = [];
+
+    const passeportsExpires = [];
+    const passeportsExpirantBientot = [];
+
+    for (const client of clients) {
+      // 1. Traitement Anniversaire
+      if (client.date_naissance) {
+        const bdate = new Date(client.date_naissance);
+        if (!isNaN(bdate.getTime())) {
+          const bMonth = bdate.getMonth();
+          const bDay = bdate.getDate();
+
+          // Calculer le prochain anniversaire
+          let nextBirthday = new Date(currentYear, bMonth, bDay);
+          nextBirthday.setHours(0, 0, 0, 0);
+
+          let diffTime = nextBirthday.getTime() - today.getTime();
+          let diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+          // Si l'anniversaire est passé cette année, mais qu'on est en fin d'année et l'anniv début janvier
+          if (diffDays < 0 && bMonth === 0 && currentMonth === 11) {
+            const nextYearBirthday = new Date(currentYear + 1, bMonth, bDay);
+            diffDays = Math.round((nextYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          }
+
+          const age = currentYear - bdate.getFullYear();
+          const clientData = {
+            id: client.id,
+            nom: client.nom,
+            prenom: client.prenom,
+            telephone: client.telephone,
+            email: client.email,
+            photo_url: client.photo_url,
+            date_naissance: client.date_naissance,
+            age,
+            daysUntil: diffDays,
+            day: bDay,
+            month: bMonth + 1,
+            niveau_fidelite: client.niveau_fidelite,
+          };
+
+          if (diffDays === 0) {
+            anniversairesAujourdhui.push(clientData);
+            anniversairesSemaine.push(clientData);
+            anniversairesMois.push(clientData);
+          } else if (diffDays > 0 && diffDays <= 7) {
+            anniversairesSemaine.push(clientData);
+            if (bMonth === currentMonth) {
+              anniversairesMois.push(clientData);
+            }
+          } else if (bMonth === currentMonth && diffDays >= 0) {
+            anniversairesMois.push(clientData);
+          }
+        }
+      }
+
+      // 2. Traitement Passeport
+      if (client.expiration_passeport) {
+        const expDate = new Date(client.expiration_passeport);
+        if (!isNaN(expDate.getTime())) {
+          expDate.setHours(0, 0, 0, 0);
+          const diffDays = Math.round((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+          const passData = {
+            id: client.id,
+            nom: client.nom,
+            prenom: client.prenom,
+            telephone: client.telephone,
+            email: client.email,
+            photo_url: client.photo_url,
+            n_passeport: client.n_passeport,
+            expiration_passeport: client.expiration_passeport,
+            daysRemaining: diffDays,
+            niveau_fidelite: client.niveau_fidelite,
+          };
+
+          if (diffDays < 0) {
+            passeportsExpires.push({
+              ...passData,
+              statut: 'EXPIRE',
+              daysExpired: Math.abs(diffDays),
+            });
+          } else if (diffDays <= 180) { // Moins de 6 mois
+            let gravite = 'ATTENTION'; // < 6 mois (180 j)
+            if (diffDays <= 30) gravite = 'CRITIQUE'; // < 1 mois
+            else if (diffDays <= 90) gravite = 'URGENT'; // < 3 mois
+
+            passeportsExpirantBientot.push({
+              ...passData,
+              statut: gravite,
+            });
+          }
+        }
+      }
+    }
+
+    // Tri
+    anniversairesAujourdhui.sort((a, b) => a.nom.localeCompare(b.nom));
+    anniversairesSemaine.sort((a, b) => a.daysUntil - b.daysUntil);
+    anniversairesMois.sort((a, b) => a.daysUntil - b.daysUntil);
+
+    passeportsExpirantBientot.sort((a, b) => a.daysRemaining - b.daysRemaining);
+    passeportsExpires.sort((a, b) => a.daysExpired - b.daysExpired);
+
+    return {
+      summary: {
+        totalAnniversairesAujourdhui: anniversairesAujourdhui.length,
+        totalAnniversairesSemaine: anniversairesSemaine.length,
+        totalAnniversairesMois: anniversairesMois.length,
+        totalPasseportsExpires: passeportsExpires.length,
+        totalPasseportsExpirantBientot: passeportsExpirantBientot.length,
+        totalPasseportsAlertes: passeportsExpires.length + passeportsExpirantBientot.length,
+      },
+      anniversaires: {
+        aujourdhui: anniversairesAujourdhui,
+        semaine: anniversairesSemaine,
+        mois: anniversairesMois,
+      },
+      passeports: {
+        expires: passeportsExpires,
+        expirantBientot: passeportsExpirantBientot,
+      },
+    };
+  }
+
   // ─────────────────────────────────────────────────────
   // VALIDATION
   // ─────────────────────────────────────────────────────

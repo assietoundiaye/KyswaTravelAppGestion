@@ -60,3 +60,7 @@ coverage/
 
 # Tesseract training data
 *.traineddata
+
+# Uploads
+uploads/
+serverKyswa/uploads/

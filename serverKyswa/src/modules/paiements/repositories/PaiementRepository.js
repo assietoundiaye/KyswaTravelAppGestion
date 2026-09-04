@@ -18,7 +18,8 @@ class PaiementRepository extends BaseRepository {
           clients: true,
           departs: true,
         }
-      }
+      },
+      profiles: true,
     };
   }
 

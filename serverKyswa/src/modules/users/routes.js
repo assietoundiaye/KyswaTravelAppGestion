@@ -104,7 +104,15 @@ function createUsersRoutes(dependencies) {
   };
 
   router.patch('/me/password', protect, patchPasswordHandler);
-  router.patch('/profile/me/password', protect, patchPasswordHandler);
+  // GET liste simple des profils (id, nom, prenom, role) accessible pour afficher les noms
+  router.get('/agents', protect, async (req, res, next) => {
+    try {
+      const agents = await prisma.profiles.findMany({
+        select: { id: true, nom: true, prenom: true, role: true, email: true }
+      });
+      res.json({ success: true, data: agents, agents });
+    } catch (e) { next(e); }
+  });
 
   // ─────────────────────────────────────────────────────
   // ROUTES CRUD UTILISATEURS

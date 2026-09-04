@@ -168,6 +168,22 @@ class ClientController {
   }
 
   /**
+   * GET /api/clients/alerts
+   * Récupérer les alertes CRM (anniversaires et expirations de passeport)
+   */
+  async getAlerts(req, res, next) {
+    try {
+      const alerts = await this.service.getAlerts();
+      res.status(200).json({
+        success: true,
+        data: alerts,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * GET /api/clients/agent/:agentId
    * Récupérer clients d'un agent
    */

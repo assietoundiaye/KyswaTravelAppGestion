@@ -4,6 +4,7 @@ import {
   CalendarCheck, CreditCard, Users, Plane, FileText,
   Calculator, TrendingDown, Briefcase, Send,
   CheckCircle, XCircle, ChevronLeft, ChevronRight,
+  Cake, AlertTriangle, Phone, MessageCircle, Clock, Bell, ExternalLink, ShieldAlert,
 } from 'lucide-react';
 import api from '../../core/api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -373,6 +374,388 @@ function MiniCalendar({ reunions = [], packages = [] }) {
   );
 }
 
+// ── Alert Helpers ─────────────────────────────────────────────────────────────
+const cleanPhone = (phone) => {
+  if (!phone) return '';
+  let clean = phone.replace(/[^0-9]/g, '');
+  if (clean.length === 9 && ['70', '75', '76', '77', '78'].includes(clean.substring(0, 2))) {
+    clean = '221' + clean;
+  }
+  return clean;
+};
+
+const getBirthdayWhatsAppUrl = (client) => {
+  const p = cleanPhone(client.telephone);
+  if (!p) return null;
+  const prenom = client.prenom || client.nom || '';
+  const msg = `Assalamu aleykoum cher(e) ${prenom}, toute l'équipe Kyswa Travel vous souhaite un joyeux anniversaire ! Qu'Allah vous comble de santé, de prospérité et de bénédictions.`;
+  return `https://wa.me/${p}?text=${encodeURIComponent(msg)}`;
+};
+
+const getPassportWhatsAppUrl = (client) => {
+  const p = cleanPhone(client.telephone);
+  if (!p) return null;
+  const prenom = client.prenom || client.nom || '';
+  const dateExp = client.expiration_passeport ? new Date(client.expiration_passeport).toLocaleDateString('fr-FR') : '';
+  const numPass = client.n_passeport ? ` (N° ${client.n_passeport})` : '';
+  const msg = `Assalamu aleykoum cher(e) ${prenom}, l'équipe Kyswa Travel vous informe que votre passeport${numPass} arrive à expiration${dateExp ? ` le ${dateExp}` : ''}. Pour vos prochains voyages (Oumra / Hajj), nous vous recommandons de préparer son renouvellement.`;
+  return `https://wa.me/${p}?text=${encodeURIComponent(msg)}`;
+};
+
+function CrmAlertsSection({ alerts, loading, navigate }) {
+  const [activeTab, setActiveTab] = useState('anniversaires'); // 'anniversaires' | 'passeports'
+  const [annivFilter, setAnnivFilter] = useState('semaine'); // 'aujourdhui' | 'semaine' | 'mois'
+
+  const { summary = {}, anniversaires = {}, passeports = {} } = alerts || {};
+  const totalAujourdhui = summary.totalAnniversairesAujourdhui || 0;
+  const totalSemaine = summary.totalAnniversairesSemaine || 0;
+  const totalMois = summary.totalAnniversairesMois || 0;
+  const totalPassAlertes = summary.totalPasseportsAlertes || 0;
+  const totalPassExpires = summary.totalPasseportsExpires || 0;
+
+  const currentAnnivList = annivFilter === 'aujourdhui'
+    ? (anniversaires.aujourdhui || [])
+    : annivFilter === 'mois'
+      ? (anniversaires.mois || [])
+      : (anniversaires.semaine || []);
+
+  const passeportsList = [
+    ...(passeports.expires || []),
+    ...(passeports.expirantBientot || []),
+  ];
+
+  return (
+    <div className="premium-card" style={{ padding: 28, position: 'relative' }}>
+      {/* Header section */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #F59E0B, #D97706)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)',
+          }}>
+            <Bell size={20} color="white" />
+          </div>
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--text-main)', margin: 0, letterSpacing: '-0.01em' }}>
+              Alertes Commerciales & CRM
+            </h2>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>
+              Fidélisation clients (anniversaires) & conformité des passeports
+            </p>
+          </div>
+        </div>
+
+        {/* Tab selection */}
+        <div style={{ display: 'flex', background: 'var(--bg-main, #F3F4F6)', padding: 4, borderRadius: 10, gap: 4 }}>
+          <button
+            onClick={() => setActiveTab('anniversaires')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 14px', borderRadius: 8, border: 'none',
+              background: activeTab === 'anniversaires' ? 'white' : 'transparent',
+              color: activeTab === 'anniversaires' ? 'var(--primary, #00674F)' : 'var(--text-muted, #6B7280)',
+              fontWeight: 700, fontSize: 13, cursor: 'pointer',
+              boxShadow: activeTab === 'anniversaires' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Cake size={16} color={activeTab === 'anniversaires' ? '#D97706' : '#9CA3AF'} />
+            Anniversaires
+            <span style={{
+              background: totalAujourdhui > 0 ? '#EF4444' : '#F59E0B',
+              color: 'white', fontSize: 11, fontWeight: 800,
+              padding: '1px 7px', borderRadius: 10, minWidth: 18, textAlign: 'center',
+            }}>
+              {totalAujourdhui > 0 ? `${totalAujourdhui} auj.` : totalSemaine}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('passeports')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 14px', borderRadius: 8, border: 'none',
+              background: activeTab === 'passeports' ? 'white' : 'transparent',
+              color: activeTab === 'passeports' ? '#DC2626' : 'var(--text-muted, #6B7280)',
+              fontWeight: 700, fontSize: 13, cursor: 'pointer',
+              boxShadow: activeTab === 'passeports' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <ShieldAlert size={16} color={activeTab === 'passeports' ? '#DC2626' : '#9CA3AF'} />
+            Passeports (&lt; 6 mois)
+            {totalPassAlertes > 0 && (
+              <span style={{
+                background: totalPassExpires > 0 ? '#DC2626' : '#EA580C',
+                color: 'white', fontSize: 11, fontWeight: 800,
+                padding: '1px 7px', borderRadius: 10, minWidth: 18, textAlign: 'center',
+              }}>
+                {totalPassAlertes}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '20px 0' }}>Chargement des alertes CRM…</p>
+      ) : activeTab === 'anniversaires' ? (
+        <div>
+          {/* Sous-filtres Anniversaires */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {[
+              { key: 'aujourdhui', label: `Aujourd'hui (${totalAujourdhui})` },
+              { key: 'semaine', label: `7 prochains jours (${totalSemaine})` },
+              { key: 'mois', label: `Ce mois-ci (${totalMois})` },
+            ].map(f => (
+              <button
+                key={f.key}
+                onClick={() => setAnnivFilter(f.key)}
+                style={{
+                  border: annivFilter === f.key ? '1.5px solid #D97706' : '1px solid var(--border, #E5E7EB)',
+                  background: annivFilter === f.key ? '#FEF3C7' : 'white',
+                  color: annivFilter === f.key ? '#92400E' : 'var(--text-muted, #4B5563)',
+                  borderRadius: 20, padding: '5px 14px', fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Liste Anniversaires */}
+          {currentAnnivList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 16px', background: '#F9FAFB', borderRadius: 12 }}>
+              <Cake size={32} color="#D1D5DB" style={{ margin: '0 auto 8px' }} />
+              <p style={{ margin: 0, fontWeight: 600, color: '#6B7280', fontSize: 14 }}>
+                {annivFilter === 'aujourdhui'
+                  ? "Aucun anniversaire client aujourd'hui."
+                  : annivFilter === 'semaine'
+                    ? "Aucun anniversaire client dans les 7 prochains jours."
+                    : "Aucun anniversaire pour ce mois."}
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+              {currentAnnivList.map(c => {
+                const isToday = c.daysUntil === 0;
+                const waUrl = getBirthdayWhatsAppUrl(c);
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      border: isToday ? '2px solid #F59E0B' : '1px solid var(--border, #E5E7EB)',
+                      background: isToday ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : 'white',
+                      borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12,
+                      boxShadow: isToday ? '0 4px 14px rgba(245, 158, 11, 0.15)' : 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.05))',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 40, height: 40, borderRadius: '50%',
+                          background: isToday ? '#F59E0B' : '#E5E7EB',
+                          color: isToday ? 'white' : '#374151',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontWeight: 800, fontSize: 14,
+                        }}>
+                          {(c.prenom?.[0] || '') + (c.nom?.[0] || '')}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 800, color: '#111827', fontSize: 14 }}>
+                            {c.prenom} {c.nom}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#4B5563', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>🎂 {c.age} ans</span>
+                            <span>•</span>
+                            <span>{String(c.day).padStart(2, '0')}/{String(c.month).padStart(2, '0')}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <span style={{
+                        background: isToday ? '#EF4444' : '#E0F2FE',
+                        color: isToday ? 'white' : '#0369A1',
+                        borderRadius: 12, padding: '3px 10px', fontSize: 11, fontWeight: 800,
+                      }}>
+                        {isToday ? "🎉 AUJOURD'HUI !" : `Dans ${c.daysUntil} jour${c.daysUntil > 1 ? 's' : ''}`}
+                      </span>
+                    </div>
+
+                    {/* Actions commercial */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                      <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
+                        {c.telephone || 'Sans tél.'}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {c.telephone && (
+                          <a
+                            href={`tel:${c.telephone}`}
+                            title="Appeler le client"
+                            style={{
+                              background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8,
+                              padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 4,
+                              fontSize: 11, fontWeight: 700, textDecoration: 'none', cursor: 'pointer',
+                            }}
+                          >
+                            <Phone size={13} color="#2563EB" />
+                            Appeler
+                          </a>
+                        )}
+                        {waUrl && (
+                          <a
+                            href={waUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Souhaiter l'anniversaire sur WhatsApp"
+                            style={{
+                              background: '#25D366', color: 'white', border: 'none', borderRadius: 8,
+                              padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 5,
+                              fontSize: 11, fontWeight: 800, textDecoration: 'none', cursor: 'pointer',
+                              boxShadow: '0 2px 6px rgba(37, 211, 102, 0.3)',
+                            }}
+                          >
+                            <MessageCircle size={13} />
+                            WhatsApp
+                          </a>
+                        )}
+                        <button
+                          onClick={() => navigate(`/dashboard/clients/${c.id}`)}
+                          title="Fiche client"
+                          style={{
+                            background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8,
+                            padding: '6px 8px', color: '#4B5563', cursor: 'pointer',
+                          }}
+                        >
+                          <ExternalLink size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Onglet Passeports */
+        <div>
+          {passeportsList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 16px', background: '#F0FDF4', borderRadius: 12 }}>
+              <ShieldAlert size={32} color="#16A34A" style={{ margin: '0 auto 8px' }} />
+              <p style={{ margin: 0, fontWeight: 700, color: '#166534', fontSize: 14 }}>
+                Excellente nouvelle ! Tous les passeports enregistrés sont valides (&gt; 6 mois).
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+              {passeportsList.map(c => {
+                const isExpired = c.statut === 'EXPIRE';
+                const isCritique = c.statut === 'CRITIQUE';
+                const waUrl = getPassportWhatsAppUrl(c);
+                const expFormatted = c.expiration_passeport ? new Date(c.expiration_passeport).toLocaleDateString('fr-FR') : '—';
+
+                const badgeBg = isExpired ? '#FEE2E2' : isCritique ? '#FEF3C7' : '#EFF6FF';
+                const badgeColor = isExpired ? '#DC2626' : isCritique ? '#D97706' : '#2563EB';
+                const badgeLabel = isExpired
+                  ? `Expiré il y a ${c.daysExpired} j`
+                  : `Expire dans ${c.daysRemaining} j`;
+
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      border: isExpired ? '1.5px solid #FECACA' : isCritique ? '1.5px solid #FCD34D' : '1px solid var(--border, #E5E7EB)',
+                      background: isExpired ? '#FEF2F2' : isCritique ? '#FFFBEB' : 'white',
+                      borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontWeight: 800, color: '#111827', fontSize: 14 }}>
+                          {c.prenom} {c.nom}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#4B5563', marginTop: 3 }}>
+                          Passeport: <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>{c.n_passeport || 'N/A'}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                          Date fin: <span style={{ fontWeight: 600 }}>{expFormatted}</span>
+                        </div>
+                      </div>
+
+                      <span style={{
+                        background: badgeBg, color: badgeColor,
+                        borderRadius: 10, padding: '3px 9px', fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap',
+                      }}>
+                        {badgeLabel}
+                      </span>
+                    </div>
+
+                    {/* Actions commercial */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                      <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
+                        {c.telephone || 'Sans tél.'}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {c.telephone && (
+                          <a
+                            href={`tel:${c.telephone}`}
+                            title="Appeler pour renouvellement"
+                            style={{
+                              background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 8,
+                              padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 4,
+                              fontSize: 11, fontWeight: 700, textDecoration: 'none', cursor: 'pointer',
+                            }}
+                          >
+                            <Phone size={13} color="#2563EB" />
+                            Appeler
+                          </a>
+                        )}
+                        {waUrl && (
+                          <a
+                            href={waUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Rappeler sur WhatsApp"
+                            style={{
+                              background: '#059669', color: 'white', border: 'none', borderRadius: 8,
+                              padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 5,
+                              fontSize: 11, fontWeight: 800, textDecoration: 'none', cursor: 'pointer',
+                              boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)',
+                            }}
+                          >
+                            <MessageCircle size={13} />
+                            Relancer
+                          </a>
+                        )}
+                        <button
+                          onClick={() => navigate(`/dashboard/clients/${c.id}`)}
+                          title="Fiche client"
+                          style={{
+                            background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8,
+                            padding: '6px 8px', color: '#4B5563', cursor: 'pointer',
+                          }}
+                        >
+                          <ExternalLink size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Quick links config ────────────────────────────────────────────────────────
 const ALL_QUICK = [
   { label: 'Inscriptions',    icon: CalendarCheck, color: '#2563EB', path: '/dashboard/reservations', module: 'reservations' },
@@ -398,6 +781,18 @@ export default function DashboardCommercial() {
   const [packages, setPackages] = useState([]);
   const [users, setUsers] = useState([]);
   const [rapports, setRapports] = useState([]);
+  const [crmAlerts, setCrmAlerts] = useState({
+    summary: {
+      totalAnniversairesAujourdhui: 0,
+      totalAnniversairesSemaine: 0,
+      totalAnniversairesMois: 0,
+      totalPasseportsExpires: 0,
+      totalPasseportsExpirantBientot: 0,
+      totalPasseportsAlertes: 0,
+    },
+    anniversaires: { aujourdhui: [], semaine: [], mois: [] },
+    passeports: { expires: [], expirantBientot: [] },
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -409,7 +804,8 @@ export default function DashboardCommercial() {
       api.get('/reunions').catch(() => ({ data: {} })),
       api.get('/rapports/dashboard').catch(() => ({ data: { employes: [], stats: {} } })),
       api.get('/users').catch(() => ({ data: {} })),
-    ]).then(([res, pai, cli, pkg, reu, rap, usr]) => {
+      api.get('/clients/alerts').catch(() => ({ data: { data: null } })),
+    ]).then(([res, pai, cli, pkg, reu, rap, usr, alr]) => {
       const pkgArr = pkg.data.packages || pkg.data.data || [];
       const departures = pkgArr.filter(p => p.statut === 'OUVERT' || p.actif !== false);
       setCounts({
@@ -420,6 +816,9 @@ export default function DashboardCommercial() {
       });
       setReunions(reu.data.reunions || reu.data.data || []);
       setPackages(departures);
+      if (alr?.data?.data) {
+        setCrmAlerts(alr.data.data);
+      }
       
       // Traitement des données de rapports depuis la nouvelle route dashboard
       if (rap.data && rap.data.employes) {
@@ -529,6 +928,9 @@ export default function DashboardCommercial() {
           </div>
         </section>
       )}
+
+      {/* Alertes Commerciales & CRM (Anniversaires & Passeports) */}
+      <CrmAlertsSection alerts={crmAlerts} loading={loading} navigate={navigate} />
 
       {/* Calendrier + Rapports */}
       <div className="grid-responsive-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 24, alignItems: 'start' }}>

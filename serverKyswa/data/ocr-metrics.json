@@ -1,27 +1,53 @@
 {
-  "totalScans": 2,
-  "successfulMrz": 2,
+  "totalScans": 15,
+  "successfulMrz": 15,
   "textualExtractionFallback": 0,
   "completeFailures": 0,
   "confidenceScores": [
     100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    100,
+    80,
     100
   ],
   "processingTimes": [
     4527,
-    4061
+    4061,
+    3745,
+    3989,
+    4378,
+    2965,
+    3281,
+    2543,
+    4029,
+    3225,
+    3112,
+    3992,
+    3152,
+    7133,
+    3904
   ],
   "documentTypes": {
-    "passport": 2,
-    "id_card": 0
+    "passport": 14,
+    "id_card": 1
   },
   "fieldExtractionSuccess": {
-    "nom": 2,
-    "prenom": 1,
-    "numeroPasseport": 2,
-    "numeroCNI": 0,
-    "dateNaissance": 2,
-    "dateExpirationPasseport": 2,
-    "photo": 2
+    "nom": 15,
+    "prenom": 10,
+    "numeroPasseport": 14,
+    "numeroCNI": 1,
+    "dateNaissance": 14,
+    "dateExpirationPasseport": 14,
+    "photo": 14
   }
 }

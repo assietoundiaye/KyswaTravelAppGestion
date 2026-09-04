@@ -52,7 +52,7 @@ const ROLE_DEFAULT_PERMISSIONS = {
   comptable: {
     clients:       { canView: true,  canCreate: false, canEdit: false, canDelete: false },
     reservations:  { canView: true,  canCreate: false, canEdit: true,  canDelete: false },
-    paiements:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: false },
+    paiements:     { canView: true,  canCreate: true,  canEdit: true,  canDelete: true },
     comptabilite:  { canView: true,  canCreate: true,  canEdit: true,  canDelete: false },
     desistements:  { canView: true,  canCreate: false, canEdit: false, canDelete: false },
     recouvrement:  { canView: true,  canCreate: true,  canEdit: true,  canDelete: false },

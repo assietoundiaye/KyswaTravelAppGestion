@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Plane, Calendar, Hotel, Package, Pencil, Trash2, Plus } from 'lucide-react';
 import api from '../../../core/api/axios';
 import { useAuth } from '../../../context/AuthContext';
 import { usePermissions } from '../../../context/PermissionsContext';
@@ -10,7 +10,7 @@ import Pagination from '../../../components/Pagination';
 import NumberInput from '../../../components/NumberInput';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
-const fmt = (n) => {
+const fmtPrix = (n) => {
   const raw = n?.$numberDecimal ?? n;
   const v = parseFloat(raw);
   return (!raw || isNaN(v) || v === 0) ? '—' : v.toLocaleString('fr-FR') + ' FCFA';
@@ -25,19 +25,20 @@ const EMPTY = {
 };
 
 const STATUT_COLORS = {
-  OUVERT: { bg: '#F0FDF4', color: '#16A34A' },
-  COMPLET: { bg: '#FEF2F2', color: '#DC2626' },
-  ANNULE: { bg: '#F3F4F6', color: '#6B7280' },
-  TERMINE: { bg: '#EFF6FF', color: '#2563EB' },
+  OUVERT:  { bg: '#DCFCE7', color: '#166534', border: '#A7F3D0' },
+  COMPLET: { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' },
+  ANNULE:  { bg: '#F3F4F6', color: '#4B5563', border: '#E5E7EB' },
+  TERMINE: { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' },
 };
 
 export default function PackagesPage() {
   const { role } = useAuth();
   const { canCreate, canEdit, canDelete } = usePermissions();
   const hasCreate = canCreate('packages') || ['dg', 'administrateur', 'informatique'].includes(role?.toLowerCase());
-  const hasEdit = canEdit('packages') || ['dg', 'administrateur', 'informatique'].includes(role?.toLowerCase());
+  const hasEdit   = canEdit('packages')   || ['dg', 'administrateur', 'informatique'].includes(role?.toLowerCase());
   const hasDelete = canDelete('packages') || ['dg', 'administrateur', 'informatique'].includes(role?.toLowerCase());
   const showActions = hasEdit || hasDelete;
+
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -46,8 +47,6 @@ export default function PackagesPage() {
   const [saving, setSaving] = useState(false);
   const [confirmId, setConfirmId] = useState(null);
   const [search, setSearch] = useState('');
-
-  // ── Pagination state ───────────────────────────────────────────────────────
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
@@ -127,106 +126,265 @@ export default function PackagesPage() {
       else await api.post('/packages', payload);
       setShowModal(false); setEditId(null); setForm(EMPTY);
       fetchPackages();
-      toast(editId ? 'Package mis à jour' : 'Package créé');
+      toast(editId ? 'Départ mis à jour ✓' : 'Départ créé ✓');
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur', 'error');
+      toast(err.response?.data?.message || 'Erreur lors de l\'enregistrement', 'error');
     } finally { setSaving(false); }
   };
 
   const confirmDelete = async () => {
-    try { await api.delete(`/packages/${confirmId}`); fetchPackages(); toast('Package supprimé'); }
-    catch (e) { toast(e.response?.data?.message || 'Erreur', 'error'); }
-    finally { setConfirmId(null); }
+    try {
+      await api.delete(`/packages/${confirmId}`);
+      fetchPackages();
+      toast('Départ supprimé ✓');
+    } catch (e) {
+      toast(e.response?.data?.message || 'Erreur lors de la suppression', 'error');
+    } finally { setConfirmId(null); }
   };
 
+  // KPIs
+  const totalOuvert  = packages.filter(p => p.statut === 'OUVERT').length;
+  const totalComplet = packages.filter(p => p.statut === 'COMPLET').length;
+  const totalPlaces  = packages.reduce((s, p) => s + (Number(p.quotaMax || 0)), 0);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{packagesFiltres.length} départ(s)</p>
-          {/* Barre de recherche */}
-          <div style={{ position: 'relative' }}>
-            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher par référence, type, compagnie..."
-              className="premium-input"
-              style={{ paddingLeft: 36, width: 320 }}
-            />
-          </div>
-        </div>
+    <div style={{ paddingBottom: 40, fontFamily: 'Inter, system-ui, sans-serif' }}>
+
+      {/* ── En-tête Page ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: 0 }}>Départs & Packages</h1>
         {hasCreate && (
-          <button onClick={() => { setEditId(null); setForm(EMPTY); setShowModal(true); }} className="btn-primary">
-            + Nouveau départ
+          <button
+            onClick={() => { setEditId(null); setForm(EMPTY); setShowModal(true); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'linear-gradient(135deg, #059669, #047857)',
+              color: '#fff', border: 'none', borderRadius: 10,
+              padding: '10px 20px', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(5,150,105,0.35)',
+              transition: 'transform 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <Plus size={16} /> Nouveau départ
           </button>
         )}
       </div>
 
-      <div className="premium-card" style={{ padding: 0, overflow: 'hidden' }}>
+      {/* ── Carte Principale ── */}
+      <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+
+        {/* Titre section */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ background: '#DCFCE7', borderRadius: 8, padding: 8 }}>
+              <Package size={18} color="#059669" />
+            </div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#111827', margin: 0 }}>Catalogue des Départs</h2>
+          </div>
+          <span style={{ fontSize: 12, color: '#6B7280', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 6, padding: '4px 10px' }}>
+            {packages.length} départ{packages.length > 1 ? 's' : ''} enregistré{packages.length > 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {/* KPI Cards */}
+        {!loading && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, padding: '0 24px 20px' }}>
+            <div style={{ border: '1.5px solid #D1FAE5', borderRadius: 12, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ background: '#DCFCE7', borderRadius: 10, padding: 10, flexShrink: 0 }}>
+                <Package size={22} color="#059669" />
+              </div>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 4px' }}>TOTAL DÉPARTS</p>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#111827' }}>{packages.length}</div>
+              </div>
+            </div>
+
+            <div style={{ border: '1.5px solid #D1FAE5', borderRadius: 12, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ background: '#DCFCE7', borderRadius: 10, padding: 10, flexShrink: 0 }}>
+                <Plane size={22} color="#059669" />
+              </div>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 4px' }}>EN COURS / OUVERT</p>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#059669' }}>{totalOuvert}</div>
+              </div>
+            </div>
+
+            <div style={{ border: '1.5px solid #D1FAE5', borderRadius: 12, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ background: '#DCFCE7', borderRadius: 10, padding: 10, flexShrink: 0 }}>
+                <Calendar size={22} color="#059669" />
+              </div>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 4px' }}>COMPLETS</p>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#DC2626' }}>{totalComplet}</div>
+              </div>
+            </div>
+
+            <div style={{ border: '1.5px solid #D1FAE5', borderRadius: 12, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ background: '#DCFCE7', borderRadius: 10, padding: 10, flexShrink: 0 }}>
+                <Hotel size={22} color="#059669" />
+              </div>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 4px' }}>PLACES AU TOTAL</p>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#111827' }}>{totalPlaces.toLocaleString('fr-FR')}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Filtres */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 24px 20px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 280 }}>
+            <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', pointerEvents: 'none' }} />
+            <input
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Rechercher par référence, type, compagnie..."
+              style={{ width: '100%', paddingLeft: 32, paddingRight: 12, height: 38, border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, color: '#374151', outline: 'none', background: '#F9FAFB', boxSizing: 'border-box' }}
+            />
+          </div>
+          <span style={{ fontSize: 13, color: '#6B7280', whiteSpace: 'nowrap' }}>
+            {packagesFiltres.length} résultat{packagesFiltres.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {/* Tableau */}
         <div style={{ overflowX: 'auto' }}>
-          <table className="premium-table">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>
-                <th>Référence</th>
-                <th>Type</th>
-                <th>Statut</th>
-                <th>Départ</th>
-                <th>Retour</th>
-                <th>Places</th>
-                <th>Prix (Éco / Confort / VIP)</th>
-                <th>Compagnie</th>
-                {showActions && <th>Actions</th>}
+              <tr style={{ background: '#F9FAFB', borderTop: '1px solid #F3F4F6', borderBottom: '1px solid #F3F4F6' }}>
+                {['RÉFÉRENCE', 'TYPE', 'STATUT', 'DÉPART', 'RETOUR', 'PLACES', 'PRIX (ÉCO / CONFORT / VIP)', 'COMPAGNIE', showActions ? 'ACT.' : null]
+                  .filter(Boolean)
+                  .map(col => (
+                    <th key={col} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6B7280', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                      {col}
+                    </th>
+                  ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Chargement...</td></tr>
-              ) : packages.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Aucun départ</td></tr>
-              ) : paginatedPackages.map(p => {
-                const s = STATUT_COLORS[p.statut] || { bg: '#F3F4F6', color: '#6B7280' };
+                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 48, color: '#9CA3AF' }}>Chargement des départs...</td></tr>
+              ) : packagesFiltres.length === 0 ? (
+                <tr><td colSpan={9} style={{ textAlign: 'center', padding: 48, color: '#9CA3AF' }}>Aucun départ trouvé</td></tr>
+              ) : paginatedPackages.map((p, i) => {
+                const s = STATUT_COLORS[p.statut] || STATUT_COLORS.ANNULE;
+                const pct = p.quotaMax > 0 ? Math.round((p.placesReservees || 0) / p.quotaMax * 100) : 0;
                 return (
-                  <tr key={p._id}>
-                    <td style={{ fontWeight: 700 }}>{p.nomReference}</td>
-                    <td style={{ fontSize: 12 }}>{p.type}</td>
-                    <td>
-                      <span style={{ background: s.bg, color: s.color, borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>{p.statut}</span>
+                  <tr
+                    key={p._id || p.id || i}
+                    style={{ borderBottom: '1px solid #F3F4F6', background: i % 2 === 0 ? '#fff' : '#FAFAFA', transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F0FDF4'}
+                    onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#FAFAFA'}
+                  >
+                    {/* Référence */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 800, color: '#111827', fontSize: 13 }}>{p.nomReference}</div>
+                      {p.hotel && (
+                        <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                          {Array.isArray(p.hotel) ? p.hotel.join(', ') : p.hotel}
+                        </div>
+                      )}
                     </td>
-                    <td style={{ fontSize: 12 }}>{fmtDate(p.dateDepart)}</td>
-                    <td style={{ fontSize: 12 }}>{fmtDate(p.dateRetour)}</td>
-                    <td style={{ fontSize: 12 }}>
-                      <span style={{ fontWeight: 600 }}>{p.placesReservees || 0}</span>
-                      <span style={{ color: 'var(--text-muted)' }}>/{p.quotaMax}</span>
+
+                    {/* Type */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{ background: '#EFF6FF', color: '#1D4ED8', borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
+                        {p.type}
+                      </span>
                     </td>
-                    <td style={{ fontSize: 12 }}>
+
+                    {/* Statut */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{ background: s.bg, color: s.color, borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
+                        {p.statut}
+                      </span>
+                    </td>
+
+                    {/* Date départ */}
+                    <td style={{ padding: '12px 16px', color: '#374151', fontSize: 12, fontWeight: 500 }}>
+                      {fmtDate(p.dateDepart || p.date_depart)}
+                    </td>
+
+                    {/* Date retour */}
+                    <td style={{ padding: '12px 16px', color: '#374151', fontSize: 12, fontWeight: 500 }}>
+                      {fmtDate(p.dateRetour || p.date_retour)}
+                    </td>
+
+                    {/* Places */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <div>
+                        <span style={{ fontWeight: 700, color: pct >= 90 ? '#DC2626' : '#111827' }}>
+                          {p.placesReservees || 0}
+                        </span>
+                        <span style={{ color: '#9CA3AF' }}>/{p.quotaMax || '—'}</span>
+                      </div>
+                      {p.quotaMax > 0 && (
+                        <div style={{ marginTop: 4, height: 4, background: '#F3F4F6', borderRadius: 4, overflow: 'hidden', minWidth: 60 }}>
+                          <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: pct >= 90 ? '#DC2626' : pct >= 70 ? '#D97706' : '#059669', borderRadius: 4 }} />
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Prix */}
+                    <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {[['Éco', p.prixEco], ['Confort', p.prixCont], ['VIP', p.prixVip]].map(([label, prix]) =>
                           prix && parseFloat(prix) > 0 ? (
-                            <span key={label} style={{ whiteSpace: 'nowrap' }}>
-                              <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }}>{label}: </span>
-                              <span style={{ fontWeight: 700 }}>{fmt(prix)}</span>
+                            <span key={label} style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
+                              <span style={{ color: '#9CA3AF', fontSize: 10, fontWeight: 600 }}>{label}: </span>
+                              <span style={{ fontWeight: 700, color: '#059669' }}>{fmtPrix(prix)}</span>
                             </span>
                           ) : null
                         )}
-                        {!p.prixEco && !p.prixCont && !p.prixVip && <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                        {!p.prixEco && !p.prixCont && !p.prixVip && (
+                          <span style={{ color: '#9CA3AF' }}>—</span>
+                        )}
                       </div>
                     </td>
-                    <td style={{ fontSize: 12 }}>{p.compagnieAerienne || '—'}</td>
+
+                    {/* Compagnie */}
+                    <td style={{ padding: '12px 16px', fontSize: 12, color: '#374151' }}>
+                      {p.compagnieAerienne ? (
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{p.compagnieAerienne}</div>
+                          {p.villeDepart && (
+                            <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+                              {p.villeDepart} → {p.villeArrivee || ''}
+                            </div>
+                          )}
+                        </div>
+                      ) : '—'}
+                    </td>
+
+                    {/* Actions */}
                     {showActions && (
-                      <td>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           {hasEdit && (
-                            <button onClick={() => openEdit(p)}
-                              style={{ background: 'rgba(0,103,79,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                              Modifier
-                            </button>
+                            <ActionBtn
+                              onClick={() => openEdit(p)}
+                              title="Modifier"
+                              hoverBg="#F0FDF4" hoverColor="#059669" hoverBorder="#A7F3D0"
+                            >
+                              <Pencil size={13} />
+                            </ActionBtn>
                           )}
                           {hasDelete && (
-                            <button onClick={() => { if ((p.placesReservees || 0) > 0) { toast('Impossible : des inscriptions existent', 'error'); return; } setConfirmId(p.id || p._id); }}
-                              style={{ background: 'rgba(220,38,38,0.08)', border: 'none', borderRadius: 6, padding: '4px 10px', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                              Supprimer
-                            </button>
+                            <ActionBtn
+                              onClick={() => {
+                                if ((p.placesReservees || 0) > 0) {
+                                  toast('Impossible : des inscriptions existent pour ce départ', 'error');
+                                  return;
+                                }
+                                setConfirmId(p.id || p._id);
+                              }}
+                              title="Supprimer"
+                              hoverBg="#FEF2F2" hoverColor="#DC2626" hoverBorder="#FECACA"
+                            >
+                              <Trash2 size={13} />
+                            </ActionBtn>
                           )}
                         </div>
                       </td>
@@ -237,92 +395,85 @@ export default function PackagesPage() {
             </tbody>
           </table>
         </div>
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          totalItems={packagesFiltres.length}
-          itemsPerPage={limit}
-          onPageChange={setPage}
-          onLimitChange={(l) => { setLimit(l); setPage(1); }}
-        />
+
+        <div style={{ borderTop: '1px solid #F3F4F6' }}>
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={packagesFiltres.length}
+            itemsPerPage={limit}
+            onPageChange={setPage}
+            onLimitChange={l => { setLimit(l); setPage(1); }}
+          />
+        </div>
       </div>
 
+      {/* ════ MODAL NOUVEAU / MODIFIER DÉPART ════ */}
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editId ? 'Modifier le départ' : 'Nouveau départ'}>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-          {/* Infos générales */}
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Informations générales</p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p style={{ fontSize: 11, fontWeight: 800, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>Informations générales</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label className="input-label">Nom de référence *</label>
-              <input value={form.nomReference} onChange={setUpper('nomReference')} className="premium-input" required
-                placeholder="Ex: OUMRA-JAN-2026" style={{ textTransform: 'uppercase' }} />
+              <FormField label="Nom de référence *">
+                <input value={form.nomReference} onChange={setUpper('nomReference')} style={{ ...inputSt, textTransform: 'uppercase' }} required placeholder="Ex: OUMRA-JAN-2026" />
+              </FormField>
             </div>
-            <div>
-              <label className="input-label">Type *</label>
-              <select value={form.type} onChange={set('type')} className="premium-input">
+            <FormField label="Type *">
+              <select value={form.type} onChange={set('type')} style={inputSt}>
                 {['OUMRA', 'HAJJ', 'ZIAR_FES', 'ZIARRA', 'TOURISME', 'BILLET'].map(t => <option key={t} value={t}>{t}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="input-label">Statut</label>
-              <select value={form.statut} onChange={set('statut')} className="premium-input">
+            </FormField>
+            <FormField label="Statut">
+              <select value={form.statut} onChange={set('statut')} style={inputSt}>
                 {['OUVERT', 'COMPLET', 'ANNULE', 'TERMINE'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="input-label">Date départ *</label>
-              <input type="date" value={form.dateDepart} onChange={set('dateDepart')} className="premium-input" required />
-            </div>
-            <div>
-              <label className="input-label">Date retour *</label>
-              <input type="date" value={form.dateRetour} onChange={set('dateRetour')} className="premium-input" required />
-            </div>
-            <div>
-              <label className="input-label">Quota max (places) *</label>
+            </FormField>
+            <FormField label="Date départ *">
+              <input type="date" value={form.dateDepart} onChange={set('dateDepart')} style={inputSt} required />
+            </FormField>
+            <FormField label="Date retour *">
+              <input type="date" value={form.dateRetour} onChange={set('dateRetour')} style={inputSt} required />
+            </FormField>
+            <FormField label="Quota max (places) *">
               <NumberInput value={form.quotaMax} onChange={v => setForm(f => ({ ...f, quotaMax: v }))} className="premium-input" placeholder="30" min={1} required />
-            </div>
-            <div>
-              <label className="input-label">Hôtel(s) <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(séparés par virgule)</span></label>
-              <input value={form.hotel} onChange={set('hotel')} className="premium-input" placeholder="Hôtel Makkah, Hôtel Madinah" />
-            </div>
+            </FormField>
+            <FormField label="Hôtel(s)">
+              <input value={form.hotel} onChange={set('hotel')} style={inputSt} placeholder="Hôtel Makkah, Hôtel Madinah" />
+            </FormField>
           </div>
 
-          {/* Prix par classe */}
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Prix par classe (FCFA)</p>
+          <p style={{ fontSize: 11, fontWeight: 800, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '4px 0 0' }}>Prix par classe (FCFA)</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             {[['prixEco', 'Éco'], ['prixCont', 'Confort'], ['prixVip', 'VIP']].map(([k, l]) => (
-              <div key={k}>
-                <label className="input-label">{l}</label>
+              <FormField key={k} label={l}>
                 <NumberInput value={form[k]} onChange={v => setForm(f => ({ ...f, [k]: v }))} className="premium-input" placeholder="0" min={0} />
-              </div>
+              </FormField>
             ))}
           </div>
 
-          {/* Vol */}
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Informations vol</p>
+          <p style={{ fontSize: 11, fontWeight: 800, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '4px 0 0' }}>Informations vol</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label className="input-label">Compagnie aérienne</label>
-              <input value={form.compagnieAerienne} onChange={set('compagnieAerienne')} className="premium-input" placeholder="Air Sénégal, Royal Air Maroc..." />
-            </div>
-            <div>
-              <label className="input-label">Numéro de vol</label>
-              <input value={form.numeroVol} onChange={set('numeroVol')} className="premium-input" placeholder="HC 401" />
-            </div>
-            <div>
-              <label className="input-label">Ville de départ</label>
-              <input value={form.villeDepart} onChange={set('villeDepart')} className="premium-input" placeholder="Dakar" />
-            </div>
-            <div>
-              <label className="input-label">Ville d'arrivée</label>
-              <input value={form.villeArrivee} onChange={set('villeArrivee')} className="premium-input" placeholder="Djeddah" />
-            </div>
+            <FormField label="Compagnie aérienne">
+              <input value={form.compagnieAerienne} onChange={set('compagnieAerienne')} style={inputSt} placeholder="Air Sénégal, Royal Air Maroc..." />
+            </FormField>
+            <FormField label="Numéro de vol">
+              <input value={form.numeroVol} onChange={set('numeroVol')} style={inputSt} placeholder="HC 401" />
+            </FormField>
+            <FormField label="Ville de départ">
+              <input value={form.villeDepart} onChange={set('villeDepart')} style={inputSt} placeholder="Dakar" />
+            </FormField>
+            <FormField label="Ville d'arrivée">
+              <input value={form.villeArrivee} onChange={set('villeArrivee')} style={inputSt} placeholder="Djeddah" />
+            </FormField>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
-            <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Annuler</button>
-            <button type="submit" disabled={saving} className="btn-primary">
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 6 }}>
+            <button type="button" onClick={() => setShowModal(false)}
+              style={{ border: '1.5px solid #E5E7EB', background: '#fff', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+              Annuler
+            </button>
+            <button type="submit" disabled={saving}
+              style={{ background: saving ? '#9CA3AF' : 'linear-gradient(135deg, #059669, #047857)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 24px', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>
               {saving ? 'Enregistrement...' : (editId ? 'Mettre à jour' : 'Créer le départ')}
             </button>
           </div>
@@ -331,10 +482,44 @@ export default function PackagesPage() {
 
       <ConfirmDialog
         open={!!confirmId}
-        message="Supprimer ce départ définitivement ?"
+        message="Supprimer ce départ définitivement ? Cette action est irréversible."
         onConfirm={confirmDelete}
         onCancel={() => setConfirmId(null)}
       />
     </div>
   );
 }
+
+function ActionBtn({ onClick, title, hoverBg, hoverColor, hoverBorder, children }) {
+  const [h, setH] = useState(false);
+  return (
+    <button
+      onClick={onClick} title={title}
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{
+        background: h ? hoverBg : 'none',
+        border: `1px solid ${h ? hoverBorder : '#E5E7EB'}`,
+        color: h ? hoverColor : '#9CA3AF',
+        borderRadius: 6, padding: '5px 7px', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', transition: 'all 0.15s',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FormField({ label, children }) {
+  return (
+    <div>
+      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const inputSt = {
+  width: '100%', height: 38, border: '1.5px solid #E5E7EB',
+  borderRadius: 8, padding: '0 12px', fontSize: 13,
+  outline: 'none', boxSizing: 'border-box', background: '#fff',
+};

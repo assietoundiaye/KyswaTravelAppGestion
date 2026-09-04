@@ -179,6 +179,9 @@ function createClientRoutes(dependencies) {
   // GET statistiques
   router.get('/stats', protect, checkPermission('clients', 'view'), (req, res, next) => controller.getStats(req, res, next));
 
+  // GET alertes CRM (anniversaires et expirations passeports)
+  router.get('/alerts', protect, checkPermission('clients', 'view'), (req, res, next) => controller.getAlerts(req, res, next));
+
   // GET recherche
   router.get('/search', protect, checkPermission('clients', 'view'), (req, res, next) => controller.search(req, res, next));
 
