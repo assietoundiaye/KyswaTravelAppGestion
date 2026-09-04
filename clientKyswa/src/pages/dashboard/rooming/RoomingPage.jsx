@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Hotel, Users, BedDouble, Plus, Search, Filter,
   CheckCircle, AlertCircle, Trash2, Edit3, ArrowRight,
   Printer, Sparkles, RefreshCw, UserCheck, ShieldAlert,
-  ChevronRight, Phone, FileText, Check, X, Layers, Download
+  ChevronRight, Phone, FileText, Check, X, Layers, Download,
+  ChevronDown, Calendar, Plane
 } from 'lucide-react';
 import api from '../../../core/api/axios';
 import { useAuth } from '../../../context/AuthContext';
@@ -33,12 +34,25 @@ const GENRES_CHAMBRE = [
 export default function RoomingPage() {
   const { user } = useAuth();
 
-  // ── États généraux ──────────────────────────────────────────────────────────
   const [departs, setDeparts] = useState([]);
   const [selectedDepartId, setSelectedDepartId] = useState('');
+  const [departSearchQuery, setDepartSearchQuery] = useState('');
+  const [isDepartDropdownOpen, setIsDepartDropdownOpen] = useState(false);
+  const departDropdownRef = useRef(null);
   const [selectedVille, setSelectedVille] = useState('Makkah');
   const [loading, setLoading] = useState(true);
   const [roomingData, setRoomingData] = useState(null);
+
+  // Fermer le menu dropdown lors d'un clic extérieur
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (departDropdownRef.current && !departDropdownRef.current.contains(event.target)) {
+        setIsDepartDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // ── Filtres Pèlerins & Chambres ─────────────────────────────────────────────
   const [searchPelerin, setSearchPelerin] = useState('');
@@ -430,6 +444,18 @@ export default function RoomingPage() {
     });
   }, [roomingData, genreChambreFilter, dispoChambreFilter, searchChambre]);
 
+  // ── Filtrage des départs pour la barre de recherche ────────────────────────
+  const filteredDeparts = useMemo(() => {
+    if (!departSearchQuery.trim()) return departs;
+    const q = departSearchQuery.toLowerCase();
+    return departs.filter(d => {
+      const nom = (d.nom_depart || d.nomReference || d.nom || '').toLowerCase();
+      const service = (d.service || '').toLowerCase();
+      const dateDep = d.date_depart ? new Date(d.date_depart).toLocaleDateString('fr-FR') : '';
+      return nom.includes(q) || service.includes(q) || dateDep.includes(q);
+    });
+  }, [departs, departSearchQuery]);
+
   const stats = roomingData?.stats;
   const currentDepart = departs.find(d => (d.id || d._id) === selectedDepartId);
 
@@ -507,26 +533,182 @@ export default function RoomingPage() {
         padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexWrap: 'wrap', gap: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
       }}>
-        {/* Choix Départ */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 280 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#4B5563', whiteSpace: 'nowrap' }}>
-            Voyage / Départ :
-          </span>
-          <select
-            value={selectedDepartId}
-            onChange={e => setSelectedDepartId(e.target.value)}
+        {/* Recherche / Sélection de Voyage Départ */}
+        <div ref={departDropdownRef} style={{ position: 'relative', flex: 1, minWidth: 320, maxWidth: 540 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Plane size={15} color="#059669" />
+              Voyage / Départ :
+            </span>
+            {currentDepart && (
+              <span style={{
+                fontSize: 11, fontWeight: 700,
+                background: currentDepart.actif ? '#DCFCE7' : '#F3F4F6',
+                color: currentDepart.actif ? '#15803D' : '#4B5563',
+                padding: '2px 8px', borderRadius: 6
+              }}>
+                {currentDepart.actif ? '🟢 En cours' : 'Terminé'}
+              </span>
+            )}
+          </div>
+
+          <div
+            onClick={() => setIsDepartDropdownOpen(true)}
             style={{
-              flex: 1, height: 40, border: '1.5px solid #D1D5DB', borderRadius: 8,
-              padding: '0 12px', fontSize: 13, fontWeight: 700, color: '#111827',
-              background: '#F9FAFB', outline: 'none', cursor: 'pointer',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              border: isDepartDropdownOpen ? '2px solid #059669' : '1.5px solid #D1D5DB',
+              borderRadius: 10,
+              background: 'white',
+              boxShadow: isDepartDropdownOpen ? '0 0 0 3px rgba(5,150,105,0.12)' : 'none',
+              transition: 'all 0.15s ease',
             }}
           >
-            {departs.map(d => (
-              <option key={d.id || d._id} value={d.id || d._id}>
-                {d.nom_depart || d.nomReference || 'Départ'} {d.date_depart ? `(du ${new Date(d.date_depart).toLocaleDateString('fr-FR')})` : ''}
-              </option>
-            ))}
-          </select>
+            <Search size={16} color={isDepartDropdownOpen ? '#059669' : '#9CA3AF'} style={{ marginLeft: 12, flexShrink: 0 }} />
+            
+            <input
+              type="text"
+              value={isDepartDropdownOpen ? departSearchQuery : (currentDepart?.nom_depart || currentDepart?.nomReference || currentDepart?.nom || '')}
+              onChange={e => {
+                setDepartSearchQuery(e.target.value);
+                if (!isDepartDropdownOpen) setIsDepartDropdownOpen(true);
+              }}
+              onFocus={() => {
+                setDepartSearchQuery('');
+                setIsDepartDropdownOpen(true);
+              }}
+              placeholder="Tapez pour rechercher un voyage (ex: Oumra, Mars, 2026)..."
+              style={{
+                width: '100%',
+                height: 40,
+                border: 'none',
+                outline: 'none',
+                padding: '0 10px',
+                fontSize: 13,
+                fontWeight: 600,
+                color: '#111827',
+                background: 'transparent',
+              }}
+            />
+
+            {isDepartDropdownOpen && departSearchQuery && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDepartSearchQuery('');
+                }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 4, marginRight: 4,
+                  color: '#9CA3AF', display: 'flex', alignItems: 'center'
+                }}
+              >
+                <X size={14} />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDepartDropdownOpen(!isDepartDropdownOpen);
+              }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: '0 10px',
+                color: '#6B7280', display: 'flex', alignItems: 'center'
+              }}
+            >
+              <ChevronDown size={16} style={{ transform: isDepartDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            </button>
+          </div>
+
+          {/* Menu flottant des résultats de recherche */}
+          {isDepartDropdownOpen && (
+            <div style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              left: 0,
+              right: 0,
+              background: 'white',
+              border: '1.5px solid #E5E7EB',
+              borderRadius: 12,
+              boxShadow: '0 12px 28px rgba(0,0,0,0.12)',
+              maxHeight: 280,
+              overflowY: 'auto',
+              zIndex: 100,
+              padding: 6,
+            }}>
+              {filteredDeparts.length === 0 ? (
+                <div style={{ padding: '16px 12px', textAlign: 'center', color: '#6B7280', fontSize: 13 }}>
+                  🔍 Aucun voyage ne correspond à &quot;{departSearchQuery}&quot;
+                </div>
+              ) : (
+                filteredDeparts.map(d => {
+                  const dId = d.id || d._id;
+                  const isSelected = selectedDepartId === dId;
+                  const nom = d.nom_depart || d.nomReference || d.nom || 'Départ';
+                  const dateStr = d.date_depart ? new Date(d.date_depart).toLocaleDateString('fr-FR') : null;
+                  const dateRet = d.date_retour ? new Date(d.date_retour).toLocaleDateString('fr-FR') : null;
+
+                  return (
+                    <div
+                      key={dId}
+                      onClick={() => {
+                        setSelectedDepartId(dId);
+                        setIsDepartDropdownOpen(false);
+                        setDepartSearchQuery('');
+                      }}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        background: isSelected ? '#ECFDF5' : 'transparent',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'background 0.15s',
+                        marginBottom: 2,
+                      }}
+                      onMouseEnter={e => {
+                        if (!isSelected) e.currentTarget.style.background = '#F9FAFB';
+                      }}
+                      onMouseLeave={e => {
+                        if (!isSelected) e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: isSelected ? '#065F46' : '#111827' }}>
+                            {nom}
+                          </span>
+                          {d.service && (
+                            <span style={{ fontSize: 10, fontWeight: 700, background: '#EFF6FF', color: '#1D4ED8', padding: '1px 6px', borderRadius: 4 }}>
+                              {d.service}
+                            </span>
+                          )}
+                        </div>
+                        {(dateStr || dateRet) && (
+                          <div style={{ fontSize: 11, color: '#6B7280' }}>
+                            📅 {dateStr ? `Du ${dateStr}` : ''} {dateRet ? `au ${dateRet}` : ''}
+                          </div>
+                        )}
+                      </div>
+
+                      {isSelected && (
+                        <div style={{
+                          width: 22, height: 22, borderRadius: '50%', background: '#059669',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                        }}>
+                          <Check size={13} color="white" strokeWidth={3} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
 
         {/* Choix Étape Ville */}
