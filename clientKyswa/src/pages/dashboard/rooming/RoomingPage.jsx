@@ -3,7 +3,7 @@ import {
   Hotel, Users, BedDouble, Plus, Search, Filter,
   CheckCircle, AlertCircle, Trash2, Edit3, ArrowRight,
   Printer, Sparkles, RefreshCw, UserCheck, ShieldAlert,
-  ChevronRight, Phone, FileText, Check, X
+  ChevronRight, Phone, FileText, Check, X, Layers
 } from 'lucide-react';
 import api from '../../../core/api/axios';
 import { useAuth } from '../../../context/AuthContext';
