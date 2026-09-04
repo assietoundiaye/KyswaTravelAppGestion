@@ -3,7 +3,7 @@ import {
   Hotel, Users, BedDouble, Plus, Search, Filter,
   CheckCircle, AlertCircle, Trash2, Edit3, ArrowRight,
   Printer, Sparkles, RefreshCw, UserCheck, ShieldAlert,
-  ChevronRight, Phone, FileText, Check, X, Layers
+  ChevronRight, Phone, FileText, Check, X, Layers, Download
 } from 'lucide-react';
 import api from '../../../core/api/axios';
 import { useAuth } from '../../../context/AuthContext';
@@ -146,6 +146,128 @@ export default function RoomingPage() {
       toast(err.response?.data?.message || 'Erreur lors de la création', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Actions : Export & Téléchargement PDF ───────────────────────────────────
+  const handleExportPDF = async () => {
+    if (!selectedDepartId || !roomingData) {
+      return toast('Veuillez sélectionner un voyage avant d’exporter la Rooming List', 'error');
+    }
+    const chambres = roomingData.chambres || [];
+    if (chambres.length === 0) {
+      return toast('Aucune chambre à exporter pour ce séjour', 'error');
+    }
+
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+      const currentDepart = departs.find(d => (d.id || d._id) === selectedDepartId);
+      const departNom = currentDepart?.nom_depart || currentDepart?.nomReference || currentDepart?.nom || 'Départ';
+      const hotelNom = roomingData?.nomHotelActuel || 'Non renseigné';
+      const stats = roomingData?.stats || {};
+
+      // En-tête KYSWA TRAVEL
+      doc.setFillColor(15, 23, 42); // #0F172A
+      doc.rect(0, 0, 297, 24, 'F');
+
+      // Accent émeraude
+      doc.setFillColor(5, 150, 105);
+      doc.rect(0, 23, 297, 1.5, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('KYSWA TRAVEL — ROOMING LIST OFFICIEL', 14, 10);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        `Voyage : ${departNom}   |   Étape : ${selectedVille}   |   Hôtel : ${hotelNom}   |   Date : ${new Date().toLocaleDateString('fr-FR')}`,
+        14,
+        17
+      );
+
+      // Statistiques sommaires
+      doc.setFontSize(8.5);
+      doc.setTextColor(55, 65, 81);
+      doc.setFont('helvetica', 'bold');
+      doc.text(
+        `RÉSUMÉ :  Total Chambres : ${stats.totalChambres || chambres.length}   •   Lits Occupés : ${stats.totalPlacesOccupees || 0}/${stats.totalCapaciteLits || 0}   •   Hommes : ${stats.comparatifGenre?.hommes?.places || 0}/${stats.comparatifGenre?.hommes?.inscrits || 0}   •   Femmes : ${stats.comparatifGenre?.femmes?.placees || 0}/${stats.comparatifGenre?.femmes?.inscrites || 0}`,
+        14,
+        30
+      );
+
+      // Préparation des lignes du tableau
+      const tableRows = [];
+      chambres.forEach(ch => {
+        const occupants = ch.occupants || [];
+        const chNum = `Ch. ${ch.numero_chambre}${ch.etage ? ` (Ét. ${ch.etage})` : ''}`;
+        const typeStr = ch.type_chambre || 'Double';
+        const genreStr = ch.genre_chambre || 'HOMMES';
+
+        if (occupants.length === 0) {
+          tableRows.push([
+            chNum,
+            typeStr,
+            genreStr,
+            '— Chambre disponible (vide) —',
+            '—',
+            '—',
+            '—',
+            `${ch.capacite || 2} lits libres`
+          ]);
+        } else {
+          occupants.forEach((occ, idx) => {
+            const pelerinGenre = (occ.genre === 'FEMME' || occ.genre === 'F') ? 'F' : 'M';
+            tableRows.push([
+              idx === 0 ? chNum : '',
+              idx === 0 ? typeStr : '',
+              idx === 0 ? genreStr : '',
+              `${occ.nom || ''} ${occ.prenom || ''}`.trim() || '—',
+              pelerinGenre,
+              occ.n_passeport || '—',
+              occ.telephone || '—',
+              occ.nationalite || occ.ville || '—'
+            ]);
+          });
+        }
+      });
+
+      autoTable(doc, {
+        startY: 34,
+        head: [['N° Chambre', 'Type', 'Genre Chambre', 'Nom & Prénom du Pèlerin', 'Sexe', 'N° Passeport', 'Téléphone', 'Nationalité / Ville']],
+        body: tableRows,
+        styles: { fontSize: 8, cellPadding: 2.5, textColor: [31, 41, 55], font: 'helvetica' },
+        headStyles: { fillColor: [5, 150, 105], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 32 },
+          1: { cellWidth: 26 },
+          2: { cellWidth: 28 },
+          3: { fontStyle: 'bold', cellWidth: 60 },
+          4: { cellWidth: 14, halign: 'center' },
+          5: { cellWidth: 32, font: 'courier' },
+          6: { cellWidth: 34 },
+          7: { cellWidth: 45 },
+        },
+        margin: { left: 14, right: 14 },
+        didDrawPage: () => {
+          const str = `Page ${doc.internal.getNumberOfPages()} — Document édité par Kyswa Travel ERP — Tous droits réservés`;
+          doc.setFontSize(7.5);
+          doc.setTextColor(156, 163, 175);
+          doc.text(str, 14, doc.internal.pageSize.height - 8);
+        }
+      });
+
+      const cleanDepart = departNom.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      doc.save(`Rooming_List_${cleanDepart}_${selectedVille}.pdf`);
+      toast('Rooming List téléchargée en PDF avec succès !');
+    } catch (err) {
+      console.error('Erreur export PDF rooming:', err);
+      toast('Erreur lors de la génération du PDF', 'error');
     }
   };
 
@@ -352,16 +474,29 @@ export default function RoomingPage() {
           </button>
 
           <button
+            onClick={handleExportPDF}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'linear-gradient(135deg, #059669, #047857)', color: 'white',
+              border: 'none', borderRadius: 10, padding: '9px 18px', fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)',
+            }}
+          >
+            <Download size={15} />
+            Télécharger PDF
+          </button>
+
+          <button
             onClick={() => setShowPrintModal(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              background: 'linear-gradient(135deg, #2563EB, #1D4ED8)', color: 'white',
-              border: 'none', borderRadius: 10, padding: '9px 18px', fontSize: 13, fontWeight: 700,
-              cursor: 'pointer', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+              background: 'white', color: '#1F2937',
+              border: '1.5px solid #D1D5DB', borderRadius: 10, padding: '8px 16px', fontSize: 13, fontWeight: 700,
+              cursor: 'pointer',
             }}
           >
             <Printer size={15} />
-            Exporter Rooming List
+            Aperçu & Impression
           </button>
         </div>
       </div>
@@ -1239,16 +1374,28 @@ export default function RoomingPage() {
                     Voyage : <strong>{currentDepart?.nom_depart || currentDepart?.nomReference}</strong> • Étape : <strong>{selectedVille}</strong> ({roomingData?.nomHotelActuel})
                   </p>
                 </div>
-                <button
-                  onClick={() => window.print()}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    background: '#2563EB', color: 'white', border: 'none', borderRadius: 8,
-                    padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  }}
-                >
-                  <Printer size={14} /> Imprimer la liste
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={handleExportPDF}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: '#059669', color: 'white', border: 'none', borderRadius: 8,
+                      padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    <Download size={14} /> Télécharger PDF
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: '#2563EB', color: 'white', border: 'none', borderRadius: 8,
+                      padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    <Printer size={14} /> Imprimer
+                  </button>
+                </div>
               </div>
             </div>
 
