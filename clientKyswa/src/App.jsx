@@ -44,6 +44,7 @@ import RapportsPage from './pages/dashboard/rapports/RapportsPage';
 import BilanPage from './pages/dashboard/bilan/BilanPage';
 import OCRMetricsPage from './pages/dashboard/ocr/OCRMetricsPage';
 import ShopPage from './pages/dashboard/shop/ShopPage';
+import RoomingPage from './pages/dashboard/rooming/RoomingPage';
 
 // Route guards
 import { PrivateRoute, PublicOnlyRoute } from './components/PrivateRoute';
@@ -80,6 +81,7 @@ const EXPLICIT_ROUTE_ROLES = {
   paiements: ['dg', 'comptable'], // Seuls DG et comptable
   comptabilite: ['dg', 'comptable'], // Seuls DG et comptable
   shop: PATH_ROLES.shop ? Array.from(PATH_ROLES.shop) : ['commercial', 'oumra', 'billets', 'ziara'],
+  rooming: ['commercial', 'oumra', 'oumra_ziara', 'dg', 'administrateur', 'informatique', 'admin', 'secretaire'],
 };
 
 const rolesFor = (path) => {
@@ -132,8 +134,9 @@ const App = () => {
           <Route path="paiements" element={<PrivateRoute module="paiements" roles={rolesFor('paiements')}><PaiementsPage /></PrivateRoute>} />
           <Route path="reste-a-payer" element={<PrivateRoute module="paiements" roles={rolesFor('reste-a-payer')}><PaiementsPage /></PrivateRoute>} />
 
-          {/* Packages / Départs */}
+          {/* Packages / Départs & Rooming */}
           <Route path="packages" element={<PrivateRoute module="packages" roles={rolesFor('packages')}><PackagesPage /></PrivateRoute>} />
+          <Route path="rooming" element={<PrivateRoute module="rooming" roles={rolesFor('rooming')}><RoomingPage /></PrivateRoute>} />
           <Route path="supplements" element={<PrivateRoute module="supplements" roles={rolesFor('supplements')}><SupplementsPage /></PrivateRoute>} />
 
           {/* Documents */}

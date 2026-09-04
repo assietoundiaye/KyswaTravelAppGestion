@@ -4,7 +4,7 @@ import {
   MessageSquare, ShieldCheck,
   AlertTriangle, TrendingDown, Globe, BookOpen,
   Plane, Calculator, ClipboardList, Briefcase,
-  Activity, ShoppingBag
+  Activity, ShoppingBag, Hotel
 } from 'lucide-react';
 
 export const ALL_ROLES = [
@@ -69,6 +69,7 @@ export const ALL_MENU_ITEMS = [
   { label: 'Recouvrement', to: '/dashboard/recouvrement', icon: TrendingDown, module: 'recouvrement' },
   { label: 'Bilan départs', to: '/dashboard/bilan', icon: BarChart2, module: 'rapports' },
   { label: 'Départs', to: '/dashboard/packages', icon: Package, module: 'packages' },
+  { label: 'Rooming / Chambres', to: '/dashboard/rooming', icon: Hotel, module: 'rooming' },
   { label: 'Suppléments', to: '/dashboard/supplements', icon: Package, module: 'supplements' },
   { label: 'Secrétariat', to: '/dashboard/documents', icon: Briefcase, module: 'documents' },
   { label: 'Ziarra', to: '/dashboard/ziarra', icon: Globe, module: 'ziarra' },
@@ -80,8 +81,8 @@ export const ALL_MENU_ITEMS = [
 
 const menuDG = ALL_MENU_ITEMS.filter(m => !['utilisateurs', 'audit'].includes(m.module));
 const menuAdmin = ALL_MENU_ITEMS;
-const menuCommercial = ALL_MENU_ITEMS.filter(m => ['clients', 'reservations', 'supplements', 'shop', 'simulateur', 'recouvrement', 'rapports', 'packages', 'messages', null].includes(m.module));
-const menuOumra = ALL_MENU_ITEMS.filter(m => ['clients', 'reservations', 'visas', 'billets-groupe', 'billets', 'shop', 'rapports', 'messages', null].includes(m.module));
+const menuCommercial = ALL_MENU_ITEMS.filter(m => ['clients', 'reservations', 'supplements', 'shop', 'simulateur', 'recouvrement', 'rapports', 'packages', 'rooming', 'messages', null].includes(m.module));
+const menuOumra = ALL_MENU_ITEMS.filter(m => ['clients', 'reservations', 'visas', 'billets-groupe', 'billets', 'rooming', 'shop', 'rapports', 'messages', null].includes(m.module));
 
 export const MENU_BY_ROLE = {
   dg: menuDG,

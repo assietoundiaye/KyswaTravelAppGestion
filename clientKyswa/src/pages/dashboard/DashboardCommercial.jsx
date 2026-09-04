@@ -4,7 +4,7 @@ import {
   CalendarCheck, CreditCard, Users, Plane, FileText,
   Calculator, TrendingDown, Briefcase, Send,
   CheckCircle, XCircle, ChevronLeft, ChevronRight,
-  Cake, AlertTriangle, Phone, MessageCircle, Clock, Bell, ExternalLink, ShieldAlert,
+  Cake, AlertTriangle, Phone, MessageCircle, Clock, Bell, ExternalLink, ShieldAlert, Hotel,
 } from 'lucide-react';
 import api from '../../core/api/axios';
 import { useAuth } from '../../context/AuthContext';
@@ -763,6 +763,7 @@ const ALL_QUICK = [
   { label: 'Comptabilité',    icon: Calculator,    color: '#7C3AED', path: '/dashboard/comptabilite', module: 'comptabilite' },
   { label: 'Bilan Départs',   icon: Briefcase,     color: '#EA580C', path: '/dashboard/bilan', module: 'rapports' },
   { label: 'Clients CRM',     icon: Users,         color: '#0891B2', path: '/dashboard/clients', module: 'clients' },
+  { label: 'Rooming',         icon: Hotel,         color: '#059669', path: '/dashboard/rooming', module: 'rooming' },
   { label: 'Recouvrement',    icon: TrendingDown,  color: '#DC2626', path: '/dashboard/recouvrement', module: 'recouvrement' },
   { label: 'Secrétariat',     icon: FileText,      color: '#6B7280', path: '/dashboard/documents', module: 'documents' },
   { label: 'Messages Groupés',icon: Send,          color: '#D97706', path: '/dashboard/messages', module: null }, // Messages accessible à tous

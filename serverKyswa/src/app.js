@@ -111,6 +111,7 @@ class App {
       { path: './modules/ziarra/routes',       api: '/api/ziarra' },
       { path: './modules/factures/routes',     api: '/api/factures' },
       { path: './modules/documents/routes',    api: '/api/documents' },
+      { path: './modules/rooming/routes',      api: '/api/rooming' },
     ];
 
     for (const { path, api, factory } of moduleRoutes) {
