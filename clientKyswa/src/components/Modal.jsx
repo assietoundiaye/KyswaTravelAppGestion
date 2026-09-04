@@ -1,13 +1,15 @@
 import { useEffect } from 'react';
 
-export default function Modal({ open, onClose, title, children, size = 'md' }) {
+export default function Modal({ open, isOpen, onClose, title, children, size = 'md' }) {
+  const isVisible = open !== undefined ? Boolean(open) : Boolean(isOpen);
+
   useEffect(() => {
-    if (open) document.body.style.overflow = 'hidden';
+    if (isVisible) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = '';
     return () => { document.body.style.overflow = ''; };
-  }, [open]);
+  }, [isVisible]);
 
-  if (!open) return null;
+  if (!isVisible) return null;
 
   const widths = { sm: 400, md: 560, lg: 720, xl: 900 };
 

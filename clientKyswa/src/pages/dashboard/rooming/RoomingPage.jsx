@@ -124,7 +124,12 @@ export default function RoomingPage() {
   // ── Actions : Création Chambre ──────────────────────────────────────────────
   const handleCreateChambre = async (e) => {
     e.preventDefault();
-    if (!chambreForm.numeroChambre.trim()) return toast('Le numéro de chambre est obligatoire', 'error');
+    if (!selectedDepartId) {
+      return toast('Veuillez sélectionner un voyage / départ avant d’ajouter une chambre', 'error');
+    }
+    if (!chambreForm.numeroChambre.trim()) {
+      return toast('Le numéro de chambre est obligatoire', 'error');
+    }
     setSaving(true);
     try {
       await api.post('/rooming/chambres', {
@@ -147,6 +152,9 @@ export default function RoomingPage() {
   // ── Actions : Génération en lot ─────────────────────────────────────────────
   const handleBatchCreate = async (e) => {
     e.preventDefault();
+    if (!selectedDepartId) {
+      return toast('Veuillez sélectionner un voyage / départ avant de générer des chambres', 'error');
+    }
     setSaving(true);
     try {
       await api.post('/rooming/chambres/batch', {
@@ -801,9 +809,37 @@ export default function RoomingPage() {
               <p style={{ margin: 0, fontWeight: 700, color: '#6B7280', fontSize: 14 }}>
                 Aucune chambre ne correspond aux critères.
               </p>
-              <p style={{ margin: '6px 0 0', color: '#9CA3AF', fontSize: 12 }}>
-                Cliquez sur &quot;Ajouter une chambre&quot; ou &quot;Générer en lot&quot; pour commencer.
+              <p style={{ margin: '6px 0 16px', color: '#9CA3AF', fontSize: 12 }}>
+                Commencez dès maintenant en ajoutant vos chambres pour <strong>{selectedVille}</strong>.
               </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(true)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: '#059669', color: 'white', border: 'none',
+                    borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Plus size={15} />
+                  Ajouter une chambre
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBatchModal(true)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    background: 'white', color: '#374151', border: '1px solid #D1D5DB',
+                    borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Layers size={15} />
+                  Générer en lot
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
@@ -938,7 +974,7 @@ export default function RoomingPage() {
 
       {/* ── MODALE 1 : AJOUTER UNE CHAMBRE UNIQUE ── */}
       {showAddModal && (
-        <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Ajouter une chambre">
+        <Modal open={showAddModal} onClose={() => setShowAddModal(false)} title="Ajouter une chambre">
           <form onSubmit={handleCreateChambre} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>
@@ -1031,7 +1067,7 @@ export default function RoomingPage() {
 
       {/* ── MODALE 2 : GÉNÉRATION EN LOT ── */}
       {showBatchModal && (
-        <Modal isOpen={showBatchModal} onClose={() => setShowBatchModal(false)} title="Générer une série de chambres">
+        <Modal open={showBatchModal} onClose={() => setShowBatchModal(false)} title="Générer une série de chambres">
           <form onSubmit={handleBatchCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p style={{ margin: 0, fontSize: 13, color: '#4B5563' }}>
               Créez rapidement plusieurs chambres consécutives pour <strong>{selectedVille}</strong>.
@@ -1121,7 +1157,7 @@ export default function RoomingPage() {
 
       {/* ── MODALE 3 : MODIFIER LE NOM DE L'HÔTEL ── */}
       {showEditHotelModal && (
-        <Modal isOpen={showEditHotelModal} onClose={() => setShowEditHotelModal(false)} title={`Modifier l'hôtel pour ${selectedVille}`}>
+        <Modal open={showEditHotelModal} onClose={() => setShowEditHotelModal(false)} title={`Modifier l'hôtel pour ${selectedVille}`}>
           <form onSubmit={handleUpdateHotel} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>
@@ -1158,7 +1194,7 @@ export default function RoomingPage() {
 
       {/* ── MODALE 4 : EXPORT & IMPRESSION OFFICIELLE ROOMING LIST ── */}
       {showPrintModal && (
-        <Modal isOpen={showPrintModal} onClose={() => setShowPrintModal(false)} title="Export Officiel — Rooming List">
+        <Modal open={showPrintModal} onClose={() => setShowPrintModal(false)} title="Export Officiel — Rooming List">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ background: '#F9FAFB', padding: 16, borderRadius: 10, border: '1px solid #E5E7EB' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
