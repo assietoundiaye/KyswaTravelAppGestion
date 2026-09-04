@@ -149,6 +149,25 @@ export default function RoomingPage() {
     }
   };
 
+  const handleOpenBatchModal = () => {
+    // Calculer le prochain numéro de chambre disponible
+    const existingNums = (roomingData?.chambres || [])
+      .map(c => parseInt(String(c.numero_chambre).replace(/\D/g, ''), 10))
+      .filter(n => !isNaN(n) && n > 0);
+
+    const nextStart = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 101;
+
+    setBatchForm({
+      prefixe: '',
+      startNumero: nextStart,
+      count: 5,
+      etage: '1',
+      typeChambre: 'Double',
+      genreChambre: 'HOMMES',
+    });
+    setShowBatchModal(true);
+  };
+
   // ── Actions : Génération en lot ─────────────────────────────────────────────
   const handleBatchCreate = async (e) => {
     e.preventDefault();
@@ -730,7 +749,7 @@ export default function RoomingPage() {
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button
-                onClick={() => setShowBatchModal(true)}
+                onClick={handleOpenBatchModal}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB',
@@ -828,7 +847,7 @@ export default function RoomingPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowBatchModal(true)}
+                  onClick={handleOpenBatchModal}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     background: 'white', color: '#374151', border: '1px solid #D1D5DB',
@@ -1069,27 +1088,38 @@ export default function RoomingPage() {
       {showBatchModal && (
         <Modal open={showBatchModal} onClose={() => setShowBatchModal(false)} title="Générer une série de chambres">
           <form onSubmit={handleBatchCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#166534' }}>
+              <div>✈️ Voyage : <strong>{currentDepart?.nom_depart || currentDepart?.nomReference || currentDepart?.nom || 'Départ en cours'}</strong></div>
+              <div style={{ marginTop: 3, fontSize: 12, color: '#15803D' }}>
+                📍 Ville : <strong>{selectedVille}</strong> — Hôtel : <strong>{roomingData?.nomHotelActuel || 'Non renseigné'}</strong>
+              </div>
+            </div>
+
             <p style={{ margin: 0, fontSize: 13, color: '#4B5563' }}>
-              Créez rapidement plusieurs chambres consécutives pour <strong>{selectedVille}</strong>.
+              Créez rapidement plusieurs chambres numérotées consécutivement pour <strong>{selectedVille}</strong>.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>
-                  Numéro de départ *
+                  Numéro de la 1ère chambre *
                 </label>
                 <input
                   type="number"
                   value={batchForm.startNumero}
                   onChange={e => setBatchForm(f => ({ ...f, startNumero: e.target.value }))}
+                  placeholder="Ex: 101"
                   required
                   style={{ width: '100%', height: 38, border: '1.5px solid #D1D5DB', borderRadius: 8, padding: '0 12px', fontSize: 13 }}
                 />
+                <span style={{ fontSize: 11, color: '#6B7280', marginTop: 2, display: 'block' }}>
+                  Ex : 101 → créera 101, 102, 103...
+                </span>
               </div>
 
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>
-                  Nombre de chambres *
+                  Nombre de chambres à créer *
                 </label>
                 <input
                   type="number"
@@ -1100,6 +1130,9 @@ export default function RoomingPage() {
                   required
                   style={{ width: '100%', height: 38, border: '1.5px solid #D1D5DB', borderRadius: 8, padding: '0 12px', fontSize: 13 }}
                 />
+                <span style={{ fontSize: 11, color: '#6B7280', marginTop: 2, display: 'block' }}>
+                  Quantité consécutive
+                </span>
               </div>
             </div>
 
@@ -1121,7 +1154,7 @@ export default function RoomingPage() {
 
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>
-                  Genre
+                  Genre assigné
                 </label>
                 <select
                   value={batchForm.genreChambre}
