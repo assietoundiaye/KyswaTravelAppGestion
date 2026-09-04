@@ -37,6 +37,17 @@ export default function ClientDetail() {
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrResult, setOcrResult] = useState(null);
 
+  const formatIsoDate = (val) => {
+    if (!val) return '';
+    try {
+      const d = new Date(val);
+      if (isNaN(d.getTime())) return '';
+      return d.toISOString().substring(0, 10);
+    } catch {
+      return '';
+    }
+  };
+
   const fetchClient = async () => {
     try {
       const res = await api.get(`/clients/${id}`);
@@ -50,21 +61,27 @@ export default function ClientDetail() {
         // Identité
         nom: c.nom || '',
         prenom: c.prenom || '',
+        genre: c.genre || c.sexe || 'HOMME',
         telephone: c.telephone || '',
         email: c.email || '',
         adresse: c.adresse || '',
-        ville: c.ville || '',
+        ville: c.ville || 'Dakar',
+        quartier: c.quartier || '',
+        nationalite: c.nationalite || 'Sénégalaise',
         // Champs camelCase attendus par le template (mappés depuis snake_case Supabase)
         numeroPasseport: c.n_passeport || c.numeroPasseport || '',
+        naturePasseport: c.nature_passeport || c.naturePasseport || 'Ordinaire',
         numeroCNI: c.numero_cni || c.numeroCNI || '',
         dateNaissance: c.date_naissance || c.dateNaissance || null,
-        lieuNaissance: c.lieuNaissance || '',
+        lieuNaissance: c.lieuNaissance || c.lieu_naissance || '',
         dateExpirationPasseport: c.expiration_passeport || c.dateExpirationPasseport || null,
-        niveauFidelite: c.niveau_fidelite || c.niveauFidelite || 'Nouveau',
+        niveauFidelite: c.niveau_fidelite || c.niveauFidelite || 'BRONZE',
         photoUrl: c.photo_url || c.photoUrl || null,
         passportUrl: c.passport_url || c.passportUrl || null,
         dateCreation: c.created_at || c.dateCreation || null,
         contactUrgence: c.contactUrgence || null,
+        profession: c.profession || '',
+        employeur: c.employeur || '',
         vip: c.vip || false,
         notes: c.notes || '',
       };
@@ -91,15 +108,23 @@ export default function ClientDetail() {
       setForm({
         nom: normalized.nom,
         prenom: normalized.prenom,
+        genre: (normalized.genre || 'HOMME').toUpperCase(),
         telephone: normalized.telephone,
         email: normalized.email,
         adresse: normalized.adresse,
+        ville: normalized.ville,
+        quartier: normalized.quartier,
+        nationalite: normalized.nationalite,
         numeroCNI: normalized.numeroCNI,
         numeroPasseport: normalized.numeroPasseport,
-        dateNaissance: normalized.dateNaissance ? normalized.dateNaissance.substring(0, 10) : '',
+        naturePasseport: normalized.naturePasseport,
+        dateNaissance: formatIsoDate(normalized.dateNaissance),
         lieuNaissance: normalized.lieuNaissance,
-        dateExpirationPasseport: normalized.dateExpirationPasseport ? normalized.dateExpirationPasseport.substring(0, 10) : '',
+        dateExpirationPasseport: formatIsoDate(normalized.dateExpirationPasseport),
         niveauFidelite: normalized.niveauFidelite,
+        profession: normalized.profession,
+        employeur: normalized.employeur,
+        notes: normalized.notes,
         contactUrgenceNom: normalized.contactUrgence?.nom || '',
         contactUrgenceTelephone: normalized.contactUrgence?.telephone || '',
         contactUrgenceRelation: normalized.contactUrgence?.relation || '',
@@ -113,12 +138,67 @@ export default function ClientDetail() {
 
   useEffect(() => { fetchClient(); }, [id]);
 
+  const handleOpenEdit = () => {
+    if (client) {
+      setForm({
+        nom: client.nom || '',
+        prenom: client.prenom || '',
+        genre: (client.genre || client.sexe || 'HOMME').toUpperCase(),
+        telephone: client.telephone || '',
+        email: client.email || '',
+        adresse: client.adresse || '',
+        ville: client.ville || 'Dakar',
+        quartier: client.quartier || '',
+        nationalite: client.nationalite || 'Sénégalaise',
+        numeroCNI: client.numeroCNI || '',
+        numeroPasseport: client.numeroPasseport || '',
+        naturePasseport: client.naturePasseport || 'Ordinaire',
+        dateNaissance: formatIsoDate(client.dateNaissance),
+        lieuNaissance: client.lieuNaissance || '',
+        dateExpirationPasseport: formatIsoDate(client.dateExpirationPasseport),
+        niveauFidelite: client.niveauFidelite || 'BRONZE',
+        profession: client.profession || '',
+        employeur: client.employeur || '',
+        notes: client.notes || '',
+        contactUrgenceNom: client.contactUrgence?.nom || '',
+        contactUrgenceTelephone: client.contactUrgence?.telephone || '',
+        contactUrgenceRelation: client.contactUrgence?.relation || '',
+      });
+    }
+    setShowEdit(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
       await api.patch(`/clients/${id}`, {
-        ...form,
+        nom: form.nom,
+        prenom: form.prenom,
+        genre: form.genre,
+        sexe: form.genre,
+        telephone: form.telephone,
+        email: form.email,
+        adresse: form.adresse,
+        ville: form.ville,
+        quartier: form.quartier,
+        nationalite: form.nationalite,
+        numeroPasseport: form.numeroPasseport,
+        n_passeport: form.numeroPasseport,
+        naturePasseport: form.naturePasseport,
+        nature_passeport: form.naturePasseport,
+        dateNaissance: form.dateNaissance || null,
+        date_naissance: form.dateNaissance || null,
+        lieuNaissance: form.lieuNaissance,
+        dateExpirationPasseport: form.dateExpirationPasseport || null,
+        expiration_passeport: form.dateExpirationPasseport || null,
+        numeroCNI: form.numeroCNI,
+        numero_cni: form.numeroCNI,
+        niveauFidelite: form.niveauFidelite,
+        niveau_fidelite: form.niveauFidelite,
+        profession: form.profession,
+        employeur: form.employeur,
+        notes: form.notes,
         contactUrgence: {
           nom: form.contactUrgenceNom,
           telephone: form.contactUrgenceTelephone,
@@ -129,7 +209,7 @@ export default function ClientDetail() {
       setShowEdit(false);
       toast('Client modifié avec succès');
     } catch (err) {
-      toast(err.response?.data?.message || 'Erreur', 'error');
+      toast(err.response?.data?.message || 'Erreur lors de la modification', 'error');
     } finally { setSaving(false); }
   };
 
@@ -255,21 +335,23 @@ export default function ClientDetail() {
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800, color: 'var(--text-main)' }}>
           {client.prenom} {client.nom}
         </h1>
-        <button onClick={() => setShowEdit(true)} className="btn-secondary" style={{ fontSize: 13 }}>
-          Modifier
-        </button>
-        <button
-          onClick={() => setConfirmDelete(true)}
-          style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '6px 14px', color: '#DC2626', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-        >
-          Supprimer
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={handleOpenEdit} className="btn-secondary" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+            ✏️ Modifier le client
+          </button>
+          <button
+            onClick={() => setConfirmDelete(true)}
+            style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '6px 14px', color: '#DC2626', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Supprimer
+          </button>
+        </div>
       </div>
 
       {/* Infos */}
       <div className="premium-card" style={{ marginBottom: 16 }}>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, marginBottom: 16, color: 'var(--text-main)' }}>
-          Informations
+          Informations du Client
         </h2>
         <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', marginBottom: 20 }}>
           {/* Photo de profil */}
@@ -285,7 +367,7 @@ export default function ClientDetail() {
                 <img src={client.photoUrl} alt="Photo client" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <div style={{ fontSize: 28 }}></div>
+                  <div style={{ fontSize: 28 }}>👤</div>
                   <p style={{ fontSize: 10, marginTop: 4 }}>Photo</p>
                 </div>
               )}
@@ -302,19 +384,36 @@ export default function ClientDetail() {
               }} className="photo-overlay">Modifier</div>
             </div>
           </label>
-          {/* Nom + fidélité */}
+          {/* Nom + fidélité + Sexe */}
           <div style={{ paddingTop: 4 }}>
-            <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-main)' }}>{client.prenom} {client.nom}</p>
-            <span style={{
-              display: 'inline-block', marginTop: 6,
-              background: { BRONZE: '#FEF3C7', ARGENT: '#F1F5F9', OR: '#FEF9C3', PLATINE: '#F0F9FF' }[client.niveauFidelite] || '#F3F4F6',
-              color: { BRONZE: '#92400E', ARGENT: '#475569', OR: '#854D0E', PLATINE: '#0369A1' }[client.niveauFidelite] || '#6B7280',
-              borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700,
-            }}>{client.niveauFidelite || 'BRONZE'}</span>
+            <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 6px' }}>
+              {client.prenom} {client.nom}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{
+                display: 'inline-block',
+                background: { BRONZE: '#FEF3C7', ARGENT: '#F1F5F9', OR: '#FEF9C3', PLATINE: '#F0F9FF' }[client.niveauFidelite] || '#F3F4F6',
+                color: { BRONZE: '#92400E', ARGENT: '#475569', OR: '#854D0E', PLATINE: '#0369A1' }[client.niveauFidelite] || '#6B7280',
+                borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700,
+              }}>{client.niveauFidelite || 'BRONZE'}</span>
+
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                background: (client.genre || client.sexe || '').toUpperCase().includes('F') ? '#FDF2F8' : '#EFF6FF',
+                color: (client.genre || client.sexe || '').toUpperCase().includes('F') ? '#BE185D' : '#1D4ED8',
+                border: `1px solid ${(client.genre || client.sexe || '').toUpperCase().includes('F') ? '#FBCFE8' : '#BFDBFE'}`,
+                borderRadius: 20, padding: '3px 12px', fontSize: 11, fontWeight: 700,
+              }}>
+                {(client.genre || client.sexe || '').toUpperCase().includes('F') ? '👩 Féminin (Femme)' : '👨 Masculin (Homme)'}
+              </span>
+            </div>
           </div>
         </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {[
+            ['Sexe / Genre', (client.genre || client.sexe || '').toUpperCase().includes('F') ? '👩 Féminin (Femme)' : '👨 Masculin (Homme)'],
+            ['Nationalité', client.nationalite || 'Sénégalaise'],
             ['Passeport', (
               <span>
                 {client.numeroPasseport || '—'}
@@ -330,12 +429,15 @@ export default function ClientDetail() {
                 )}
               </span>
             )],
+            ['Nature passeport', client.naturePasseport || 'Ordinaire'],
             ['CNI', client.numeroCNI || '—'],
             ['Téléphone', client.telephone || '—'],
             ['Email', client.email || '—'],
-            ['Adresse', client.adresse || '—'],
+            ['Adresse', client.adresse ? `${client.adresse}${client.ville ? ', ' + client.ville : ''}` : (client.ville || '—')],
             ['Date naissance', fmtDate(client.dateNaissance)],
+            ['Lieu naissance', client.lieuNaissance || '—'],
             ['Expiration passeport', fmtDate(client.dateExpirationPasseport)],
+            ['Profession', client.profession ? `${client.profession}${client.employeur ? ' (' + client.employeur + ')' : ''}` : '—'],
             ['Créé le', fmtDate(client.dateCreation)],
           ].map(([label, value]) => (
             <div key={label}>
@@ -695,94 +797,234 @@ export default function ClientDetail() {
       </Modal>
 
       {/* Modal modification client */}
-      <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Modifier le client">
+      <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Modifier le dossier client" size="lg">
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Identité */}
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Identité</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            {[['nom', 'Nom *'], ['prenom', 'Prénom *']].map(([k, l]) => (
-              <div key={k}>
-                <label className="input-label">{l}</label>
+          <div style={{ background: '#F9FAFB', padding: '14px 16px', borderRadius: 10, border: '1px solid #E5E7EB' }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
+              👤 Identité & Sexe
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <label className="input-label">Nom *</label>
                 <input
-                  value={form[k] || ''}
-                  onChange={e => setForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }))}
+                  value={form.nom || ''}
+                  onChange={e => setForm(f => ({ ...f, nom: e.target.value.toUpperCase() }))}
                   className="premium-input"
                   style={{ textTransform: 'uppercase' }}
                   required
                 />
               </div>
-            ))}
-            <div>
-              <label className="input-label">Date de naissance</label>
-              <input type="date" value={form.dateNaissance || ''} onChange={e => setForm(f => ({ ...f, dateNaissance: e.target.value }))} className="premium-input" />
-            </div>
-            <div>
-              <label className="input-label">Lieu de naissance</label>
-              <input value={form.lieuNaissance || ''} onChange={e => setForm(f => ({ ...f, lieuNaissance: e.target.value }))} className="premium-input" />
+              <div>
+                <label className="input-label">Prénom *</label>
+                <input
+                  value={form.prenom || ''}
+                  onChange={e => setForm(f => ({ ...f, prenom: e.target.value.toUpperCase() }))}
+                  className="premium-input"
+                  style={{ textTransform: 'uppercase' }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="input-label">Sexe / Genre *</label>
+                <select
+                  value={form.genre || 'HOMME'}
+                  onChange={e => setForm(f => ({ ...f, genre: e.target.value }))}
+                  className="premium-input"
+                  style={{ fontWeight: 700, color: (form.genre || '').includes('F') ? '#BE185D' : '#1D4ED8' }}
+                >
+                  <option value="HOMME">👨 Homme (Masculin)</option>
+                  <option value="FEMME">👩 Femme (Féminin)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="input-label">Nationalité</label>
+                <input
+                  value={form.nationalite || ''}
+                  onChange={e => setForm(f => ({ ...f, nationalite: e.target.value }))}
+                  className="premium-input"
+                  placeholder="Ex: Sénégalaise"
+                />
+              </div>
+
+              <div>
+                <label className="input-label">Date de naissance</label>
+                <input
+                  type="date"
+                  value={form.dateNaissance || ''}
+                  onChange={e => setForm(f => ({ ...f, dateNaissance: e.target.value }))}
+                  className="premium-input"
+                />
+              </div>
+              <div>
+                <label className="input-label">Lieu de naissance</label>
+                <input
+                  value={form.lieuNaissance || ''}
+                  onChange={e => setForm(f => ({ ...f, lieuNaissance: e.target.value }))}
+                  className="premium-input"
+                  placeholder="Ex: Dakar, Sénégal"
+                />
+              </div>
             </div>
           </div>
 
           {/* Contact */}
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Contact</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <label className="input-label">Téléphone</label>
-              <input value={form.telephone || ''} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))} className="premium-input" />
+          <div style={{ background: '#F9FAFB', padding: '14px 16px', borderRadius: 10, border: '1px solid #E5E7EB' }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
+              📞 Coordonnées
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <label className="input-label">Téléphone</label>
+                <input
+                  value={form.telephone || ''}
+                  onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
+                  className="premium-input"
+                  placeholder="+221 7X XXX XX XX"
+                />
+              </div>
+              <div>
+                <label className="input-label">Email</label>
+                <input
+                  type="email"
+                  value={form.email || ''}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  className="premium-input"
+                  placeholder="email@exemple.com"
+                />
+              </div>
+              <div>
+                <label className="input-label">Adresse</label>
+                <input
+                  value={form.adresse || ''}
+                  onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))}
+                  className="premium-input"
+                />
+              </div>
+              <div>
+                <label className="input-label">Ville</label>
+                <input
+                  value={form.ville || ''}
+                  onChange={e => setForm(f => ({ ...f, ville: e.target.value }))}
+                  className="premium-input"
+                />
+              </div>
             </div>
-            <div>
-              <label className="input-label">Email</label>
-              <input type="email" value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="premium-input" />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label className="input-label">Adresse</label>
-              <input value={form.adresse || ''} onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))} className="premium-input" />
+          </div>
+
+          {/* Documents & Fidélité */}
+          <div style={{ background: '#F9FAFB', padding: '14px 16px', borderRadius: 10, border: '1px solid #E5E7EB' }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
+              📄 Documents & Passeport
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <label className="input-label">N° Passeport</label>
+                <input
+                  value={form.numeroPasseport || ''}
+                  onChange={e => setForm(f => ({ ...f, numeroPasseport: e.target.value.toUpperCase() }))}
+                  className="premium-input"
+                  style={{ textTransform: 'uppercase' }}
+                  placeholder="Ex: A01234567"
+                />
+              </div>
+              <div>
+                <label className="input-label">Expiration passeport</label>
+                <input
+                  type="date"
+                  value={form.dateExpirationPasseport || ''}
+                  onChange={e => setForm(f => ({ ...f, dateExpirationPasseport: e.target.value }))}
+                  className="premium-input"
+                />
+              </div>
+              <div>
+                <label className="input-label">Nature passeport</label>
+                <select
+                  value={form.naturePasseport || 'Ordinaire'}
+                  onChange={e => setForm(f => ({ ...f, naturePasseport: e.target.value }))}
+                  className="premium-input"
+                >
+                  <option value="Ordinaire">Ordinaire</option>
+                  <option value="Diplomatique">Diplomatique</option>
+                  <option value="Service">Service</option>
+                  <option value="Spécial">Spécial</option>
+                </select>
+              </div>
+              <div>
+                <label className="input-label">N° CNI</label>
+                <input
+                  value={form.numeroCNI || ''}
+                  onChange={e => setForm(f => ({ ...f, numeroCNI: e.target.value }))}
+                  className="premium-input"
+                  placeholder="Numéro carte d'identité"
+                />
+              </div>
+              <div>
+                <label className="input-label">Niveau fidélité</label>
+                <select
+                  value={form.niveauFidelite || 'BRONZE'}
+                  onChange={e => setForm(f => ({ ...f, niveauFidelite: e.target.value }))}
+                  className="premium-input"
+                >
+                  {['BRONZE', 'ARGENT', 'OR', 'PLATINE'].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="input-label">Profession</label>
+                <input
+                  value={form.profession || ''}
+                  onChange={e => setForm(f => ({ ...f, profession: e.target.value }))}
+                  className="premium-input"
+                  placeholder="Ex: Commerçant, Enseignant..."
+                />
+              </div>
             </div>
           </div>
 
           {/* Contact d'urgence */}
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>  Contact en cas d'urgence</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label className="input-label">Nom complet du contact</label>
-              <input value={form.contactUrgenceNom || ''} onChange={e => setForm(f => ({ ...f, contactUrgenceNom: e.target.value }))} className="premium-input" placeholder="Ex: Adama Diop" />
-            </div>
-            <div>
-              <label className="input-label">Téléphone d'urgence</label>
-              <input value={form.contactUrgenceTelephone || ''} onChange={e => setForm(f => ({ ...f, contactUrgenceTelephone: e.target.value }))} className="premium-input" placeholder="Ex: +221 77..." />
-            </div>
-            <div>
-              <label className="input-label">Relation / Parenté</label>
-              <input value={form.contactUrgenceRelation || ''} onChange={e => setForm(f => ({ ...f, contactUrgenceRelation: e.target.value }))} className="premium-input" placeholder="Ex: Époux, Frère, etc." />
-            </div>
-          </div>
-
-          {/* Documents */}
-          <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Documents</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <label className="input-label">N° Passeport</label>
-              <input value={form.numeroPasseport || ''} onChange={e => setForm(f => ({ ...f, numeroPasseport: e.target.value }))} className="premium-input" placeholder="Laisser vide si non disponible" />
-            </div>
-            <div>
-              <label className="input-label">Expiration passeport</label>
-              <input type="date" value={form.dateExpirationPasseport || ''} onChange={e => setForm(f => ({ ...f, dateExpirationPasseport: e.target.value }))} className="premium-input" />
-            </div>
-            <div>
-              <label className="input-label">N° CNI</label>
-              <input value={form.numeroCNI || ''} onChange={e => setForm(f => ({ ...f, numeroCNI: e.target.value }))} className="premium-input" />
-            </div>
-            <div>
-              <label className="input-label">Niveau fidélité</label>
-              <select value={form.niveauFidelite || 'BRONZE'} onChange={e => setForm(f => ({ ...f, niveauFidelite: e.target.value }))} className="premium-input">
-                {['BRONZE', 'ARGENT', 'OR', 'PLATINE'].map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
+          <div style={{ background: '#F9FAFB', padding: '14px 16px', borderRadius: 10, border: '1px solid #E5E7EB' }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 12px' }}>
+              🆘 Contact en cas d'urgence
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="input-label">Nom complet du contact</label>
+                <input
+                  value={form.contactUrgenceNom || ''}
+                  onChange={e => setForm(f => ({ ...f, contactUrgenceNom: e.target.value }))}
+                  className="premium-input"
+                  placeholder="Ex: Adama Diop"
+                />
+              </div>
+              <div>
+                <label className="input-label">Téléphone d'urgence</label>
+                <input
+                  value={form.contactUrgenceTelephone || ''}
+                  onChange={e => setForm(f => ({ ...f, contactUrgenceTelephone: e.target.value }))}
+                  className="premium-input"
+                  placeholder="Ex: +221 77..."
+                />
+              </div>
+              <div>
+                <label className="input-label">Relation / Parenté</label>
+                <input
+                  value={form.contactUrgenceRelation || ''}
+                  onChange={e => setForm(f => ({ ...f, contactUrgenceRelation: e.target.value }))}
+                  className="premium-input"
+                  placeholder="Ex: Époux(se), Frère, Fils..."
+                />
+              </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button type="button" onClick={() => setShowEdit(false)} className="btn-secondary">Annuler</button>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 8 }}>
+            <button type="button" onClick={() => setShowEdit(false)} className="btn-secondary">
+              Annuler
+            </button>
             <button type="submit" disabled={saving} className="btn-primary">
-              {saving ? 'Enregistrement...' : 'Sauvegarder'}
+              {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
             </button>
           </div>
         </form>
