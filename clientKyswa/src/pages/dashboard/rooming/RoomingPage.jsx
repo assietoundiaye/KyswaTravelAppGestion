@@ -389,6 +389,8 @@ export default function RoomingPage() {
             { align: 'center' }
           );
         }
+      });
+
       const cleanDepart = departNom.replace(/[^a-z0-9]/gi, '_').toLowerCase();
       doc.save(`Rooming_List_${cleanDepart}_${selectedVille}.pdf`);
       toast('Rooming List téléchargée en PDF avec succès !');
