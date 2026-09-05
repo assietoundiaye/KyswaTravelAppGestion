@@ -453,6 +453,8 @@ export default function RoomingPage() {
       toast('Rooming List (Makkah & Médine) téléchargée en PDF avec succès !');
     } catch (err) {
       console.error('Erreur export PDF rooming:', err);
+      toast('Erreur lors de la génération du PDF', 'error');
+    }
   };
 
   const handleOpenBatchModal = () => {
