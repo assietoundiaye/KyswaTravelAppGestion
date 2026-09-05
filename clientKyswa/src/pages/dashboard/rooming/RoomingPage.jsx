@@ -163,17 +163,31 @@ export default function RoomingPage() {
     }
   };
 
-  // ── Actions : Export & Téléchargement PDF (Inspiré de la charte graphique des Factures) ───
+  // ── Actions : Export & Téléchargement PDF (Makkah & Médine - Charte Factures KYSWA) ───
   const handleExportPDF = async () => {
-    if (!selectedDepartId || !roomingData) {
+    if (!selectedDepartId) {
       return toast('Veuillez sélectionner un voyage avant d’exporter la Rooming List', 'error');
-    }
-    const chambres = roomingData.chambres || [];
-    if (chambres.length === 0) {
-      return toast('Aucune chambre à exporter pour ce séjour', 'error');
     }
 
     try {
+      toast('Préparation du document PDF (Makkah & Médine)...', 'info');
+
+      // Récupérer les données pour Makkah ET Médine en parallèle
+      const [resMakkah, resMedine] = await Promise.all([
+        api.get(`/rooming/depart/${selectedDepartId}`, { params: { ville: 'Makkah' } }).catch(() => null),
+        api.get(`/rooming/depart/${selectedDepartId}`, { params: { ville: 'Medine' } }).catch(() => null)
+      ]);
+
+      const makkahData = resMakkah?.data?.data || (selectedVille === 'Makkah' ? roomingData : null);
+      const medineData = resMedine?.data?.data || (selectedVille === 'Medine' ? roomingData : null);
+
+      const chambresMakkah = makkahData?.chambres || [];
+      const chambresMedine = medineData?.chambres || [];
+
+      if (chambresMakkah.length === 0 && chambresMedine.length === 0) {
+        return toast('Aucune chambre trouvée pour ce voyage (ni à Makkah, ni à Médine)', 'error');
+      }
+
       const { jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -182,221 +196,263 @@ export default function RoomingPage() {
       const H = doc.internal.pageSize.getHeight();
       const GREEN = [0, 103, 79];         // #00674F (Vert officiel KYSWA)
       const GRAY_LIGHT = [248, 250, 252]; // #F8FAFC
+      const GRAY_BORDER = [229, 231, 235];
       const GRAY_TEXT = [100, 100, 100];
       const BLACK = [30, 30, 30];
       const WHITE = [255, 255, 255];
 
       const currentDepart = departs.find(d => (d.id || d._id) === selectedDepartId);
       const departNom = currentDepart?.nom_depart || currentDepart?.nomReference || currentDepart?.nom || 'Départ';
-      const hotelNom = roomingData?.nomHotelActuel || 'Non renseigné';
-      const stats = roomingData?.stats || {};
+      const dDep = currentDepart?.date_depart ? new Date(currentDepart.date_depart).toLocaleDateString('fr-FR') : '—';
+      const dRet = currentDepart?.date_retour ? new Date(currentDepart.date_retour).toLocaleDateString('fr-FR') : '—';
       const dateStr = new Date().toLocaleDateString('fr-FR');
       const refNum = `RL-${String(selectedDepartId).replace(/-/g, '').slice(0, 8).toUpperCase()}`;
 
-      // Logo officiel Kyswa
-      const LOGO_B64 = 'data:image/jpeg;base64,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QqK/MZ/2ivi3+zB4vHgX44WsviXw65AsdViXE0kR6YPO8qBgqxyT0xX398PviX4K+KOhR+IfBOpxahauPmVTiWJv7siH5lP1H0rONVN26nDhMzpVpOmnaS3T3R3dFFFaHoBRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/9L9/KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACvH/ip8C/hx8YbBrXxhpaS3IUrHdx/JPHxgEMME49DXsFFKUU1ZmVahCpFwqK6fRn4E/Gz9kL4kfCS+vNRsbJ9f8OknybmDc8ka9vNXJxtHfocc18kHzUZ0Y7ShweuR7AV/VTLFFPE8E6CSNwVZWGQQeoINfBXxw/YT8E+Prm68S+BJf8AhHtYlBZoQA1rM/XJXqp+nFeJi8oTvKmfkHE3hjGTdfA7/Ar/AEZ+Jo2yhkQbX/iPdq+wv2e/2vfGXwW+y+GtWiXVvDO8bonY+bCGPLRsMnA/2uO2elfKnxM+FPjj4ReIJPDvi7TprGeMkRyup8qZB3jfOD+GRXBqyspZxgHrkV48KlSg9FqflmBxeOyuteMuWa3T/AK1P6bfh58T/AAT8UdHXWfBmpw38IA8xEcebEx/hdOoIr0Cv5m/hv8U/Hnwo1v8At3wXqjWMjY82NsPDMoPR1JAP1yDX7Qfs/fteenfFuytNE1y6i0vxOAA9tL/q5mHGYnPBz129RX0uEzCFVJdT+guF+OKGPXs5+7Ps+vofYlFFFegfcBRRRQAUUUUAFfKvxr/AGRPhf8AGR5dVlibQ9dkH/H7aAAuf+micB/zB96+qqKicFJWkjmxeDpV4OnWipLzPxD8ef8ABPv4xeH5zL4TmtfEdruKrsk8mXbyQWSTC59gW5744r541f8AZ2+N2ivLHqPg7UR5J5ZYGdcexXPTtg4r+kOiuJ5fScua2p8rX4Ky2pVdaVL3n6nL+CtN1zRvCelaV4luo77U7S3SKeeIEJI6jG4A89K6iiiu0+pSsrBRRRQMKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/0/38ooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/2Q==';
+      // Logo officiel Kyswa (819x304 ratio 2.69 -> w: 27, h: 10 mm)
+      const LOGO_B64 = 'data:image/jpeg;base64,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';
 
-      // ── 1. EN-TÊTE OFFICIEL KYSWA TRAVEL ───────────────────────────────────
-      doc.setFillColor(...GREEN);
-      doc.rect(0, 0, W, 2.5, 'F');
+      // ── Fonction de rendu d'une étape (Makkah ou Médine) ─────────────────────
+      const renderCitySection = (cityKey, cityTitle, data, isFirstSection) => {
+        if (!isFirstSection) {
+          doc.addPage();
+        }
 
-      // Logo officiel
-      try {
-        doc.addImage(LOGO_B64, 'JPEG', 10, 6, 18, 18);
-      } catch (err) {
-        console.warn('Logo Kyswa non chargé', err);
-      }
+        // 1. Barre supérieure verte
+        doc.setFillColor(...GREEN);
+        doc.rect(0, 0, W, 2.5, 'F');
 
-      // Raison sociale & Coordonnées agence (charte Factures)
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(...GREEN);
-      doc.text('KYSWA TRAVEL', 32, 13);
+        // Logo officiel Kyswa avec proportions respectées (27mm x 10mm)
+        try {
+          doc.addImage(LOGO_B64, 'JPEG', 10, 5.5, 27, 10);
+        } catch (err) {
+          console.warn('Logo Kyswa non chargé', err);
+        }
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(...GRAY_TEXT);
-      doc.text('Agence de voyages & Tourisme | Oumra · Hajj · Ziarra', 32, 17);
-      doc.text('+221 77 661 71 71  ·  +221 76 160 22 22  ·  Dakar', 32, 21);
+        // Raison sociale & Coordonnées agence (charte Factures)
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(...GREEN);
+        doc.text('KYSWA TRAVEL', 41, 11);
 
-      // Bloc Document Officiel & Référence à droite
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...GREEN);
-      doc.text('ROOMING LIST OFFICIEL', W - 10, 12.5, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(...GRAY_TEXT);
+        doc.text('Agence de voyages & Tourisme | Oumra · Hajj · Ziarra', 41, 15);
+        doc.text('+221 77 661 71 71  ·  +221 76 160 22 22  ·  Dakar', 41, 19);
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.5);
-      doc.setTextColor(...BLACK);
-      doc.text(`N° ${refNum}`, W - 10, 17, { align: 'right' });
+        // Bloc Document Officiel & Référence à droite
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...GREEN);
+        doc.text('ROOMING LIST OFFICIEL', W - 10, 11.5, { align: 'right' });
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(...GRAY_TEXT);
-      doc.text(`Date : ${dateStr}`, W - 10, 21, { align: 'right' });
-      doc.text(`Étape : ${selectedVille.toUpperCase()}`, W - 10, 25, { align: 'right' });
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(...BLACK);
+        doc.text(`N° ${refNum}`, W - 10, 16, { align: 'right' });
 
-      // Ligne de séparation verte
-      doc.setDrawColor(...GREEN);
-      doc.setLineWidth(0.8);
-      doc.line(10, 29, W - 10, 29);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...GRAY_TEXT);
+        doc.text(`Date : ${dateStr}`, W - 10, 20, { align: 'right' });
 
-      // ── 2. BLOCS D'INFORMATIONS STYLE FACTURE (VOYAGE & HÉBERGEMENT) ─────────
-      let y = 33;
-      const blockW = (W - 20 - 6) / 2;
-      const block1X = 10;
-      const block2X = 10 + blockW + 6;
-      const blockH = 24;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(...GREEN);
+        doc.text(`ÉTAPE : ${cityKey.toUpperCase()}`, W - 10, 24.5, { align: 'right' });
 
-      // Bloc 1 : Détails du Voyage
-      doc.setFillColor(...GRAY_LIGHT);
-      doc.rect(block1X, y, blockW, blockH, 'F');
-      doc.setDrawColor(229, 231, 235);
-      doc.setLineWidth(0.3);
-      doc.rect(block1X, y, blockW, blockH, 'S');
+        // Ligne de séparation verte
+        doc.setDrawColor(...GREEN);
+        doc.setLineWidth(0.8);
+        doc.line(10, 28, W - 10, 28);
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(...GREEN);
-      doc.text('DÉTAILS DU VOYAGE', block1X + 4, y + 5.5);
-      doc.setDrawColor(...GREEN);
-      doc.setLineWidth(0.5);
-      doc.line(block1X + 4, y + 7, block1X + 40, y + 7);
+        // 2. Blocs d'informations style facture (Voyage & Hébergement)
+        let y = 32;
+        const blockW = (W - 20 - 6) / 2;
+        const block1X = 10;
+        const block2X = 10 + blockW + 6;
+        const blockH = 24;
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(...BLACK);
-      let vy = y + 12;
-      doc.text(`Voyage : ${departNom}`, block1X + 4, vy); vy += 4;
-      doc.text(`Service : ${currentDepart?.service || 'Oumra / Hajj'}`, block1X + 4, vy); vy += 4;
-      const dDep = currentDepart?.date_depart ? new Date(currentDepart.date_depart).toLocaleDateString('fr-FR') : '—';
-      const dRet = currentDepart?.date_retour ? new Date(currentDepart.date_retour).toLocaleDateString('fr-FR') : '—';
-      doc.text(`Période : Du ${dDep} au ${dRet}`, block1X + 4, vy);
+        const hotelNom = data?.nomHotelActuel || data?.hotel?.nom || 'Non renseigné';
+        const chambres = data?.chambres || [];
+        const stats = data?.stats || {};
 
-      // Bloc 2 : Hébergement & Étape
-      doc.setFillColor(...GRAY_LIGHT);
-      doc.rect(block2X, y, blockW, blockH, 'F');
-      doc.setDrawColor(229, 231, 235);
-      doc.setLineWidth(0.3);
-      doc.rect(block2X, y, blockW, blockH, 'S');
+        // Bloc 1 : Détails du Voyage
+        doc.setFillColor(...GRAY_LIGHT);
+        doc.rect(block1X, y, blockW, blockH, 'F');
+        doc.setDrawColor(...GRAY_BORDER);
+        doc.setLineWidth(0.3);
+        doc.rect(block1X, y, blockW, blockH, 'S');
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(...GREEN);
-      doc.text('HÉBERGEMENT & ÉTAPE', block2X + 4, y + 5.5);
-      doc.setDrawColor(...GREEN);
-      doc.setLineWidth(0.5);
-      doc.line(block2X + 4, y + 7, block2X + 42, y + 7);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(...GREEN);
+        doc.text('DÉTAILS DU VOYAGE', block1X + 4, y + 5.5);
+        doc.setDrawColor(...GREEN);
+        doc.setLineWidth(0.5);
+        doc.line(block1X + 4, y + 7, block1X + 40, y + 7);
 
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(...BLACK);
-      let hy = y + 12;
-      doc.text(`Étape : ${selectedVille} (${selectedVille === 'Makkah' ? 'La Mecque' : 'Médine'})`, block2X + 4, hy); hy += 4;
-      doc.text(`Hôtel : ${hotelNom}`, block2X + 4, hy); hy += 4;
-      doc.text(`Total : ${stats.totalChambres || chambres.length} ch. — ${stats.totalPlacesOccupees || 0}/${stats.totalCapaciteLits || 0} lits`, block2X + 4, hy);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...BLACK);
+        let vy = y + 12;
+        doc.text(`Voyage : ${departNom}`, block1X + 4, vy); vy += 4;
+        doc.text(`Service : ${currentDepart?.service || 'Oumra / Hajj'}`, block1X + 4, vy); vy += 4;
+        doc.text(`Période : Du ${dDep} au ${dRet}`, block1X + 4, vy);
 
-      y += blockH + 4;
+        // Bloc 2 : Hébergement & Étape
+        doc.setFillColor(...GRAY_LIGHT);
+        doc.rect(block2X, y, blockW, blockH, 'F');
+        doc.setDrawColor(...GRAY_BORDER);
+        doc.setLineWidth(0.3);
+        doc.rect(block2X, y, blockW, blockH, 'S');
 
-      // ── 3. BANDEAU DE STATISTIQUES RÉCAPITULATIVES ──────────────────────────
-      doc.setFillColor(240, 253, 244);
-      doc.rect(10, y, W - 20, 8, 'F');
-      doc.setDrawColor(187, 247, 208);
-      doc.setLineWidth(0.4);
-      doc.rect(10, y, W - 20, 8, 'S');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(...GREEN);
+        doc.text('HÉBERGEMENT & ÉTAPE', block2X + 4, y + 5.5);
+        doc.setDrawColor(...GREEN);
+        doc.setLineWidth(0.5);
+        doc.line(block2X + 4, y + 7, block2X + 44, y + 7);
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.5);
-      doc.setTextColor(21, 128, 61);
-      doc.text(
-        `RÉCAPITULATIF : Chambres : ${stats.totalChambres || chambres.length}  |  Lits occupés : ${stats.totalPlacesOccupees || 0}/${stats.totalCapaciteLits || 0}  |  👨 Hommes : ${stats.comparatifGenre?.hommes?.places || 0}/${stats.comparatifGenre?.hommes?.inscrits || 0}  |  👩 Femmes : ${stats.comparatifGenre?.femmes?.placees || 0}/${stats.comparatifGenre?.femmes?.inscrites || 0}  |  Libres : ${(stats.totalCapaciteLits || 0) - (stats.totalPlacesOccupees || 0)}`,
-        W / 2,
-        y + 5.2,
-        { align: 'center' }
-      );
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...BLACK);
+        let hy = y + 12;
+        doc.text(`Étape : ${cityTitle}`, block2X + 4, hy); hy += 4;
+        doc.text(`Hôtel : ${hotelNom}`, block2X + 4, hy); hy += 4;
+        const totCh = stats.totalChambres || chambres.length;
+        const occLits = stats.totalPlacesOccupees || 0;
+        const capLits = stats.totalCapaciteLits || 0;
+        doc.text(`Total : ${totCh} ch. — ${occLits}/${capLits} lits`, block2X + 4, hy);
 
-      y += 12;
+        y += blockH + 4;
 
-      // ── 4. TABLEAU DES CHAMBRES ET PÈLERINS (FORMAT PORTRAIT) ──────────────
-      const tableRows = [];
-      chambres.forEach(ch => {
-        const occupants = ch.occupants || [];
-        const chNum = `Ch. ${ch.numero_chambre}${ch.etage ? ` (Ét. ${ch.etage})` : ''}`;
-        const typeStr = ch.type_chambre || 'Double';
-        const genreStr = ch.genre_chambre === 'HOMMES' ? '👨 Hommes' : (ch.genre_chambre === 'FEMMES' ? '👩 Femmes' : '👨‍👩‍👧 Famille');
+        // 3. Bandeau récapitulatif (Texte propre sans emojis pour encodage parfait)
+        doc.setFillColor(240, 253, 244);
+        doc.rect(10, y, W - 20, 8, 'F');
+        doc.setDrawColor(187, 247, 208);
+        doc.setLineWidth(0.4);
+        doc.rect(10, y, W - 20, 8, 'S');
 
-        if (occupants.length === 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(21, 128, 61);
+
+        const hPlaces = stats.comparatifGenre?.hommes?.places || 0;
+        const hInscrits = stats.comparatifGenre?.hommes?.inscrits || 0;
+        const fPlaces = stats.comparatifGenre?.femmes?.placees || 0;
+        const fInscrites = stats.comparatifGenre?.femmes?.inscrites || 0;
+        const litsLibres = (stats.totalCapaciteLits || 0) - (stats.totalPlacesOccupees || 0);
+
+        doc.text(
+          `RÉCAPITULATIF ${cityKey.toUpperCase()} : Chambres : ${totCh}  |  Lits occupés : ${occLits}/${capLits}  |  Hommes : ${hPlaces}/${hInscrits}  |  Femmes : ${fPlaces}/${fInscrites}  |  Lits libres : ${litsLibres >= 0 ? litsLibres : 0}`,
+          W / 2,
+          y + 5.2,
+          { align: 'center' }
+        );
+
+        y += 12;
+
+        // 4. Tableau des chambres et pèlerins
+        const tableRows = [];
+        if (chambres.length === 0) {
           tableRows.push([
-            chNum,
-            typeStr,
-            genreStr,
-            '— Chambre disponible (vide) —',
             '—',
             '—',
             '—',
-            `${ch.capacite || 2} lit(s) libre(s)`
+            '— Aucune chambre configurée pour cette étape —',
+            '—',
+            '—',
+            '—',
+            '—'
           ]);
         } else {
-          occupants.forEach((occ, idx) => {
-            const isF = (occ.genre === 'FEMME' || occ.genre === 'F');
-            const pelerinGenre = isF ? 'F' : 'M';
-            tableRows.push([
-              idx === 0 ? chNum : '',
-              idx === 0 ? typeStr : '',
-              idx === 0 ? genreStr : '',
-              `${(occ.nom || '').toUpperCase()} ${occ.prenom || ''}`.trim() || '—',
-              pelerinGenre,
-              occ.n_passeport || '—',
-              occ.telephone || '—',
-              occ.nationalite || occ.ville || 'Sénégalaise'
-            ]);
+          chambres.forEach(ch => {
+            const occupants = ch.occupants || [];
+            const chNum = `Ch. ${ch.numero_chambre}${ch.etage ? ` (Ét. ${ch.etage})` : ''}`;
+            const typeStr = ch.type_chambre || 'Double';
+            const genreStr = ch.genre_chambre === 'HOMMES' ? 'Hommes' : (ch.genre_chambre === 'FEMMES' ? 'Femmes' : 'Famille');
+
+            if (occupants.length === 0) {
+              tableRows.push([
+                chNum,
+                typeStr,
+                genreStr,
+                '— Chambre disponible (vide) —',
+                '—',
+                '—',
+                '—',
+                `${ch.capacite || 2} lit(s) libre(s)`
+              ]);
+            } else {
+              occupants.forEach((occ, idx) => {
+                const isF = (occ.genre === 'FEMME' || occ.genre === 'F');
+                const pelerinGenre = isF ? 'F' : 'M';
+                tableRows.push([
+                  idx === 0 ? chNum : '',
+                  idx === 0 ? typeStr : '',
+                  idx === 0 ? genreStr : '',
+                  `${(occ.nom || '').toUpperCase()} ${occ.prenom || ''}`.trim() || '—',
+                  pelerinGenre,
+                  occ.n_passeport || '—',
+                  occ.telephone || '—',
+                  occ.nationalite || occ.ville || 'Sénégalaise'
+                ]);
+              });
+            }
           });
         }
-      });
 
-      autoTable(doc, {
-        startY: y,
-        head: [['N° Chambre', 'Type', 'Genre Chambre', 'Nom & Prénom du Pèlerin', 'Sexe', 'N° Passeport', 'Téléphone', 'Nationalité / Ville']],
-        body: tableRows,
-        styles: { fontSize: 7.5, cellPadding: 2, textColor: [...BLACK], font: 'helvetica' },
-        headStyles: { fillColor: [...GREEN], textColor: 255, fontStyle: 'bold', fontSize: 7.8 },
-        alternateRowStyles: { fillColor: [248, 250, 249] },
-        columnStyles: {
-          0: { fontStyle: 'bold', cellWidth: 23 },
-          1: { cellWidth: 19 },
-          2: { cellWidth: 22 },
-          3: { fontStyle: 'bold', cellWidth: 46 },
-          4: { cellWidth: 10, halign: 'center' },
-          5: { cellWidth: 26, font: 'courier' },
-          6: { cellWidth: 24 },
-          7: { cellWidth: 20 },
-        },
-        margin: { left: 10, right: 10, bottom: 14 },
-        didDrawPage: () => {
-          // Pied de page officiel KYSWA TRAVEL
-          const pageH = doc.internal.pageSize.getHeight();
-          const pageW = doc.internal.pageSize.getWidth();
-          doc.setFillColor(...GREEN);
-          doc.rect(0, pageH - 9, pageW, 9, 'F');
-          doc.setFont('helvetica', 'italic');
-          doc.setFontSize(7.5);
-          doc.setTextColor(...WHITE);
-          doc.text(
-            `KYSWA TRAVEL  —  Document officiel d'attribution et de répartition des chambres  —  Page ${doc.internal.getNumberOfPages()}`,
-            pageW / 2,
-            pageH - 3.5,
-            { align: 'center' }
-          );
-        }
-      });
+        autoTable(doc, {
+          startY: y,
+          head: [['N° Chambre', 'Type', 'Genre Chambre', 'Nom & Prénom du Pèlerin', 'Sexe', 'N° Passeport', 'Téléphone', 'Nationalité / Ville']],
+          body: tableRows,
+          styles: { fontSize: 7.5, cellPadding: 2, textColor: [...BLACK], font: 'helvetica' },
+          headStyles: { fillColor: [...GREEN], textColor: 255, fontStyle: 'bold', fontSize: 7.8 },
+          alternateRowStyles: { fillColor: [248, 250, 249] },
+          columnStyles: {
+            0: { fontStyle: 'bold', cellWidth: 23 },
+            1: { cellWidth: 19 },
+            2: { cellWidth: 22 },
+            3: { fontStyle: 'bold', cellWidth: 46 },
+            4: { cellWidth: 10, halign: 'center' },
+            5: { cellWidth: 26, font: 'courier' },
+            6: { cellWidth: 24 },
+            7: { cellWidth: 20 },
+          },
+          margin: { left: 10, right: 10, bottom: 14 }
+        });
+      };
+
+      // Rendu Étape 1 : Makkah (La Mecque)
+      renderCitySection('Makkah', 'Makkah (La Mecque)', makkahData, true);
+
+      // Rendu Étape 2 : Médine (Al Madinah) sur une nouvelle page dédiée
+      renderCitySection('Medine', 'Médine (Al Madinah)', medineData, false);
+
+      // ── Pagination et pied de page officiel sur toutes les pages ────────────
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFillColor(...GREEN);
+        doc.rect(0, H - 9, W, 9, 'F');
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...WHITE);
+        doc.text(
+          `KYSWA TRAVEL  —  Document officiel d'attribution et de répartition des chambres  —  Page ${i} / ${totalPages}`,
+          W / 2,
+          H - 3.5,
+          { align: 'center' }
+        );
+      }
 
       const cleanDepart = departNom.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      doc.save(`Rooming_List_${cleanDepart}_${selectedVille}.pdf`);
-      toast('Rooming List téléchargée en PDF avec succès !');
+      doc.save(`Rooming_List_${cleanDepart}_Makkah_Medine.pdf`);
+      toast('Rooming List (Makkah & Médine) téléchargée en PDF avec succès !');
     } catch (err) {
       console.error('Erreur export PDF rooming:', err);
-      toast('Erreur lors de la génération du PDF', 'error');
-    }
   };
 
   const handleOpenBatchModal = () => {
