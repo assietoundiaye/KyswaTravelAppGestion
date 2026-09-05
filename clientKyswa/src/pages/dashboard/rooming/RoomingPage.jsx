@@ -389,27 +389,6 @@ export default function RoomingPage() {
             { align: 'center' }
           );
         }
-      });
-
-      // ── 5. BLOC SIGNATURES EN FIN DE DOCUMENT (STYLE FACTURE) ────────────────
-      const finalY = doc.lastAutoTable.finalY + 8;
-      if (finalY < H - 42) {
-        const colW = (W - 28 - 20) / 2;
-        const col1X = 14;
-        const col2X = 14 + colW + 20;
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8.5);
-        doc.setTextColor(...GREEN);
-        doc.text('Signature & Cachet Agence Kyswa Travel', col1X + colW / 2, finalY, { align: 'center' });
-        doc.text('Responsable Hébergement / Guide', col2X + colW / 2, finalY, { align: 'center' });
-
-        doc.setDrawColor(...GRAY_TEXT);
-        doc.setLineWidth(0.3);
-        doc.rect(col1X, finalY + 3, colW, 20);
-        doc.rect(col2X, finalY + 3, colW, 20);
-      }
-
       const cleanDepart = departNom.replace(/[^a-z0-9]/gi, '_').toLowerCase();
       doc.save(`Rooming_List_${cleanDepart}_${selectedVille}.pdf`);
       toast('Rooming List téléchargée en PDF avec succès !');
